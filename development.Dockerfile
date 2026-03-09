@@ -7,7 +7,7 @@ RUN apt update && apt install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
-WORKDIR /usr/src/messages
+WORKDIR /usr/src/projects
 
 # Copy package files separately for better caching
 COPY package.json package-lock.json ./
@@ -19,11 +19,11 @@ RUN npm ci
 COPY . .
 
 # Create non-root user
-RUN useradd --system --home /usr/src/messages --shell /usr/sbin/nologin messages
+RUN useradd --system --home /usr/src/projects --shell /usr/sbin/nologin projects
 
 # Set permissions
-RUN chown -R messages:messages /usr/src/messages
-USER messages
+RUN chown -R projects:projects /usr/src/projects
+USER projects
 
 # Set environment variables
 ENV NODE_ENV=production

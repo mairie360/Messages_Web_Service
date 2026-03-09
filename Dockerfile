@@ -1,54 +1,34 @@
+# --- Stage 1: Build ---
 ARG NODE_VERSION=23.10.0
 FROM node:${NODE_VERSION}-bookworm-slim AS builder
+WORKDIR /app
 
-# Install builder dependencies
-RUN apt update && rm -rf /var/lib/apt/lists/*
-
-# Set working directory
-WORKDIR /usr/src/messages
-
-# Copy package files separately for better caching
+# Optimisation du cache pour les dépendances
 COPY package.json package-lock.json ./
-
-# Install dependencies
 RUN npm ci
 
-# Copy source code
+# Copie du code source et build
 COPY . .
-
-# Build the project
 RUN npm run build
 
-
+# --- Stage 2: Runner ---
 FROM node:${NODE_VERSION}-bookworm-slim AS runner
+WORKDIR /app
 
-# Install runner dependencies
-RUN apt update && apt install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Sécurité & Healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system --gid 1001 nodejs \
+    && useradd --system --uid 1001 nextjs
 
-# Set working directory
-WORKDIR /usr/src/messages
+# On copie le dossier standalone qui contient déjà son propre node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# Copy only the necessary built files from builder
-COPY --from=builder /usr/src/messages/.next .next
-COPY --from=builder /usr/src/messages/package.json package.json
-COPY --from=builder /usr/src/messages/package-lock.json package-lock.json
-
-# Install only production dependencies
-RUN npm ci --omit=dev
-
-# Create non-root user
-RUN useradd --system --home /usr/src/messages --shell /usr/sbin/nologin messages
-
-# Set permissions
-RUN chown -R messages:messages /usr/src/messages
-USER messages
-
-# Set environment variables
+USER nextjs
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
-ENV PORT=3000
+ENV PORT=5003
 
-# Start the app
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]
