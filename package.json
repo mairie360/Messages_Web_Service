@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@mairie360/lib-components": "0.1.12",
     "daisyui": "^5.0.0",
     "next": "15.2.1",
     "react": "^19.0.0",
