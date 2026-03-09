@@ -3,11 +3,17 @@ ARG NODE_VERSION=23.10.0
 FROM node:${NODE_VERSION}-bookworm-slim AS builder
 WORKDIR /app
 
-# Optimisation du cache pour les dépendances
-COPY package.json package-lock.json ./
-RUN npm ci
+# ⚠️ OBLIGATOIRE : On déclare qu'on attend un token
+ARG NODE_AUTH_TOKEN
 
-# Copie du code source et build
+COPY package.json package-lock.json ./
+
+# ⚠️ OBLIGATOIRE : On crée le fichier de config pour npm avec le token, on installe, on efface
+RUN echo "@mairie360:registry=https://npm.pkg.github.com" > .npmrc && \
+    echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc && \
+    npm ci && \
+    rm .npmrc
+
 COPY . .
 RUN npm run build
 
