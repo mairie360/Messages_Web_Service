@@ -36,80 +36,171 @@ x-service: &service-template
     <<: *healthcheck
 
 services:
-  # postgres:
-  #   image: postgres:17.4-bookworm
-  #   restart: always
-  #   environment:
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=postgres
-  #   expose:
-  #     - "5432"
-  #   volumes:
-  #     - postgres-data:/var/lib/postgresql/data
-  #   networks:
-  #     - backend
-  #   healthcheck:
-  #     test: ["CMD", "pg_isready", "-q", "-d", "postgres", "-U", "postgres"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  postgres:
+    image: ghcr.io/mairie360/database:dev-latest
+    restart: always
+    container_name: mairie360-db-message-front #change front name
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: mairie_360_database
+    expose:
+      - "5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  # redis:
-  #   image: redis:7.4.2-bookworm
-  #   restart: always
-  #   expose:
-  #     - "6379"
-  #   volumes:
-  #     - redis-data:/data
-  #   networks:
-  #     - backend
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  liquibase:
+    image: ghcr.io/mairie360/liquibase-migrations:dev-latest
+    container_name: mairie360-liquibase-message-front #change front name
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *common-env
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://postgres:5432/mairie_360_database
+      LIQUIBASE_COMMAND_USERNAME: ${DB_USER:-postgres}
+      LIQUIBASE_COMMAND_PASSWORD: ${DB_PASSWORD:-password}
+      LIQUIBASE_SEARCH_PATH: /liquibase/changelog
+    command: >
+      --changelog-file=changelog.xml
+      update
+    networks:
+      - backend
+
+  redis:
+    image: redis:7.4.2-bookworm
+    container_name: mairie360-redis-message-front #change front name
+    restart: always
+    expose:
+      - "6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # core:
-  #   <<: *service-template
-  #   image: ghcr.io/mairie360/core:latest
+  #   container_name: core-message-front-developpement
+  #   image: ghcr.io/mairie360/core-api:dev-1644fa7
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - backend
+  #   dns:
+  #     - 8.8.8.8
+  #     - 1.1.1.1
   #   environment:
-  #     <<: *common-env
-  #     POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/core
+  #     HOST: "0.0.0.0"
+  #     PORT: 3000
+  #     REDIS_URL: redis://redis:6379
+  #     DB_TYPE: postgres
+  #     DB_NAME: mairie_360_database
+  #     DB_USER: postgres
+  #     DB_HOST: postgres
+  #     DB_PASSWORD: password
+  #     DB_PORT: 5432
+  #     PUBLIC_URL: http://core.development.mairie360.fr
+  #     JWT_SECRET: b"secret"
+  #     JWT_TIMEOUT: 3600
   #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
+  #     liquibase:
+  #       condition: service_completed_successfully
   #     redis:
   #       condition: service_healthy
+      
+  message-api:
+    container_name: message-api-front-message-developpement
+    image: ghcr.io/mairie360/message-api:dev-latest
+    ports:
+      - "3003:3003"
+    networks:
+      - backend
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    environment:
+      HOST: "0.0.0.0"
+      PORT: 3003
+      REDIS_URL: redis://redis:6379
+      DB_TYPE: postgres
+      DB_NAME: mairie_360_database
+      DB_USER: postgres
+      DB_HOST: postgres
+      DB_PASSWORD: password
+      DB_PORT: 5432
+      PUBLIC_URL: http://core.development.mairie360.fr
+      JWT_SECRET: b"secret"
+      JWT_TIMEOUT: 3600
+    depends_on:
+      liquibase:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
   
-  projects:
-    <<: *service-template
+  #add other apis if needed
+
+  bff-message:
+    container_name: bff-message-message-front
+    image: ghcr.io/mairie360/bff-message:dev-latest
+    ports:
+      - "4003:4003"
+    networks:
+      - backend
+      - frontend
+    environment:
+      CORE_API_URL: "core" 
+      CORE_API_PORT: 3000
+      MESSAGE_API_URL: "message-api" 
+      MESSAGE_API_PORT: 3003
+      PORT: 4003
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  
+  message-front: # Ton application React
+    container_name: message-front-developpement
     build:
       context: .
       dockerfile: development.Dockerfile
+      secrets:
+        - NODE_AUTH_TOKEN
+    ports:
+      - "5003:3000" # On map le 3000 interne sur 5003 pour éviter le conflit avec 'core'
     develop:
       watch:
         - action: sync
           path: ./src
-          target: /usr/src/projects/src
+          target: /app/src
         - action: rebuild
-          path: package*.json
+          path: package.json
+    secrets:
+      - NODE_AUTH_TOKEN
     environment:
       <<: *common-env
-      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/projects
-    # depends_on:
-    #   <<: *depends-on
-
-  nginx:
-    image: nginx:1.27.4-bookworm
-    restart: always
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-    ports:
-      - "80:80"
+      PORT: 3000
+      # Force React/Vite à surveiller les fichiers correctement dans Docker
+      WATCHPACK_POLLING: "true" 
+      CHOKIDAR_USEPOLLING: "true"
     networks:
       - frontend
-    depends_on:
-      # core:
-      #   condition: service_healthy
-      projects:
-        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      retries: 3
+        
+secrets:
+  NODE_AUTH_TOKEN:
+    environment: NODE_AUTH_TOKEN
