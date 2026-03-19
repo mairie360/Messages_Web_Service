@@ -9,9 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@mairie360/bff-message-openapi": "0.2.1",
     "@mairie360/lib-components": "0.1.12",
     "daisyui": "^5.0.0",
     "next": "15.2.1",
+    "openapi-fetch": "^0.17.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
