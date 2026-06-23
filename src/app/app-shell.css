@@ -1,0 +1,77 @@
+.messages-app-root {
+  min-height: 100vh;
+  background: #f5f3f0;
+  color: #172033;
+}
+
+.messages-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.messages-desktop-sidebar {
+  display: none;
+  flex-shrink: 0;
+}
+
+.messages-mobile-sidebar {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+}
+
+.messages-mobile-sidebar-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 45%);
+}
+
+.messages-mobile-sidebar-panel {
+  position: relative;
+  z-index: 10;
+}
+
+.messages-content {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.messages-main {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  background: #f5f3f0;
+  padding: 24px 16px;
+}
+
+.messages-main-inner {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  max-width: 1534px;
+  margin: 0 auto;
+}
+
+.messages-module {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .messages-main {
+    padding: 32px 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .messages-desktop-sidebar {
+    display: flex;
+  }
+
+  .messages-mobile-sidebar {
+    display: none;
+  }
+}
