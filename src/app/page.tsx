@@ -1,223 +1,318 @@
 'use client';
 
 import { useState } from "react";
-import Image from "next/image";
+import type { ComponentProps } from "react";
+import { Footer, Header, Messaging, Sidebar } from "@mairie360/lib-components";
+
+type MessagingProps = ComponentProps<typeof Messaging>;
+type MessagingConversation = NonNullable<MessagingProps["conversations"]>[number];
+type MessagingMessage = NonNullable<MessagingProps["messages"]>[number];
+type MessagingContactId = MessagingConversation["id"];
+type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
+type NewMessagePayload = Parameters<NonNullable<MessagingProps["onNewMessageSend"]>>[0];
+type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]>>[0];
+
+const currentUserId = "admin-systeme";
+
+const initialConversations: MessagingConversation[] = [
+  {
+    id: "marie-dubois",
+    name: "Marie Dubois",
+    department: "Finances",
+    initials: "MD",
+    presence: "online",
+    lastMessage: "Le budget a été validé pour le projet",
+    lastMessageAt: "14:32",
+    unreadCount: 2,
+  },
+  {
+    id: "pierre-martin",
+    name: "Pierre Martin",
+    department: "Urbanisme",
+    initials: "PM",
+    presence: "offline",
+    lastMessage: "Pouvez-vous envoyer le rapport ?",
+    lastMessageAt: "13:45",
+  },
+  {
+    id: "sophie-leroy",
+    name: "Sophie Leroy",
+    department: "Culture",
+    initials: "SL",
+    presence: "online",
+    lastMessage: "Réunion reportée à demain",
+    lastMessageAt: "12:18",
+    unreadCount: 1,
+  },
+  {
+    id: "thomas-bernard",
+    name: "Thomas Bernard",
+    department: "Travaux",
+    initials: "TB",
+    presence: "offline",
+    lastMessage: "Documents envoyés",
+    lastMessageAt: "11:30",
+  },
+  {
+    id: "equipe-direction",
+    name: "Équipe Direction",
+    department: "Groupe",
+    kind: "group",
+    initials: "ÉD",
+    presence: "online",
+    lastMessage: "Nouvelle procédure disponible",
+    lastMessageAt: "Hier",
+    unreadCount: 3,
+  },
+];
+
+const initialMessages: MessagingMessage[] = [
+  {
+    id: "message-1",
+    conversationId: "marie-dubois",
+    content: "Bonjour Jean, j’ai examiné le dossier du projet de rénovation.",
+    sentAt: "14:25",
+    direction: "incoming",
+    authorId: "marie-dubois",
+    authorName: "Marie Dubois",
+  },
+  {
+    id: "message-2",
+    conversationId: "marie-dubois",
+    content: "Parfait, quelles sont vos conclusions ?",
+    sentAt: "14:27",
+    direction: "outgoing",
+    authorId: currentUserId,
+    authorName: "Admin Système",
+  },
+  {
+    id: "message-3",
+    conversationId: "marie-dubois",
+    content: "Le budget a été validé pour le projet. Nous pouvons commencer la phase suivante.",
+    sentAt: "14:32",
+    direction: "incoming",
+    authorId: "marie-dubois",
+    authorName: "Marie Dubois",
+  },
+  {
+    id: "message-4",
+    conversationId: "pierre-martin",
+    content: "Bonjour, pouvez-vous envoyer le rapport d’urbanisme ?",
+    sentAt: "13:45",
+    direction: "incoming",
+    authorId: "pierre-martin",
+    authorName: "Pierre Martin",
+  },
+  {
+    id: "message-5",
+    conversationId: "sophie-leroy",
+    content: "La réunion culture est reportée à demain matin.",
+    sentAt: "12:18",
+    direction: "incoming",
+    authorId: "sophie-leroy",
+    authorName: "Sophie Leroy",
+  },
+  {
+    id: "message-6",
+    conversationId: "thomas-bernard",
+    content: "Les documents techniques ont bien été envoyés.",
+    sentAt: "11:30",
+    direction: "incoming",
+    authorId: "thomas-bernard",
+    authorName: "Thomas Bernard",
+  },
+  {
+    id: "message-7",
+    conversationId: "equipe-direction",
+    content: "Une nouvelle procédure est disponible pour validation.",
+    sentAt: "Hier",
+    direction: "incoming",
+    authorId: "equipe-direction",
+    authorName: "Équipe Direction",
+  },
+];
+
+const adminUser = {
+  name: "Admin Système",
+  email: "admin@mairie360.fr",
+  role: "admin",
+};
+
+const formatMessageTime = () =>
+  new Intl.DateTimeFormat("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date());
+
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
 export default function Page() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeConversationId, setActiveConversationId] =
+    useState<MessagingContactId>("marie-dubois");
+  const [conversations, setConversations] = useState(initialConversations);
+  const [messages, setMessages] = useState(initialMessages);
 
-    interface Message {
-      sender: string;
-      text: string;
-      timestamp: string;
+  const updateConversationPreview = (
+    conversationId: MessagingContactId,
+    content: SendMessagePayload["content"],
+    sentAt: string,
+  ) => {
+    setConversations((currentConversations) =>
+      currentConversations.map((conversation) =>
+        conversation.id === conversationId
+          ? {
+              ...conversation,
+              lastMessage: content,
+              lastMessageAt: sentAt,
+              unreadCount: 0,
+            }
+          : conversation,
+      ),
+    );
+  };
+
+  const handleSendMessage = (payload: SendMessagePayload) => {
+    if (!payload.conversationId || payload.content.trim().length === 0) {
+      return;
     }
 
-  interface Conversation {
-      id: number;
-      user: string;
-      image: string;
-      messages: Message[];
-    }
-  
-    
-    const [conversations, setConversations] = useState<Conversation[]>([
+    const sentAt = formatMessageTime();
+
+    setMessages((currentMessages) => [
+      ...currentMessages,
       {
-        id: 1,
-        user: "alice.dupont",
-        image: "https://randomuser.me/api/portraits/women/1.jpg",
-        messages: [
-          { sender: "alice.dupont", text: "Hey Evan ! Tu viens toujours à la soirée ce soir ? 🎉", timestamp: "2024-03-11T18:30:00Z" },
-          { sender: "evan", text: "Yes, je passe vers 21h !", timestamp: "2024-03-11T18:32:00Z" },
-        ],
-      },
-      {
-        id: 2,
-        user: "pierre.martin",
-        image: "https://randomuser.me/api/portraits/men/2.jpg",
-        messages: [
-          { sender: "pierre.martin", text: "T’as vu le match hier ? Incroyable ! ⚽🔥", timestamp: "2024-03-10T21:15:00Z" },
-          { sender: "evan", text: "Grave ! Quelle fin de match 😱", timestamp: "2024-03-10T21:17:00Z" },
-        ],
-      },
-      {
-        id: 3,
-        user: "lea_bdx",
-        image: "https://randomuser.me/api/portraits/women/3.jpg",
-        messages: [
-          { sender: "lea_bdx", text: "J’ai une surprise pour toi 😏", timestamp: "2024-03-09T15:00:00Z" },
-          { sender: "evan", text: "Ah ouais ? J’ai hâte de voir ça !", timestamp: "2024-03-09T15:05:00Z" },
-        ],
-      },
-      {
-        id: 4,
-        user: "max.dupont",
-        image: "https://randomuser.me/api/portraits/men/4.jpg",
-        messages: [
-          { sender: "max.dupont", text: "Passe chez moi demain, faut qu’on parle !", timestamp: "2024-03-08T12:45:00Z" },
-          { sender: "evan", text: "Ok, 16h ça te va ?", timestamp: "2024-03-08T12:47:00Z" },
-        ],
-      },
-      {
-        id: 5,
-        user: "mathilde.lefevre",
-        image: "https://randomuser.me/api/portraits/women/5.jpg",
-        messages: [
-          { sender: "evan", text: "T’as vu cette vidéo ? 😂", timestamp: "2024-03-07T23:10:00Z" },
-          { sender: "mathilde.lefevre", text: "Haha t’es trop drôle 😂", timestamp: "2024-03-07T23:20:00Z" },
-        ],
-      },
-      {
-        id: 6,
-        user: "startup.io",
-        image: "https://randomuser.me/api/portraits/men/6.jpg",
-        messages: [
-          { sender: "startup.io", text: "Bonjour Evan, nous avons bien reçu votre demande. Nous reviendrons vers vous rapidement.", timestamp: "2024-03-06T14:10:00Z" },
-          { sender: "evan", text: "Merci, j’attends votre retour avec impatience.", timestamp: "2024-03-06T14:12:00Z" },
-        ],
-      },
-      {
-        id: 7,
-        user: "jules_music",
-        image: "https://randomuser.me/api/portraits/men/7.jpg",
-        messages: [
-          { sender: "jules_music", text: "Écoute ce son, c’est une pépite 🎶", timestamp: "2024-03-05T22:00:00Z" },
-          { sender: "evan", text: "Wow, j’adore ! Merci pour la reco 🎧", timestamp: "2024-03-05T22:05:00Z" },
-        ],
-      },
-      {
-        id: 8,
-        user: "julien.bernard",
-        image: "https://randomuser.me/api/portraits/men/8.jpg",
-        messages: [
-          { sender: "julien.bernard", text: "J’ai bossé sur le projet, check tes mails !", timestamp: "2024-03-04T09:30:00Z" },
-          { sender: "evan", text: "Top, je regarde ça et je te fais un retour 👍", timestamp: "2024-03-04T09:35:00Z" },
-        ],
-      },
-      {
-        id: 9,
-        user: "emma_lifestyle",
-        image: "https://randomuser.me/api/portraits/women/9.jpg",
-        messages: [
-          { sender: "emma_lifestyle", text: "J’ai posté de nouvelles photos, dis-moi ce que t’en penses 📸✨", timestamp: "2024-03-03T18:40:00Z" },
-          { sender: "evan", text: "Elles sont super belles ! T’as trop de talent ! 👏", timestamp: "2024-03-03T18:45:00Z" },
-        ],
-      },
-      {
-        id: 10,
-        user: "marc.durand",
-        image: "https://randomuser.me/api/portraits/men/10.jpg",
-        messages: [
-          { sender: "marc.durand", text: "Réunion confirmée pour vendredi, 14h.", timestamp: "2024-03-02T15:50:00Z" },
-          { sender: "evan", text: "Parfait, à vendredi alors.", timestamp: "2024-03-02T15:52:00Z" },
-        ],
+        id: `local-message-${Date.now()}`,
+        conversationId: payload.conversationId,
+        content: payload.content,
+        attachments: payload.attachments,
+        mentions: payload.mentions,
+        sentAt,
+        direction: "outgoing",
+        authorId: currentUserId,
+        authorName: adminUser.name,
       },
     ]);
-    
-    
-    
-  
-    const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-    const [newMessage, setNewMessage] = useState("");
-  
-    const sendMessage = () => {
-      if (!selectedConversation || newMessage.trim() === "") return;
-  
-      const updatedConversations = conversations.map((conv) => {
-        if (conv.id === selectedConversation.id) {
-          return {
-            ...conv,
-            messages: [
-              ...conv.messages,
-              {
-                sender: "evan",
-                text: newMessage,
-                timestamp: new Date().toISOString(),
-              },
-            ],
-          };
-        }
-        return conv;
-      });
-  
-      setConversations(updatedConversations);
-      setSelectedConversation(updatedConversations.find((conv) => conv.id === selectedConversation.id) || null);
-      setNewMessage("");
+    updateConversationPreview(payload.conversationId, payload.content, sentAt);
+  };
+
+  const handleNewMessageSend = (payload: NewMessagePayload) => {
+    const sentAt = formatMessageTime();
+
+    setMessages((currentMessages) => [
+      ...currentMessages,
+      {
+        id: `direct-message-${Date.now()}`,
+        conversationId: payload.recipientId,
+        content: payload.message,
+        sentAt,
+        direction: "outgoing",
+        authorId: currentUserId,
+        authorName: adminUser.name,
+      },
+    ]);
+    updateConversationPreview(payload.recipientId, payload.message, sentAt);
+    setActiveConversationId(payload.recipientId);
+  };
+
+  const handleCreateGroup = (payload: CreateGroupPayload) => {
+    const sentAt = formatMessageTime();
+    const groupId = `groupe-${Date.now()}`;
+    const group: MessagingConversation = {
+      id: groupId,
+      name: payload.name,
+      department: "Groupe",
+      kind: "group",
+      initials: getInitials(payload.name),
+      presence: "online",
+      lastMessage: payload.description || `${payload.memberIds.length} membres`,
+      lastMessageAt: sentAt,
     };
-  
-    return (
-      <div className="flex flex-col">
-        <div className="flex flex-grow overflow-hidden">
-          <aside
-            className={`w-full md:w-1/4 h-full p-4 shadow-md overflow-y-auto ${selectedConversation ? "hidden md:block" : "block"}`}
-          >
-            <ul className="list bg-base-100 rounded-box shadow-md">
-              {conversations.map((conversation) => (
-                <li
-                  key={conversation.id}
-                  className={`flex items-center p-3 border-b cursor-pointer ${
-                    selectedConversation?.id === conversation.id ? "bg-primary text-white" : ""
-                  }`}
-                  onClick={() => setSelectedConversation(conversation)}
-                >
-                  <Image className="size-10 rounded-box" src={conversation.image} alt="Profile" width={40} height={40} />
-                  <div className="ml-2">
-                    <div>{conversation.user}</div>
-                    <div className="text-xs uppercase font-semibold opacity-60">{conversation.messages[0].text}</div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </aside>
-    
-          <main className={`flex-grow h-full p-6 flex flex-col space-y-4 overflow-y-auto w-full ${selectedConversation ? "md:flex" : "hidden"}`}>
-            {selectedConversation ? (
-              <>
-                <button
-                  className="mb-4 p-2 bg-red-500 text-white rounded-md md:hidden"
-                  onClick={() => setSelectedConversation(null)}
-                >
-                  Retour
-                </button>
-    
-            
-                {selectedConversation.messages.map((message, index) => (
-                  <div key={index} className={`chat ${message.sender === "evan" ? "chat-end" : "chat-start"}`}>
-                    <div className="chat-image avatar">
-                      <div className="w-10 rounded-full">
-                        <Image src={selectedConversation.image} alt="Profile" width={40} height={40} />
-                      </div>
-                    </div>
-                    <div className="chat-header">
-                      {message.sender}
-                      <time className="text-xs opacity-50 ml-2">
-                        {new Date(message.timestamp).toLocaleTimeString()}
-                      </time>
-                    </div>
-                    <div className="chat-bubble">{message.text}</div>
-                  </div>
-                ))}
-              </>
-            ) : (
-              <div className="text-center text-gray-500">Sélectionnez une conversation</div>
-            )}
-    
-            {selectedConversation && (
-              <div className="flex items-center p-2 border-t">
-                <input
-                  type="text"
-                  placeholder="Écrire un message..."
-                  className="flex-grow p-2 border rounded-lg outline-none"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                />
-                <button className="ml-2 p-2 bg-blue-500 text-white rounded-lg" onClick={sendMessage}>
-                  Envoyer
-                </button>
-              </div>
-            )}
+
+    setConversations((currentConversations) => [group, ...currentConversations]);
+    setActiveConversationId(groupId);
+  };
+
+  const handleConversationDelete: NonNullable<MessagingProps["onConversationDelete"]> = (
+    conversationToDelete,
+  ) => {
+    const remainingConversations = conversations.filter(
+      (conversation) => conversation.id !== conversationToDelete.id,
+    );
+
+    setConversations(remainingConversations);
+    setMessages((currentMessages) =>
+      currentMessages.filter(
+        (message) => message.conversationId !== conversationToDelete.id,
+      ),
+    );
+
+    if (activeConversationId === conversationToDelete.id) {
+      setActiveConversationId(remainingConversations[0]?.id ?? "");
+    }
+  };
+
+  return (
+    <div className="messages-app-root">
+      <div className="messages-shell">
+        <div className="messages-desktop-sidebar">
+          <Sidebar activeItem="messages" brandLogoSrc={null} isAdmin />
+        </div>
+
+        {sidebarOpen && (
+          <div className="messages-mobile-sidebar">
+            <button
+              type="button"
+              aria-label="Fermer la navigation"
+              className="messages-mobile-sidebar-backdrop"
+              onClick={() => setSidebarOpen(false)}
+            />
+            <Sidebar
+              activeItem="messages"
+              brandLogoSrc={null}
+              isAdmin
+              className="messages-mobile-sidebar-panel"
+              onItemSelect={() => setSidebarOpen(false)}
+            />
+          </div>
+        )}
+
+        <div className="messages-content">
+          <Header user={adminUser} isAdmin setSidebarOpen={setSidebarOpen} />
+
+          <main className="messages-main">
+            <div className="messages-main-inner">
+              <Messaging
+                conversations={conversations}
+                messages={messages}
+                activeConversationId={activeConversationId}
+                currentUserId={currentUserId}
+                onConversationSelect={(conversation) =>
+                  setActiveConversationId(conversation.id)
+                }
+                onSendMessage={handleSendMessage}
+                onNewMessageSend={handleNewMessageSend}
+                onCreateGroup={handleCreateGroup}
+                onConversationDelete={handleConversationDelete}
+                className="messages-module"
+                style={{
+                  height: "min(692px, calc(100vh - 192px))",
+                  minHeight: "560px",
+                }}
+              />
+            </div>
           </main>
+
+          <Footer productName="Mairie360" year={2026} version="2.1.0" />
         </div>
       </div>
-    );
-    
-  }
+    </div>
+  );
+}

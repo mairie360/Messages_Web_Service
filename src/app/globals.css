@@ -3,3 +3,15 @@
 @plugin "daisyui";
 
 @source "../../src/";
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: #f5f3f0;
+  color: #172033;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
