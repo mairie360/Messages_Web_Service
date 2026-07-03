@@ -2,7 +2,7 @@
 
 Ce document decrit les donnees dont le frontend **Messages** a besoin pour communiquer avec le BFF Message.
 
-Le frontend affiche la messagerie interne via les composants `@mairie360/lib-components`, principalement `Messaging`.
+Le frontend affiche la messagerie interne et le profil utilisateur via les composants `@mairie360/lib-components`, principalement `Messaging`, `Header`, `Sidebar` et `UserProfile`.
 
 ## Objectif BFF
 
@@ -10,8 +10,9 @@ Le BFF doit fournir au frontend :
 
 - la liste des conversations visibles par l'utilisateur connecte ;
 - les messages d'une conversation ;
+- les informations du profil de l'utilisateur connecte, affichees dans le header et la page Profil ;
 - les contacts disponibles pour creer un message direct ou un groupe ;
-- les actions d'ecriture : envoyer un message, creer un groupe, supprimer/masquer une conversation, gerer les pieces jointes ;
+- les actions d'ecriture : envoyer un message, creer un groupe, supprimer/masquer une conversation, gerer les pieces jointes, mettre a jour les champs editables du profil ;
 - les compteurs non lus et l'etat de presence si disponible.
 
 Le package OpenAPI actuel `@mairie360/bff-message-openapi@0.2.1` expose seulement `/health` et `/check_apis`. Les routes ci-dessous sont le contrat cible attendu par le frontend.
@@ -26,6 +27,20 @@ type Id = string | number;
 type ConversationKind = "direct" | "group";
 type Presence = "online" | "offline" | "away";
 type MessageDirection = "incoming" | "outgoing";
+
+type CurrentUserDto = {
+  id: Id;
+  name: string;
+  email?: string;
+  role?: string;
+  avatarUrl?: string;
+  phone?: string;
+  service?: string;
+  position?: string;
+  address?: string;
+  city?: string;
+  lastConnection?: string; // ISO recommande ou libelle deja formate
+};
 
 type ConversationDto = {
   id: Id;
@@ -78,6 +93,18 @@ type ContactDto = {
 ```
 
 ## Routes de lecture
+
+### `GET /me`
+
+Retourne l'utilisateur connecte pour le header, la navigation et la page Profil.
+
+Reponse :
+
+```ts
+type CurrentUserResponse = {
+  currentUser: CurrentUserDto;
+};
+```
 
 ### `GET /conversations`
 
@@ -136,6 +163,29 @@ type ContactsResponse = {
 ```
 
 ## Routes d'ecriture
+
+### `PATCH /me`
+
+Met a jour les champs editables de la page Profil.
+
+Payload :
+
+```ts
+type UpdateCurrentUserRequest = {
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+};
+```
+
+Reponse :
+
+```ts
+type UpdateCurrentUserResponse = {
+  currentUser: CurrentUserDto;
+};
+```
 
 ### `POST /conversations/{conversationId}/messages`
 
@@ -264,13 +314,7 @@ Pour remplacer les mocks de `src/app/page.tsx`, le frontend a besoin au chargeme
 
 ```ts
 type MessagingBootstrapResponse = {
-  currentUser: {
-    id: Id;
-    name: string;
-    email?: string;
-    role?: string;
-    avatarUrl?: string;
-  };
+  currentUser: CurrentUserDto;
   conversations: ConversationDto[];
   activeConversationId?: Id;
   messages: MessageDto[];
@@ -321,6 +365,23 @@ Codes HTTP attendus :
 
 ## Mapping avec `@mairie360/lib-components`
 
+Le shell commun utilise `Header`, `Sidebar` et `Footer`. La sidebar doit inclure l'item `profile` pour ouvrir `/profile`, et le header utilise `profileHref="/profile"` avec `onPageChange` pour router le clic "Profil" cote client.
+
+```tsx
+<Header
+  user={currentUser}
+  isAdmin={currentUser.role === "admin"}
+  profileHref="/profile"
+  onPageChange={...}
+/>
+
+<Sidebar
+  activeItem="messages" // ou "profile"
+  items={[..., { id: "profile", label: "Profil", icon: UserRound }, ...]}
+  onItemSelect={...}
+/>
+```
+
 Le composant principal consomme ces props :
 
 ```tsx
@@ -335,6 +396,12 @@ Le composant principal consomme ces props :
   onCreateGroup={...}
   onConversationDelete={...}
 />
+```
+
+La page Profil consomme les donnees de `CurrentUserDto` :
+
+```tsx
+<UserProfile user={currentUser} onUpdateUser={...} />
 ```
 
 Les callbacks envoient actuellement ces payloads :
