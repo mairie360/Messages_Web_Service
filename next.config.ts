@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  turbopack: {
+    root: process.cwd(),
+  },
   devIndicators: false,
   env: {
     LOGIN_FRONT_URL: process.env.LOGIN_FRONT_URL,
@@ -12,6 +15,14 @@ const nextConfig: NextConfig = {
     MESSAGE_FRONT_URL: process.env.MESSAGE_FRONT_URL,
     ELEARNING_FRONT_URL: process.env.ELEARNING_FRONT_URL,
     ADMINISTRATION_FRONT_URL: process.env.ADMINISTRATION_FRONT_URL,
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/contacts",
+        destination: "/api/bff/contacts",
+      },
+    ];
   },
 };
 

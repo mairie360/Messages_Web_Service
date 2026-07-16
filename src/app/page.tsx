@@ -1,10 +1,15 @@
 'use client';
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ComponentProps } from "react";
 import { Messaging } from "@mairie360/lib-components";
+import {
+  messageClient,
+  type ContactDto,
+  type CurrentUserDto,
+  type MessageId,
+} from "@/clients/messageClient";
 import { AppShell } from "./_components/app-shell";
-import { adminUser, currentUserId } from "./_components/app-user";
 
 type MessagingProps = ComponentProps<typeof Messaging>;
 type MessagingConversation = NonNullable<MessagingProps["conversations"]>[number];
@@ -14,264 +19,336 @@ type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]
 type NewMessagePayload = Parameters<NonNullable<MessagingProps["onNewMessageSend"]>>[0];
 type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]>>[0];
 
-const initialConversations: MessagingConversation[] = [
-  {
-    id: "marie-dubois",
-    name: "Marie Dubois",
-    department: "Finances",
-    initials: "MD",
-    presence: "online",
-    lastMessage: "Le budget a été validé pour le projet",
-    lastMessageAt: "14:32",
-    unreadCount: 2,
-  },
-  {
-    id: "pierre-martin",
-    name: "Pierre Martin",
-    department: "Urbanisme",
-    initials: "PM",
-    presence: "offline",
-    lastMessage: "Pouvez-vous envoyer le rapport ?",
-    lastMessageAt: "13:45",
-  },
-  {
-    id: "sophie-leroy",
-    name: "Sophie Leroy",
-    department: "Culture",
-    initials: "SL",
-    presence: "online",
-    lastMessage: "Réunion reportée à demain",
-    lastMessageAt: "12:18",
-    unreadCount: 1,
-  },
-  {
-    id: "thomas-bernard",
-    name: "Thomas Bernard",
-    department: "Travaux",
-    initials: "TB",
-    presence: "offline",
-    lastMessage: "Documents envoyés",
-    lastMessageAt: "11:30",
-  },
-  {
-    id: "equipe-direction",
-    name: "Équipe Direction",
-    department: "Groupe",
-    kind: "group",
-    initials: "ÉD",
-    presence: "online",
-    lastMessage: "Nouvelle procédure disponible",
-    lastMessageAt: "Hier",
-    unreadCount: 3,
-  },
-];
+const loadingUser = {
+  name: "Chargement...",
+  role: "Guest",
+};
 
-const initialMessages: MessagingMessage[] = [
-  {
-    id: "message-1",
-    conversationId: "marie-dubois",
-    content: "Bonjour Jean, j’ai examiné le dossier du projet de rénovation.",
-    sentAt: "14:25",
-    direction: "incoming",
-    authorId: "marie-dubois",
-    authorName: "Marie Dubois",
-  },
-  {
-    id: "message-2",
-    conversationId: "marie-dubois",
-    content: "Parfait, quelles sont vos conclusions ?",
-    sentAt: "14:27",
-    direction: "outgoing",
-    authorId: currentUserId,
-    authorName: "Admin Système",
-  },
-  {
-    id: "message-3",
-    conversationId: "marie-dubois",
-    content: "Le budget a été validé pour le projet. Nous pouvons commencer la phase suivante.",
-    sentAt: "14:32",
-    direction: "incoming",
-    authorId: "marie-dubois",
-    authorName: "Marie Dubois",
-  },
-  {
-    id: "message-4",
-    conversationId: "pierre-martin",
-    content: "Bonjour, pouvez-vous envoyer le rapport d’urbanisme ?",
-    sentAt: "13:45",
-    direction: "incoming",
-    authorId: "pierre-martin",
-    authorName: "Pierre Martin",
-  },
-  {
-    id: "message-5",
-    conversationId: "sophie-leroy",
-    content: "La réunion culture est reportée à demain matin.",
-    sentAt: "12:18",
-    direction: "incoming",
-    authorId: "sophie-leroy",
-    authorName: "Sophie Leroy",
-  },
-  {
-    id: "message-6",
-    conversationId: "thomas-bernard",
-    content: "Les documents techniques ont bien été envoyés.",
-    sentAt: "11:30",
-    direction: "incoming",
-    authorId: "thomas-bernard",
-    authorName: "Thomas Bernard",
-  },
-  {
-    id: "message-7",
-    conversationId: "equipe-direction",
-    content: "Une nouvelle procédure est disponible pour validation.",
-    sentAt: "Hier",
-    direction: "incoming",
-    authorId: "equipe-direction",
-    authorName: "Équipe Direction",
-  },
-];
+function idsMatch(left: MessageId | undefined, right: MessageId | undefined) {
+  return String(left ?? "") === String(right ?? "");
+}
 
-const formatMessageTime = () =>
-  new Intl.DateTimeFormat("fr-FR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date());
+function upsertConversation(
+  conversations: MessagingConversation[],
+  nextConversation?: MessagingConversation,
+) {
+  if (!nextConversation) return conversations;
 
-const getInitials = (name: string) =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const conversationExists = conversations.some((conversation) =>
+    idsMatch(conversation.id, nextConversation.id),
+  );
+
+  if (!conversationExists) {
+    return [nextConversation, ...conversations];
+  }
+
+  return conversations.map((conversation) =>
+    idsMatch(conversation.id, nextConversation.id)
+      ? { ...conversation, ...nextConversation }
+      : conversation,
+  );
+}
+
+function replaceConversationMessages(
+  currentMessages: MessagingMessage[],
+  conversationId: MessageId,
+  nextMessages: MessagingMessage[],
+) {
+  return [
+    ...currentMessages.filter(
+      (message) => !idsMatch(message.conversationId, conversationId),
+    ),
+    ...nextMessages,
+  ];
+}
+
+function appendMessage(
+  currentMessages: MessagingMessage[],
+  nextMessage?: MessagingMessage,
+) {
+  if (!nextMessage) return currentMessages;
+
+  if (currentMessages.some((message) => idsMatch(message.id, nextMessage.id))) {
+    return currentMessages.map((message) =>
+      idsMatch(message.id, nextMessage.id) ? nextMessage : message,
+    );
+  }
+
+  return [...currentMessages, nextMessage];
+}
+
+function getPayloadIds(items?: Array<{ id: MessageId }>) {
+  return items?.map((item) => item.id);
+}
 
 export default function Page() {
+  const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
   const [activeConversationId, setActiveConversationId] =
-    useState<MessagingContactId>("marie-dubois");
-  const [conversations, setConversations] = useState(initialConversations);
-  const [messages, setMessages] = useState(initialMessages);
+    useState<MessagingContactId>("");
+  const [conversations, setConversations] = useState<MessagingConversation[]>([]);
+  const [contacts, setContacts] = useState<ContactDto[]>([]);
+  const [messages, setMessages] = useState<MessagingMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const updateConversationPreview = (
-    conversationId: MessagingContactId,
-    content: SendMessagePayload["content"],
-    sentAt: string,
-  ) => {
-    setConversations((currentConversations) =>
-      currentConversations.map((conversation) =>
-        conversation.id === conversationId
-          ? {
-              ...conversation,
-              lastMessage: content,
-              lastMessageAt: sentAt,
-              unreadCount: 0,
-            }
-          : conversation,
-      ),
-    );
+  const shellUser = useMemo(
+    () =>
+      currentUser
+        ? {
+            name: currentUser.name,
+            email: currentUser.email,
+            role: currentUser.role,
+            avatarUrl: currentUser.avatarUrl,
+            phone: currentUser.phone,
+            service: currentUser.service,
+            position: currentUser.position,
+            address: currentUser.address,
+            city: currentUser.city,
+            lastConnection: currentUser.lastConnection,
+          }
+        : loadingUser,
+    [currentUser],
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBootstrap() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const bootstrap = await messageClient.getBootstrap();
+
+        if (!isMounted) return;
+
+        const firstConversationId = bootstrap.conversations[0]?.id ?? "";
+        setCurrentUser(bootstrap.currentUser);
+        setContacts(bootstrap.contacts ?? []);
+        setConversations(bootstrap.conversations);
+        setMessages(bootstrap.messages);
+        setActiveConversationId(
+          bootstrap.activeConversationId ?? firstConversationId,
+        );
+
+        // Load contacts independently so the recipient menu does not depend
+        // on the modal opening timing or on the conversation list.
+        try {
+          const contactsResponse = await messageClient.getContacts();
+          if (isMounted) setContacts(contactsResponse.contacts ?? []);
+        } catch {
+          // Bootstrap contacts remain available as a fallback.
+        }
+      } catch (loadError) {
+        if (!isMounted) return;
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "La messagerie est indisponible.",
+        );
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    void loadBootstrap();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const loadContacts = async () => {
+    try {
+      const response = await messageClient.getContacts();
+      setContacts(response.contacts);
+    } catch (contactsError) {
+      setError(
+        contactsError instanceof Error
+          ? contactsError.message
+          : "Les contacts sont indisponibles.",
+      );
+    }
   };
 
-  const handleSendMessage = (payload: SendMessagePayload) => {
+  const loadConversationMessages = async (conversationId: MessagingContactId) => {
+    setActiveConversationId(conversationId);
+    setError(null);
+
+    try {
+      const response = await messageClient.getConversationMessages(conversationId);
+
+      setConversations((currentConversations) =>
+        upsertConversation(currentConversations, response.conversation),
+      );
+      setMessages((currentMessages) =>
+        replaceConversationMessages(
+          currentMessages,
+          response.conversation.id,
+          response.messages,
+        ),
+      );
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Les messages de cette conversation sont indisponibles.",
+      );
+    }
+  };
+
+  const handleSendMessage = async (payload: SendMessagePayload) => {
     if (!payload.conversationId || payload.content.trim().length === 0) {
       return;
     }
 
-    const sentAt = formatMessageTime();
+    setError(null);
 
-    setMessages((currentMessages) => [
-      ...currentMessages,
-      {
-        id: `local-message-${Date.now()}`,
-        conversationId: payload.conversationId,
+    try {
+      const response = await messageClient.sendMessage(payload.conversationId, {
         content: payload.content,
-        attachments: payload.attachments,
-        mentions: payload.mentions,
-        sentAt,
-        direction: "outgoing",
-        authorId: currentUserId,
-        authorName: adminUser.name,
-      },
-    ]);
-    updateConversationPreview(payload.conversationId, payload.content, sentAt);
-  };
+        attachmentIds: getPayloadIds(payload.attachments),
+        mentionIds: getPayloadIds(payload.mentions),
+      });
 
-  const handleNewMessageSend = (payload: NewMessagePayload) => {
-    const sentAt = formatMessageTime();
+      setConversations((currentConversations) =>
+        upsertConversation(currentConversations, response.conversation),
+      );
 
-    setMessages((currentMessages) => [
-      ...currentMessages,
-      {
-        id: `direct-message-${Date.now()}`,
-        conversationId: payload.recipientId,
-        content: payload.message,
-        sentAt,
-        direction: "outgoing",
-        authorId: currentUserId,
-        authorName: adminUser.name,
-      },
-    ]);
-    updateConversationPreview(payload.recipientId, payload.message, sentAt);
-    setActiveConversationId(payload.recipientId);
-  };
+      if (response.messages) {
+        setMessages((currentMessages) =>
+          replaceConversationMessages(
+            currentMessages,
+            payload.conversationId as MessageId,
+            response.messages ?? [],
+          ),
+        );
+        return;
+      }
 
-  const handleCreateGroup = (payload: CreateGroupPayload) => {
-    const sentAt = formatMessageTime();
-    const groupId = `groupe-${Date.now()}`;
-    const group: MessagingConversation = {
-      id: groupId,
-      name: payload.name,
-      department: "Groupe",
-      kind: "group",
-      initials: getInitials(payload.name),
-      presence: "online",
-      lastMessage: payload.description || `${payload.memberIds.length} membres`,
-      lastMessageAt: sentAt,
-    };
-
-    setConversations((currentConversations) => [group, ...currentConversations]);
-    setActiveConversationId(groupId);
-  };
-
-  const handleConversationDelete: NonNullable<MessagingProps["onConversationDelete"]> = (
-    conversationToDelete,
-  ) => {
-    const remainingConversations = conversations.filter(
-      (conversation) => conversation.id !== conversationToDelete.id,
-    );
-
-    setConversations(remainingConversations);
-    setMessages((currentMessages) =>
-      currentMessages.filter(
-        (message) => message.conversationId !== conversationToDelete.id,
-      ),
-    );
-
-    if (activeConversationId === conversationToDelete.id) {
-      setActiveConversationId(remainingConversations[0]?.id ?? "");
+      setMessages((currentMessages) =>
+        appendMessage(currentMessages, response.message),
+      );
+    } catch (sendError) {
+      setError(
+        sendError instanceof Error
+          ? sendError.message
+          : "Le message n'a pas pu être envoyé.",
+      );
     }
   };
 
+  const handleNewMessageSend = async (payload: NewMessagePayload) => {
+    if (payload.message.trim().length === 0) {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      const response = await messageClient.createDirectMessage(payload);
+
+      setConversations((currentConversations) =>
+        upsertConversation(currentConversations, response.conversation),
+      );
+      setMessages((currentMessages) =>
+        appendMessage(currentMessages, response.message),
+      );
+      setActiveConversationId(response.conversation.id);
+    } catch (sendError) {
+      setError(
+        sendError instanceof Error
+          ? sendError.message
+          : "Le message direct n'a pas pu être créé.",
+      );
+    }
+  };
+
+  const handleCreateGroup = async (payload: CreateGroupPayload) => {
+    setError(null);
+
+    try {
+      const response = await messageClient.createGroup(payload);
+
+      setConversations((currentConversations) =>
+        upsertConversation(currentConversations, response.conversation),
+      );
+      setActiveConversationId(response.conversation.id);
+    } catch (createError) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : "Le groupe n'a pas pu être créé.",
+      );
+    }
+  };
+
+  const handleConversationDelete: NonNullable<MessagingProps["onConversationDelete"]> =
+    async (conversationToDelete) => {
+      setError(null);
+
+      try {
+        await messageClient.deleteConversation(conversationToDelete.id);
+
+        setConversations((currentConversations) => {
+          const remainingConversations = currentConversations.filter(
+            (conversation) => !idsMatch(conversation.id, conversationToDelete.id),
+          );
+
+          if (idsMatch(activeConversationId, conversationToDelete.id)) {
+            setActiveConversationId(remainingConversations[0]?.id ?? "");
+          }
+
+          return remainingConversations;
+        });
+        setMessages((currentMessages) =>
+          currentMessages.filter(
+            (message) => !idsMatch(message.conversationId, conversationToDelete.id),
+          ),
+        );
+      } catch (deleteError) {
+        setError(
+          deleteError instanceof Error
+            ? deleteError.message
+            : "La conversation n'a pas pu être supprimée.",
+        );
+      }
+    };
+
   return (
-    <AppShell activeItem="messages" user={adminUser} isAdmin>
-      <Messaging
-        conversations={conversations}
-        messages={messages}
-        activeConversationId={activeConversationId}
-        currentUserId={currentUserId}
-        onConversationSelect={(conversation) =>
-          setActiveConversationId(conversation.id)
-        }
-        onSendMessage={handleSendMessage}
-        onNewMessageSend={handleNewMessageSend}
-        onCreateGroup={handleCreateGroup}
-        onConversationDelete={handleConversationDelete}
-        className="messages-module"
-        style={{
-          height: "min(692px, calc(100vh - 192px))",
-          minHeight: "560px",
-        }}
-      />
+    <AppShell activeItem="messages" user={shellUser} isAdmin>
+      <div className="messages-module-stack">
+        {error && (
+          <p role="alert" className="messages-error">
+            {error}
+          </p>
+        )}
+
+        <Messaging
+          conversations={conversations}
+          contacts={contacts}
+          messages={messages}
+          activeConversationId={activeConversationId}
+          currentUserId={currentUser?.id}
+          emptyStateLabel={
+            loading ? "Chargement de la messagerie..." : "Aucune conversation"
+          }
+          onConversationSelect={(conversation) =>
+            void loadConversationMessages(conversation.id)
+          }
+          onNewMessageClick={() => void loadContacts()}
+          onCreateGroupClick={() => void loadContacts()}
+          onSendMessage={(payload) => void handleSendMessage(payload)}
+          onNewMessageSend={(payload) => void handleNewMessageSend(payload)}
+          onCreateGroup={(payload) => void handleCreateGroup(payload)}
+          onConversationDelete={handleConversationDelete}
+          className="messages-module"
+          style={{
+            height: "min(692px, calc(100vh - 192px))",
+            minHeight: "560px",
+          }}
+        />
+      </div>
     </AppShell>
   );
 }

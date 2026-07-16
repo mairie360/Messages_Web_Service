@@ -8,6 +8,7 @@ RUN apt update && apt install -y --no-install-recommends curl && rm -rf /var/lib
 
 # 2. ON COPIE UNIQUEMENT les fichiers de dépendances (CACHÉ tant que tu n'ajoutes pas de lib)
 COPY package.json package-lock.json ./
+COPY patches ./patches
 
 # 3. On utilise un "mount" de type secret pour l'installation
 # Cela permet d'utiliser ton NODE_AUTH_TOKEN sans qu'il reste dans l'image finale
