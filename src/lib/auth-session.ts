@@ -12,18 +12,32 @@ export const APP_ROLES = [
 
 export type AppRole = (typeof APP_ROLES)[number];
 
-type HeaderUser = {
+export type AuthSessionUser = {
   name: string;
   email?: string;
   role?: string;
   service?: string;
+  phone?: string;
+  status?: string;
+  avatar?: string;
+  avatarUrl?: string;
+  position?: string;
+  address?: string;
+  city?: string;
+  lastConnection?: string;
 };
 
 type SessionUser = {
+  name?: unknown;
   first_name?: unknown;
   last_name?: unknown;
   email?: unknown;
+  phone?: unknown;
+  phone_number?: unknown;
+  status?: unknown;
   role?: unknown;
+  roles?: Array<SessionRole | string> | null;
+  groups?: Array<SessionGroup | string> | null;
 };
 
 type SessionGroup = {
@@ -36,8 +50,18 @@ type SessionRole = {
 
 type SessionResponse = {
   user?: SessionUser | null;
-  groups?: SessionGroup[] | null;
+  groups?: Array<SessionGroup | string> | null;
   roles?: Array<SessionRole | string> | null;
+};
+
+export type AuthSession = {
+  user: AuthSessionUser & { role: AppRole };
+  groups: string[];
+  roles: AppRole[];
+  role: AppRole;
+  isAdmin: boolean;
+  loading: boolean;
+  error: string | null;
 };
 
 const ROLE_ALIASES: Record<string, AppRole> = {
@@ -74,6 +98,10 @@ function getRoleName(role: SessionRole | string) {
   return typeof role === "string" ? role : role.name;
 }
 
+function getGroupName(group: SessionGroup | string) {
+  return typeof group === "string" ? group : group.name;
+}
+
 export function resolveAppRoles(roles: Array<SessionRole | string>): AppRole[] {
   const normalizedRoles = new Set(
     roles
@@ -86,13 +114,27 @@ export function resolveAppRoles(roles: Array<SessionRole | string>): AppRole[] {
   return resolvedRoles.length ? resolvedRoles : ["Guest"];
 }
 
-export function useAuthSession<T extends HeaderUser>(fallbackUser: T) {
-  const [session, setSession] = useState({
-    user: { ...fallbackUser, role: "Guest" as AppRole },
-    groups: [] as string[],
-    roles: ["Guest"] as AppRole[],
-    role: "Guest" as AppRole,
+export function useAuthSession(fallbackUser: AuthSessionUser) {
+  const [session, setSession] = useState<AuthSession>({
+    user: {
+      ...fallbackUser,
+      name: "Chargement…",
+      email: undefined,
+      phone: undefined,
+      service: undefined,
+      status: undefined,
+      position: undefined,
+      address: undefined,
+      city: undefined,
+      lastConnection: undefined,
+      role: "Guest",
+    },
+    groups: [],
+    roles: ["Guest"],
+    role: "Guest",
     isAdmin: false,
+    loading: true,
+    error: null,
   });
 
   useEffect(() => {
@@ -110,25 +152,42 @@ export function useAuthSession<T extends HeaderUser>(fallbackUser: T) {
           return;
         }
 
-        if (!response.ok) return;
+        if (!response.ok) {
+          setSession((current) => ({
+            ...current,
+            loading: false,
+            error: "Les informations du profil sont indisponibles.",
+          }));
+          return;
+        }
 
         const body = (await response.json()) as SessionResponse;
-        const groups = Array.isArray(body.groups)
+        const rawGroups = Array.isArray(body.groups)
           ? body.groups
-              .map((group) =>
-                typeof group.name === "string" ? group.name.trim() : "",
-              )
-              .filter(Boolean)
-          : null;
+          : Array.isArray(body.user?.groups)
+            ? body.user.groups
+            : [];
+        const groups = rawGroups
+          .map((group) => {
+            const groupName = getGroupName(group);
+            return typeof groupName === "string" ? groupName.trim() : "";
+          })
+          .filter(Boolean);
         const userRole =
           typeof body.user?.role === "string" && body.user.role.trim()
             ? [body.user.role]
             : [];
-        const responseRoles = Array.isArray(body.roles) ? body.roles : [];
+        const responseRoles = Array.isArray(body.user?.roles)
+          ? body.user.roles
+          : Array.isArray(body.roles)
+            ? body.roles
+            : [];
         const roles = resolveAppRoles(
           userRole.length > 0 ? userRole : responseRoles,
         );
         const role = roles[0];
+        const explicitName =
+          typeof body.user?.name === "string" ? body.user.name.trim() : "";
         const firstName =
           typeof body.user?.first_name === "string"
             ? body.user.first_name.trim()
@@ -137,26 +196,43 @@ export function useAuthSession<T extends HeaderUser>(fallbackUser: T) {
           typeof body.user?.last_name === "string"
             ? body.user.last_name.trim()
             : "";
-        const name = `${firstName} ${lastName}`.trim();
+        const name = explicitName || `${firstName} ${lastName}`.trim();
         const email =
           typeof body.user?.email === "string" ? body.user.email.trim() : "";
+        const rawPhone = body.user?.phone ?? body.user?.phone_number;
+        const phone = typeof rawPhone === "string" ? rawPhone.trim() : "";
+        const status =
+          typeof body.user?.status === "string" ? body.user.status.trim() : "";
         const groupLabel = groups?.length ? groups.join(", ") : "Aucun groupe";
 
         setSession({
           user: {
             ...fallbackUser,
-            ...(name ? { name } : {}),
-            ...(email ? { email } : {}),
-            ...(groups ? { service: groupLabel } : {}),
+            name: name || "Utilisateur",
+            email: email || undefined,
+            phone: phone || undefined,
+            status: status || undefined,
+            service: groupLabel,
+            position: undefined,
+            address: undefined,
+            city: undefined,
+            lastConnection: undefined,
             role,
           },
-          groups: groups ?? [],
+          groups,
           roles,
           role,
           isAdmin: role === "Admin",
+          loading: false,
+          error: null,
         });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
+        setSession((current) => ({
+          ...current,
+          loading: false,
+          error: "Le service utilisateur est indisponible.",
+        }));
       }
     }
 

@@ -4,7 +4,12 @@ import { useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Footer, Header, Sidebar } from "@mairie360/lib-components";
-import { logoutAndReload, useAuthSession } from "@/lib/auth-session";
+import {
+  logoutAndReload,
+  useAuthSession,
+  type AuthSession,
+  type AuthSessionUser,
+} from "@/lib/auth-session";
 import { adminUser } from "./app-user";
 import {
   Briefcase,
@@ -19,7 +24,6 @@ import {
   UserRound,
 } from "lucide-react";
 
-type HeaderUser = ComponentProps<typeof Header>["user"];
 type SidebarItem = NonNullable<ComponentProps<typeof Sidebar>["items"]>[number];
 
 const sidebarItems: SidebarItem[] = [
@@ -49,8 +53,8 @@ const appRoutes: Partial<Record<string, string>> = {
 
 type AppShellProps = {
   activeItem: string;
-  children: ReactNode;
-  user?: HeaderUser;
+  children: ReactNode | ((session: AuthSession) => ReactNode);
+  user?: AuthSessionUser;
   isAdmin?: boolean;
   mainClassName?: string;
   mainInnerClassName?: string;
@@ -127,7 +131,7 @@ export function AppShell({
 
           <main className={`messages-main ${mainClassName}`}>
             <div className={`messages-main-inner ${mainInnerClassName}`}>
-              {children}
+              {typeof children === "function" ? children(session) : children}
             </div>
           </main>
 
