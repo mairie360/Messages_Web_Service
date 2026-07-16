@@ -4,7 +4,7 @@ import "@mairie360/lib-components/dist/styles.css";
 import "./app-shell.css";
 
 export const metadata: Metadata = {
-  title: "Messages",
+  title: "Messagerie | Mairie360",
   description: "The Messages's module.",
 };
 
@@ -18,9 +18,7 @@ export default function RootLayout({
       <head>
         <meta name="apple-mobile-web-app-title" content="Mairie360" />
       </head>
-      <body>
-        <main>{children}</main>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

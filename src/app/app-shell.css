@@ -56,6 +56,15 @@
   margin: 0 auto;
 }
 
+.messages-main--scroll {
+  overflow: auto;
+}
+
+.messages-main-inner--profile {
+  display: block;
+  max-width: 980px;
+}
+
 .messages-module {
   width: 100%;
 }

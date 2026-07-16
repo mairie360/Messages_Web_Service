@@ -10,8 +10,9 @@
   },
   "dependencies": {
     "@mairie360/bff-message-openapi": "0.2.1",
-    "@mairie360/lib-components": "^0.0.8",
+    "@mairie360/lib-components": "^0.1.2",
     "daisyui": "^5.0.0",
+    "lucide-react": "^0.577.0",
     "next": "15.5.20",
     "openapi-fetch": "^0.17.0",
     "react": "^19.0.0",

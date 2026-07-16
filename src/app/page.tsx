@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import type { ComponentProps } from "react";
-import { Footer, Header, Messaging, Sidebar } from "@mairie360/lib-components";
+import { Messaging } from "@mairie360/lib-components";
+import { AppShell } from "./_components/app-shell";
+import { adminUser, currentUserId } from "./_components/app-user";
 
 type MessagingProps = ComponentProps<typeof Messaging>;
 type MessagingConversation = NonNullable<MessagingProps["conversations"]>[number];
@@ -11,8 +13,6 @@ type MessagingContactId = MessagingConversation["id"];
 type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
 type NewMessagePayload = Parameters<NonNullable<MessagingProps["onNewMessageSend"]>>[0];
 type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]>>[0];
-
-const currentUserId = "admin-systeme";
 
 const initialConversations: MessagingConversation[] = [
   {
@@ -132,12 +132,6 @@ const initialMessages: MessagingMessage[] = [
   },
 ];
 
-const adminUser = {
-  name: "Admin Système",
-  email: "admin@mairie360.fr",
-  role: "admin",
-};
-
 const formatMessageTime = () =>
   new Intl.DateTimeFormat("fr-FR", {
     hour: "2-digit",
@@ -154,7 +148,6 @@ const getInitials = (name: string) =>
     .toUpperCase();
 
 export default function Page() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeConversationId, setActiveConversationId] =
     useState<MessagingContactId>("marie-dubois");
   const [conversations, setConversations] = useState(initialConversations);
@@ -260,59 +253,25 @@ export default function Page() {
   };
 
   return (
-    <div className="messages-app-root">
-      <div className="messages-shell">
-        <div className="messages-desktop-sidebar">
-          <Sidebar activeItem="messages" brandLogoSrc={null} isAdmin />
-        </div>
-
-        {sidebarOpen && (
-          <div className="messages-mobile-sidebar">
-            <button
-              type="button"
-              aria-label="Fermer la navigation"
-              className="messages-mobile-sidebar-backdrop"
-              onClick={() => setSidebarOpen(false)}
-            />
-            <Sidebar
-              activeItem="messages"
-              brandLogoSrc={null}
-              isAdmin
-              className="messages-mobile-sidebar-panel"
-              onItemSelect={() => setSidebarOpen(false)}
-            />
-          </div>
-        )}
-
-        <div className="messages-content">
-          <Header user={adminUser} isAdmin setSidebarOpen={setSidebarOpen} />
-
-          <main className="messages-main">
-            <div className="messages-main-inner">
-              <Messaging
-                conversations={conversations}
-                messages={messages}
-                activeConversationId={activeConversationId}
-                currentUserId={currentUserId}
-                onConversationSelect={(conversation) =>
-                  setActiveConversationId(conversation.id)
-                }
-                onSendMessage={handleSendMessage}
-                onNewMessageSend={handleNewMessageSend}
-                onCreateGroup={handleCreateGroup}
-                onConversationDelete={handleConversationDelete}
-                className="messages-module"
-                style={{
-                  height: "min(692px, calc(100vh - 192px))",
-                  minHeight: "560px",
-                }}
-              />
-            </div>
-          </main>
-
-          <Footer productName="Mairie360" year={2026} version="2.1.0" />
-        </div>
-      </div>
-    </div>
+    <AppShell activeItem="messages" user={adminUser} isAdmin>
+      <Messaging
+        conversations={conversations}
+        messages={messages}
+        activeConversationId={activeConversationId}
+        currentUserId={currentUserId}
+        onConversationSelect={(conversation) =>
+          setActiveConversationId(conversation.id)
+        }
+        onSendMessage={handleSendMessage}
+        onNewMessageSend={handleNewMessageSend}
+        onCreateGroup={handleCreateGroup}
+        onConversationDelete={handleConversationDelete}
+        className="messages-module"
+        style={{
+          height: "min(692px, calc(100vh - 192px))",
+          minHeight: "560px",
+        }}
+      />
+    </AppShell>
   );
 }

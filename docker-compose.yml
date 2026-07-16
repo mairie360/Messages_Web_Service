@@ -191,6 +191,7 @@ services:
     environment:
       <<: *common-env
       PORT: 3000
+      BFF_MESSAGE_BASE_URL: http://bff-message:4003
       # Force React/Vite à surveiller les fichiers correctement dans Docker
       WATCHPACK_POLLING: "true" 
       CHOKIDAR_USEPOLLING: "true"
