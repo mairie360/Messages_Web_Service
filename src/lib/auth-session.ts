@@ -23,6 +23,7 @@ type SessionUser = {
   first_name?: unknown;
   last_name?: unknown;
   email?: unknown;
+  role?: unknown;
 };
 
 type SessionGroup = {
@@ -119,10 +120,15 @@ export function useAuthSession<T extends HeaderUser>(fallbackUser: T) {
               )
               .filter(Boolean)
           : null;
-        const roles = Array.isArray(body.roles)
-          ? resolveAppRoles(body.roles)
-          : null;
-        const role = roles?.[0] ?? "Guest";
+        const userRole =
+          typeof body.user?.role === "string" && body.user.role.trim()
+            ? [body.user.role]
+            : [];
+        const responseRoles = Array.isArray(body.roles) ? body.roles : [];
+        const roles = resolveAppRoles(
+          userRole.length > 0 ? userRole : responseRoles,
+        );
+        const role = roles[0];
         const firstName =
           typeof body.user?.first_name === "string"
             ? body.user.first_name.trim()
@@ -145,7 +151,7 @@ export function useAuthSession<T extends HeaderUser>(fallbackUser: T) {
             role,
           },
           groups: groups ?? [],
-          roles: roles ?? [role],
+          roles,
           role,
           isAdmin: role === "Admin",
         });
