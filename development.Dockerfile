@@ -1,4 +1,4 @@
-ARG NODE_VERSION=23.10.0
+ARG NODE_VERSION=22.15.0
 FROM node:${NODE_VERSION}-bookworm-slim AS builder
 
 WORKDIR /app
@@ -14,7 +14,8 @@ COPY package.json package-lock.json ./
 RUN --mount=type=secret,id=NODE_AUTH_TOKEN \
     export TOKEN=$(cat /run/secrets/NODE_AUTH_TOKEN) && \
     npm config set //npm.pkg.github.com/:_authToken=$TOKEN && \
-    npm install
+    npm ci && \
+    npm config delete //npm.pkg.github.com/:_authToken
 
 # 4. On copie le reste du code (C'est ici que tu travailles)
 COPY . .

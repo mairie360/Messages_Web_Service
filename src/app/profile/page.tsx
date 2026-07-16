@@ -11,13 +11,22 @@ export default function ProfilePage() {
       mainInnerClassName="messages-main-inner--profile"
     >
       {(session) => (
-        <UserProfile
-          user={session.user}
-          editable={false}
-          loading={session.loading}
-          error={session.error}
-          subtitle="Informations réelles du compte connecté"
-        />
+        <>
+          {session.error && (
+            <p role="alert" className="messages-error">
+              {session.error}
+            </p>
+          )}
+          <UserProfile
+            user={session.user}
+            editable={false}
+            subtitle={
+              session.loading
+                ? "Chargement du compte connecté"
+                : "Informations réelles du compte connecté"
+            }
+          />
+        </>
       )}
     </AppShell>
   );

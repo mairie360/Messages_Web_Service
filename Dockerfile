@@ -1,5 +1,5 @@
 # --- Stage 1: Build ---
-ARG NODE_VERSION=23.10.0
+ARG NODE_VERSION=22.15.0
 FROM node:${NODE_VERSION}-bookworm-slim AS builder
 WORKDIR /app
 
