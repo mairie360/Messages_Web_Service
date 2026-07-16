@@ -34,7 +34,14 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 const appRoutes: Partial<Record<string, string>> = {
-  messages: "/",
+  dashboard: process.env.LOGIN_FRONT_URL,
+  projects: process.env.PROJECT_FRONT_URL,
+  messages: process.env.MESSAGE_FRONT_URL,
+  emails: process.env.EMAIL_FRONT_URL,
+  files: process.env.FILES_FRONT_URL,
+  training: process.env.ELEARNING_FRONT_URL,
+  calendar: process.env.CALENDAR_FRONT_URL,
+  admin: process.env.ADMINISTRATION_FRONT_URL,
   profile: "/profile",
 };
 
@@ -62,7 +69,11 @@ export function AppShell({
     const route = appRoutes[page];
 
     if (route) {
-      router.push(route);
+      if (route.startsWith("/")) {
+        router.push(route);
+      } else {
+        window.location.assign(route);
+      }
     }
 
     setSidebarOpen(false);
