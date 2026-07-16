@@ -99,7 +99,7 @@ export function useAuthSession<T extends HeaderUser>(fallbackUser: T) {
 
     async function loadSession() {
       try {
-        const response = await fetch("/api/auth/me", {
+        const response = await fetch("/api/user/me", {
           cache: "no-store",
           signal: controller.signal,
         });

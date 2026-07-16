@@ -28,19 +28,21 @@ function meResponse(
   body: unknown,
   status: number,
   startedAt: number,
+  requestPath: string,
   init?: ResponseInit,
 ) {
   const response = NextResponse.json(body, { ...init, status });
-  console.log(`GET /api/auth/me ${status} in ${Date.now() - startedAt}ms`);
+  console.log(`GET ${requestPath} ${status} in ${Date.now() - startedAt}ms`);
   return response;
 }
 
 export async function GET(request: NextRequest) {
   const startedAt = Date.now();
+  const requestPath = new URL(request.url).pathname;
   const token = request.cookies.get("accessToken")?.value;
 
   if (!token) {
-    return meResponse({ message: "Session invalide." }, 401, startedAt);
+    return meResponse({ message: "Session invalide." }, 401, startedAt, requestPath);
   }
 
   try {
@@ -54,7 +56,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (upstreamResponse.status === 401) {
-      return meResponse({ message: "Session expirée." }, 401, startedAt);
+      return meResponse({ message: "Session expirée." }, 401, startedAt, requestPath);
     }
 
     if (!upstreamResponse.ok) {
@@ -62,10 +64,11 @@ export async function GET(request: NextRequest) {
         { message: "Le contexte utilisateur est indisponible." },
         upstreamResponse.status,
         startedAt,
+        requestPath,
       );
     }
 
-    return meResponse(await readJson(upstreamResponse), 200, startedAt, {
+    return meResponse(await readJson(upstreamResponse), 200, startedAt, requestPath, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch {
@@ -73,6 +76,7 @@ export async function GET(request: NextRequest) {
       { message: "Le service utilisateur est indisponible." },
       502,
       startedAt,
+      requestPath,
     );
   }
 }
