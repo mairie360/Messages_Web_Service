@@ -24,11 +24,25 @@ async function readJson(response: Response) {
   }
 }
 
+function sessionResponse(
+  body: unknown,
+  status: number,
+  startedAt: number,
+  init?: ResponseInit,
+) {
+  const response = NextResponse.json(body, { ...init, status });
+  console.log(
+    `GET /api/auth/session ${status} in ${Date.now() - startedAt}ms`,
+  );
+  return response;
+}
+
 export async function GET(request: NextRequest) {
+  const startedAt = Date.now();
   const token = request.cookies.get("accessToken")?.value;
 
   if (!token) {
-    return NextResponse.json({ message: "Session invalide." }, { status: 401 });
+    return sessionResponse({ message: "Session invalide." }, 401, startedAt);
   }
 
   try {
@@ -42,23 +56,25 @@ export async function GET(request: NextRequest) {
     });
 
     if (upstreamResponse.status === 401) {
-      return NextResponse.json({ message: "Session expirée." }, { status: 401 });
+      return sessionResponse({ message: "Session expirée." }, 401, startedAt);
     }
 
     if (!upstreamResponse.ok) {
-      return NextResponse.json(
+      return sessionResponse(
         { message: "Le contexte utilisateur est indisponible." },
-        { status: upstreamResponse.status },
+        upstreamResponse.status,
+        startedAt,
       );
     }
 
-    return NextResponse.json(await readJson(upstreamResponse), {
+    return sessionResponse(await readJson(upstreamResponse), 200, startedAt, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch {
-    return NextResponse.json(
+    return sessionResponse(
       { message: "Le service utilisateur est indisponible." },
-      { status: 502 },
+      502,
+      startedAt,
     );
   }
 }
