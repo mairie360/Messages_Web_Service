@@ -2,6 +2,16 @@
 
 import { useEffect, useState } from "react";
 
+export const APP_ROLES = [
+  "Admin",
+  "Responsable",
+  "Maire",
+  "User",
+  "Guest",
+] as const;
+
+export type AppRole = (typeof APP_ROLES)[number];
+
 type HeaderUser = {
   name: string;
   email?: string;
@@ -19,29 +29,69 @@ type SessionGroup = {
   name?: unknown;
 };
 
+type SessionRole = {
+  name?: unknown;
+};
+
 type SessionResponse = {
   user?: SessionUser | null;
   groups?: SessionGroup[] | null;
+  roles?: Array<SessionRole | string> | null;
 };
 
-function isAdministratorGroup(groupName: string) {
-  return groupName
+const ROLE_ALIASES: Record<string, AppRole> = {
+  admin: "Admin",
+  administrateur: "Admin",
+  administrator: "Admin",
+  responsable: "Responsable",
+  manager: "Responsable",
+  maire: "Maire",
+  mayor: "Maire",
+  user: "User",
+  utilisateur: "User",
+  guest: "Guest",
+  invite: "Guest",
+};
+
+function normalizeRoleKey(value: string) {
+  return value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase()
-    .startsWith("admin");
+    .replace(/[\s_-]+/g, "")
+    .replace(/^role/, "");
 }
 
-function isAdministrator(user: HeaderUser) {
-  return user.role?.trim().toLowerCase() === "admin";
+export function normalizeAppRole(value: unknown): AppRole | null {
+  return typeof value === "string"
+    ? ROLE_ALIASES[normalizeRoleKey(value)] ?? null
+    : null;
+}
+
+function getRoleName(role: SessionRole | string) {
+  return typeof role === "string" ? role : role.name;
+}
+
+export function resolveAppRoles(roles: Array<SessionRole | string>): AppRole[] {
+  const normalizedRoles = new Set(
+    roles
+      .map((role) => normalizeAppRole(getRoleName(role)))
+      .filter((role): role is AppRole => role !== null),
+  );
+
+  const resolvedRoles = APP_ROLES.filter((role) => normalizedRoles.has(role));
+
+  return resolvedRoles.length ? resolvedRoles : ["Guest"];
 }
 
 export function useAuthSession<T extends HeaderUser>(fallbackUser: T) {
   const [session, setSession] = useState({
-    user: fallbackUser,
+    user: { ...fallbackUser, role: "Guest" as AppRole },
     groups: [] as string[],
-    isAdmin: isAdministrator(fallbackUser),
+    roles: ["Guest"] as AppRole[],
+    role: "Guest" as AppRole,
+    isAdmin: false,
   });
 
   useEffect(() => {
@@ -69,6 +119,10 @@ export function useAuthSession<T extends HeaderUser>(fallbackUser: T) {
               )
               .filter(Boolean)
           : null;
+        const roles = Array.isArray(body.roles)
+          ? resolveAppRoles(body.roles)
+          : null;
+        const role = roles?.[0] ?? "Guest";
         const firstName =
           typeof body.user?.first_name === "string"
             ? body.user.first_name.trim()
@@ -87,17 +141,16 @@ export function useAuthSession<T extends HeaderUser>(fallbackUser: T) {
             ...fallbackUser,
             ...(name ? { name } : {}),
             ...(email ? { email } : {}),
-            ...(groups ? { role: groupLabel, service: groupLabel } : {}),
+            ...(groups ? { service: groupLabel } : {}),
+            role,
           },
           groups: groups ?? [],
-          isAdmin: groups
-            ? groups.some(isAdministratorGroup)
-            : isAdministrator(fallbackUser),
+          roles: roles ?? [role],
+          role,
+          isAdmin: role === "Admin",
         });
       } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          // Les informations de repli restent affichées si le BFF est indisponible.
-        }
+        if (error instanceof DOMException && error.name === "AbortError") return;
       }
     }
 
