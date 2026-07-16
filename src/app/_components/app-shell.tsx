@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Footer, Header, Sidebar } from "@mairie360/lib-components";
+import { logoutAndReload, useAuthSession } from "@/lib/auth-session";
+import { adminUser } from "./app-user";
 import {
   Briefcase,
   Calendar,
@@ -58,12 +60,12 @@ export function AppShell({
   activeItem,
   children,
   user,
-  isAdmin = false,
   mainClassName = "",
   mainInnerClassName = "",
 }: AppShellProps) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const session = useAuthSession(user ?? adminUser);
 
   const navigateToPage = (page: string) => {
     const route = appRoutes[page];
@@ -90,7 +92,7 @@ export function AppShell({
       activeItem={activeItem}
       brandLogoSrc={null}
       className={className}
-      isAdmin={isAdmin}
+      isAdmin={session.isAdmin}
       items={sidebarItems}
       onItemSelect={handleSidebarItemSelect}
     />
@@ -115,11 +117,12 @@ export function AppShell({
 
         <div className="messages-content">
           <Header
-            user={user}
-            isAdmin={isAdmin}
+            user={session.user}
+            isAdmin={session.isAdmin}
             setSidebarOpen={setSidebarOpen}
             profileHref="/profile"
             onPageChange={navigateToPage}
+            onLogout={() => void logoutAndReload()}
           />
 
           <main className={`messages-main ${mainClassName}`}>
