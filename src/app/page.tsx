@@ -14,6 +14,7 @@ import { AppShell } from "./_components/app-shell";
 type MessagingProps = ComponentProps<typeof Messaging>;
 type MessagingConversation = NonNullable<MessagingProps["conversations"]>[number];
 type MessagingMessage = NonNullable<MessagingProps["messages"]>[number];
+type MessagingBusinessReference = NonNullable<MessagingProps["businessReferences"]>[number];
 type MessagingContactId = MessagingConversation["id"];
 type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
 type NewMessagePayload = Parameters<NonNullable<MessagingProps["onNewMessageSend"]>>[0];
@@ -26,6 +27,17 @@ const loadingUser = {
 
 function idsMatch(left: MessageId | undefined, right: MessageId | undefined) {
   return String(left ?? "") === String(right ?? "");
+}
+
+function isPlaceholderConversationName(name: string) {
+  return /^Conversation\s+\d+$/i.test(name.trim());
+}
+
+function toMessagingUserId(id: MessageId | undefined) {
+  if (id === undefined) return undefined;
+
+  const value = String(id);
+  return value.startsWith("user-") ? value : `user-${value}`;
 }
 
 function upsertConversation(
@@ -44,7 +56,15 @@ function upsertConversation(
 
   return conversations.map((conversation) =>
     idsMatch(conversation.id, nextConversation.id)
-      ? { ...conversation, ...nextConversation }
+      ? {
+          ...conversation,
+          ...nextConversation,
+          name:
+            isPlaceholderConversationName(nextConversation.name) &&
+            !isPlaceholderConversationName(conversation.name)
+              ? conversation.name
+              : nextConversation.name,
+        }
       : conversation,
   );
 }
@@ -81,13 +101,29 @@ function getPayloadIds(items?: Array<{ id: MessageId }>) {
   return items?.map((item) => item.id);
 }
 
+function toMessagingContacts(
+  contacts: ContactDto[] | undefined,
+): MessagingConversation[] {
+  return (contacts ?? []).map((contact) => ({
+    id: contact.id,
+    name: contact.name,
+    department: contact.department,
+    kind: "direct",
+    avatarUrl: contact.avatarUrl,
+    initials: contact.initials,
+    presence: contact.presence,
+  }));
+}
+
 export default function Page() {
   const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
   const [activeConversationId, setActiveConversationId] =
     useState<MessagingContactId>("");
   const [conversations, setConversations] = useState<MessagingConversation[]>([]);
-  const [contacts, setContacts] = useState<ContactDto[]>([]);
+  const [contacts, setContacts] = useState<MessagingConversation[]>([]);
   const [messages, setMessages] = useState<MessagingMessage[]>([]);
+  const [businessReferences, setBusinessReferences] =
+    useState<MessagingBusinessReference[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,7 +160,7 @@ export default function Page() {
 
         const firstConversationId = bootstrap.conversations[0]?.id ?? "";
         setCurrentUser(bootstrap.currentUser);
-        setContacts(bootstrap.contacts ?? []);
+        setContacts(toMessagingContacts(bootstrap.contacts));
         setConversations(bootstrap.conversations);
         setMessages(bootstrap.messages);
         setActiveConversationId(
@@ -135,7 +171,9 @@ export default function Page() {
         // on the modal opening timing or on the conversation list.
         try {
           const contactsResponse = await messageClient.getContacts();
-          if (isMounted) setContacts(contactsResponse.contacts ?? []);
+          if (isMounted) {
+            setContacts(toMessagingContacts(contactsResponse.contacts));
+          }
         } catch {
           // Bootstrap contacts remain available as a fallback.
         }
@@ -151,7 +189,18 @@ export default function Page() {
       }
     }
 
+    async function loadBusinessReferences() {
+      try {
+        const response = await messageClient.getBusinessReferences();
+
+        if (isMounted) setBusinessReferences(response.references ?? []);
+      } catch {
+        if (isMounted) setBusinessReferences([]);
+      }
+    }
+
     void loadBootstrap();
+    void loadBusinessReferences();
 
     return () => {
       isMounted = false;
@@ -161,7 +210,7 @@ export default function Page() {
   const loadContacts = async () => {
     try {
       const response = await messageClient.getContacts();
-      setContacts(response.contacts);
+      setContacts(toMessagingContacts(response.contacts));
     } catch (contactsError) {
       setError(
         contactsError instanceof Error
@@ -328,8 +377,9 @@ export default function Page() {
           conversations={conversations}
           contacts={contacts}
           messages={messages}
+          businessReferences={businessReferences}
           activeConversationId={activeConversationId}
-          currentUserId={currentUser?.id}
+          currentUserId={toMessagingUserId(currentUser?.id)}
           emptyStateLabel={
             loading ? "Chargement de la messagerie..." : "Aucune conversation"
           }

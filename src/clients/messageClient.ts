@@ -4,6 +4,7 @@ export type MessageId = string | number;
 export type ConversationKind = "direct" | "group";
 export type Presence = "online" | "offline" | "away";
 export type MessageDirection = "incoming" | "outgoing";
+export type BusinessReferenceKind = "project" | "task" | "event";
 
 export type CurrentUserDto = {
   id: MessageId;
@@ -119,6 +120,22 @@ export type CreateGroupResponse = {
   conversation: ConversationDto;
 };
 
+export type BusinessReferenceDto = {
+  id: MessageId;
+  title: string;
+  kind: BusinessReferenceKind;
+  description?: string;
+  href?: string;
+};
+
+export type BusinessReferencesResponse = {
+  references: BusinessReferenceDto[];
+  sources?: {
+    projects?: "available" | "unavailable";
+    calendar?: "available" | "unavailable";
+  };
+};
+
 const BFF_BASE_PATH = "/api/bff";
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -179,6 +196,10 @@ export const messageClient = {
 
   getContacts() {
     return bffRequest<ContactsResponse>("/contacts");
+  },
+
+  getBusinessReferences() {
+    return bffRequest<BusinessReferencesResponse>("/business-references");
   },
 
   getConversationMessages(conversationId: MessageId) {
