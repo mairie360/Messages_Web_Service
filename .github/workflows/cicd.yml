@@ -15,5 +15,5 @@ jobs:
     uses: mairie360/CICD/.github/workflows/frontend-cicd.yml@v1.7.5
     with:
       package_name: "message-front"
-      node_version: 23
+      node_version: 22
     secrets: inherit

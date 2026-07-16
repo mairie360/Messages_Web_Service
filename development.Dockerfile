@@ -1,4 +1,4 @@
-ARG NODE_VERSION=23.10.0
+ARG NODE_VERSION=22.15.0
 FROM node:${NODE_VERSION}-bookworm-slim AS builder
 
 WORKDIR /app
@@ -8,14 +8,14 @@ RUN apt update && apt install -y --no-install-recommends curl && rm -rf /var/lib
 
 # 2. ON COPIE UNIQUEMENT les fichiers de dépendances (CACHÉ tant que tu n'ajoutes pas de lib)
 COPY package.json package-lock.json ./
-COPY patches ./patches
 
 # 3. On utilise un "mount" de type secret pour l'installation
 # Cela permet d'utiliser ton NODE_AUTH_TOKEN sans qu'il reste dans l'image finale
 RUN --mount=type=secret,id=NODE_AUTH_TOKEN \
     export TOKEN=$(cat /run/secrets/NODE_AUTH_TOKEN) && \
     npm config set //npm.pkg.github.com/:_authToken=$TOKEN && \
-    npm install
+    npm ci && \
+    npm config delete //npm.pkg.github.com/:_authToken
 
 # 4. On copie le reste du code (C'est ici que tu travailles)
 COPY . .
