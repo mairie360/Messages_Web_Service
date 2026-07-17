@@ -136,8 +136,6 @@ export type BusinessReferencesResponse = {
   };
 };
 
-const BFF_BASE_PATH = "/api/bff";
-
 async function readJson<T>(response: Response): Promise<T> {
   const text = await response.text();
 
@@ -164,7 +162,7 @@ async function bffRequest<T>(
     headers.set("Authorization", authorizationHeader);
   }
 
-  const response = await fetch(`${BFF_BASE_PATH}${path}`, {
+  const response = await fetch(path, {
     ...init,
     headers,
     cache: "no-store",

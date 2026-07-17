@@ -16,14 +16,6 @@ const nextConfig: NextConfig = {
     ELEARNING_FRONT_URL: process.env.ELEARNING_FRONT_URL,
     ADMINISTRATION_FRONT_URL: process.env.ADMINISTRATION_FRONT_URL,
   },
-  async rewrites() {
-    return [
-      {
-        source: "/contacts",
-        destination: "/api/bff/contacts",
-      },
-    ];
-  },
 };
 
 export default nextConfig;
