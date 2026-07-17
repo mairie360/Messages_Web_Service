@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function POST() {
   const response = NextResponse.json({ success: true });
+  const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
 
   response.cookies.set({
     name: "accessToken",
@@ -12,6 +13,7 @@ export async function POST() {
     path: "/",
     expires: new Date(0),
     maxAge: 0,
+    ...(cookieDomain ? { domain: cookieDomain } : {}),
   });
 
   return response;

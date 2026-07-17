@@ -33,8 +33,16 @@ function isExpiredJwt(token: string) {
 function redirectToLogin(request: NextRequest) {
   const loginUrl = process.env.LOGIN_FRONT_URL || DEFAULT_LOGIN_FRONT_URL;
   const response = NextResponse.redirect(new URL(loginUrl, request.url));
+  const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
 
-  response.cookies.delete(ACCESS_TOKEN_COOKIE);
+  response.cookies.set({
+    name: ACCESS_TOKEN_COOKIE,
+    value: "",
+    path: "/",
+    expires: new Date(0),
+    maxAge: 0,
+    ...(cookieDomain ? { domain: cookieDomain } : {}),
+  });
 
   return response;
 }
