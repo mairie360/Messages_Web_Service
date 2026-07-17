@@ -18,11 +18,17 @@ function getBffBaseUrl() {
 
 function createProxyHeaders(request: NextRequest) {
   const headers = new Headers(request.headers);
+  const accessToken = request.cookies.get("accessToken")?.value;
 
   headers.delete("host");
   headers.delete("connection");
   headers.delete("content-length");
   headers.delete("accept-encoding");
+  headers.delete("cookie");
+
+  if (accessToken && !headers.has("authorization")) {
+    headers.set("authorization", `Bearer ${accessToken}`);
+  }
 
   return headers;
 }
