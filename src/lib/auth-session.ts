@@ -64,6 +64,8 @@ export type AuthSession = {
   error: string | null;
 };
 
+const EMPTY_SESSION_USER: AuthSessionUser = { name: "" };
+
 const ROLE_ALIASES: Record<string, AppRole> = {
   admin: "Admin",
   administrateur: "Admin",
@@ -114,10 +116,10 @@ export function resolveAppRoles(roles: Array<SessionRole | string>): AppRole[] {
   return resolvedRoles.length ? resolvedRoles : ["Guest"];
 }
 
-export function useAuthSession(fallbackUser: AuthSessionUser) {
+export function useAuthSession(initialUser: AuthSessionUser = EMPTY_SESSION_USER) {
   const [session, setSession] = useState<AuthSession>({
     user: {
-      ...fallbackUser,
+      ...initialUser,
       name: "Chargement…",
       email: undefined,
       phone: undefined,
@@ -203,12 +205,11 @@ export function useAuthSession(fallbackUser: AuthSessionUser) {
         const phone = typeof rawPhone === "string" ? rawPhone.trim() : "";
         const status =
           typeof body.user?.status === "string" ? body.user.status.trim() : "";
-        const groupLabel = groups?.length ? groups.join(", ") : "Aucun groupe";
+        const groupLabel = groups.length ? groups.join(", ") : undefined;
 
         setSession({
           user: {
-            ...fallbackUser,
-            name: name || "Utilisateur",
+            name: name || email,
             email: email || undefined,
             phone: phone || undefined,
             status: status || undefined,
@@ -239,7 +240,7 @@ export function useAuthSession(fallbackUser: AuthSessionUser) {
     void loadSession();
 
     return () => controller.abort();
-  }, [fallbackUser]);
+  }, [initialUser]);
 
   return session;
 }

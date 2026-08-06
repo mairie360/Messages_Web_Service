@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ComponentProps } from "react";
 import { Messaging } from "@mairie360/lib-components";
 import {
@@ -19,11 +19,6 @@ type MessagingContactId = MessagingConversation["id"];
 type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
 type NewMessagePayload = Parameters<NonNullable<MessagingProps["onNewMessageSend"]>>[0];
 type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]>>[0];
-
-const loadingUser = {
-  name: "Chargement...",
-  role: "Guest",
-};
 
 function idsMatch(left: MessageId | undefined, right: MessageId | undefined) {
   return String(left ?? "") === String(right ?? "");
@@ -126,25 +121,6 @@ export default function Page() {
     useState<MessagingBusinessReference[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const shellUser = useMemo(
-    () =>
-      currentUser
-        ? {
-            name: currentUser.name,
-            email: currentUser.email,
-            role: currentUser.role,
-            avatarUrl: currentUser.avatarUrl,
-            phone: currentUser.phone,
-            service: currentUser.service,
-            position: currentUser.position,
-            address: currentUser.address,
-            city: currentUser.city,
-            lastConnection: currentUser.lastConnection,
-          }
-        : loadingUser,
-    [currentUser],
-  );
 
   useEffect(() => {
     let isMounted = true;
@@ -365,7 +341,7 @@ export default function Page() {
     };
 
   return (
-    <AppShell activeItem="messages" user={shellUser} isAdmin>
+    <AppShell activeItem="messages">
       <div className="messages-module-stack">
         {error && (
           <p role="alert" className="messages-error">

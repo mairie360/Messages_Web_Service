@@ -8,9 +8,7 @@ import {
   logoutAndReload,
   useAuthSession,
   type AuthSession,
-  type AuthSessionUser,
 } from "@/lib/auth-session";
-import { adminUser } from "./app-user";
 import {
   Briefcase,
   Calendar,
@@ -54,8 +52,6 @@ const appRoutes: Partial<Record<string, string>> = {
 type AppShellProps = {
   activeItem: string;
   children: ReactNode | ((session: AuthSession) => ReactNode);
-  user?: AuthSessionUser;
-  isAdmin?: boolean;
   mainClassName?: string;
   mainInnerClassName?: string;
 };
@@ -63,13 +59,12 @@ type AppShellProps = {
 export function AppShell({
   activeItem,
   children,
-  user,
   mainClassName = "",
   mainInnerClassName = "",
 }: AppShellProps) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const session = useAuthSession(user ?? adminUser);
+  const session = useAuthSession();
 
   const navigateToPage = (page: string) => {
     const route = appRoutes[page];
