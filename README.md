@@ -1,37 +1,26 @@
-## Contrats de données
+# Messages_Web_Service
 
-Contrat des routes et données, synchronisation BFF/web et limites de disponibilité : [BFF.md](BFF.md).
+Provide the instant-messaging interface with conversations, contacts and links to business objects. Calls go through BFF Message.
 
-[BFF.md](BFF.md) décrit les routes et données nécessaires au front ; [BACKEND.md](BACKEND.md) liste les tables et routes backend correspondantes. Les contrats communs sont harmonisés entre les dix Web Services et distinguent l'existant des propositions.
+Fournir l’interface de messagerie instantanée avec conversations, contacts et liens vers les objets métier. Les appels passent par BFF Message.
 
-# Messages
+## Documentation
 
-The **Messages** module of the project — responsible for managing the messages of the Mairie 360 application.
+| Language / Langue | Module | Technical / Technique |
+| --- | --- | --- |
+| English | [Module overview](docs/en/module.md) | [Technical documentation](docs/en/technical.md) |
+| Français | [Présentation du module](docs/fr/module.md) | [Documentation technique](docs/fr/technical.md) |
 
-## Dépendances et audit de sécurité
+The guides describe the implemented module, its current limitations, local setup, routes, data, verification and CI/CD.
 
-Les `overrides` de `package.json` alignent la copie de Next.js apportée par
-`lib-components` sur la version de l'application (`$next`). Ils imposent aussi
-PostCSS `>=8.5.23 <9` et Sharp `>=0.35.4 <0.36` à Next.js pour corriger les
-alertes de sécurité de ses dépendances. Conserver ces règles tant que les
-versions déclarées par les packages amont restent vulnérables.
+Les guides décrivent le module implémenté, ses limites actuelles, le démarrage local, les routes, les données, les vérifications et la CI/CD.
 
-Après une mise à jour, vérifier le fichier de verrouillage avec `npm ci`, puis
-exécuter `npm audit --audit-level=high`, `npm run lint` et `npm run build`.
+## Contracts and background / Contrats et compléments
 
-## 🚀 Getting Started
+- [BFF.md](BFF.md)
+- [BACKEND.md](BACKEND.md)
+- [contracts/openapi.json](contracts/openapi.json)
 
-This project is fully containerized for development. You’ll only need **Docker** and **Docker Compose** installed.
+`BACKEND.md`, when present, includes proposed backend requirements; use the guides and versioned OpenAPI contract to identify current behavior.
 
-### 🐳 Run in Development Mode (with Hot Reload)
-
-1. Make sure Docker and Docker Compose are installed.
-2. Start the development environment:
-
-```bash
-docker compose up --build --watch
-```
-
-1. Open your browser at [http://development.mairie360.fr](http://development.mairie360.fr) to access the application.
-
-Changes to your code will automatically trigger a refresh or the rebuild of the affected services.
+`BACKEND.md`, lorsqu’il est présent, contient des besoins backend proposés; consulter les guides et le contrat OpenAPI versionné pour identifier le comportement actuel.
