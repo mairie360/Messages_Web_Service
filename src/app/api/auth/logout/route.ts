@@ -1,20 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from 'next/server';
+import { userBffRequest } from '@/lib/user-bff-proxy';
 
-export async function POST() {
-  const response = NextResponse.json({ success: true });
-  const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
-
-  response.cookies.set({
-    name: "accessToken",
-    value: "",
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
-    expires: new Date(0),
-    maxAge: 0,
-    ...(cookieDomain ? { domain: cookieDomain } : {}),
-  });
-
-  return response;
+export function POST(request: NextRequest) {
+  return userBffRequest(request, '/auth/logout');
 }

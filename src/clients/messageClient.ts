@@ -1,3 +1,5 @@
+import type { components } from '@/contracts/bff';
+type Schemas = components['schemas'];
 import { getStoredAuthorizationHeader } from "@/lib/auth-token";
 
 export type MessageId = string | number;
@@ -6,119 +8,35 @@ export type Presence = "online" | "offline" | "away";
 export type MessageDirection = "incoming" | "outgoing";
 export type BusinessReferenceKind = "project" | "task" | "event";
 
-export type CurrentUserDto = {
-  id: MessageId;
-  name: string;
-  email?: string;
-  role?: string;
-  avatarUrl?: string;
-  phone?: string;
-  service?: string;
-  position?: string;
-  address?: string;
-  city?: string;
-  lastConnection?: string;
-};
+export type CurrentUserDto = Schemas['CurrentUserDtoSchema'];
 
-export type AttachmentDto = {
-  id: MessageId;
-  name: string;
-  size?: number;
-  type?: string;
-  url?: string;
-};
+export type AttachmentDto = Schemas['AttachmentDtoSchema'];
 
-export type MentionDto = {
-  id: MessageId;
-  name: string;
-  kind?: ConversationKind;
-  description?: string;
-};
+export type MentionDto = Schemas['MentionDtoSchema'];
 
-export type ConversationDto = {
-  id: MessageId;
-  name: string;
-  department?: string;
-  kind?: ConversationKind;
-  avatarUrl?: string;
-  initials?: string;
-  presence?: Presence;
-  lastMessage?: string;
-  lastMessageAt?: string;
-  unreadCount?: number;
-  memberIds?: MessageId[];
-};
+export type ConversationDto = Schemas['ConversationDtoSchema'];
 
-export type ContactDto = {
-  id: MessageId;
-  name: string;
-  department?: string;
-  avatarUrl?: string;
-  initials?: string;
-  presence?: Presence;
-};
+export type ContactDto = Schemas['ContactDtoSchema'];
 
-export type MessageDto = {
-  id: MessageId;
-  conversationId: MessageId;
-  content: string;
-  sentAt: string;
-  authorId: MessageId;
-  authorName?: string;
-  direction?: MessageDirection;
-  attachments?: AttachmentDto[];
-  mentions?: MentionDto[];
-};
+export type MessageDto = Schemas['MessageDtoSchema'];
 
-export type MessagingBootstrapResponse = {
-  currentUser: CurrentUserDto;
-  conversations: ConversationDto[];
-  contacts?: ContactDto[];
-  activeConversationId?: MessageId;
-  messages: MessageDto[];
-};
+export type MessagingBootstrapResponse = Schemas['MessagingBootstrapResponse'];
 
-export type ContactsResponse = {
-  contacts: ContactDto[];
-};
+export type ContactsResponse = Schemas['ContactsResponse'];
 
-export type MessagesResponse = {
-  conversation: ConversationDto;
-  messages: MessageDto[];
-  nextCursor?: string;
-};
+export type MessagesResponse = Schemas['MessagesResponse'];
 
-export type SendMessageRequest = {
-  content: string;
-  attachmentIds?: MessageId[];
-  mentionIds?: MessageId[];
-};
+export type SendMessageRequest = Schemas['SendMessageBody'];
 
-export type SendMessageResponse = {
-  conversation?: ConversationDto;
-  message?: MessageDto;
-  messages?: MessageDto[];
-};
+export type SendMessageResponse = Schemas['SendMessageResponse'];
 
-export type NewDirectMessageRequest = {
-  recipientId: MessageId;
-  message: string;
-};
+export type NewDirectMessageRequest = Schemas['NewDirectMessageBody'];
 
-export type NewDirectMessageResponse = {
-  conversation: ConversationDto;
-  message: MessageDto;
-};
+export type NewDirectMessageResponse = Schemas['NewDirectMessageResponse'];
 
-export type CreateGroupRequest = {
-  name: string;
-  description?: string;
-  memberIds: MessageId[];
-};
+export type CreateGroupRequest = Schemas['CreateGroupBody'];
 
-export type CreateGroupResponse = {
-  conversation: ConversationDto;
-};
+export type CreateGroupResponse = Schemas['CreateGroupResponse'];
 
 export type BusinessReferenceDto = {
   id: MessageId;
@@ -128,13 +46,7 @@ export type BusinessReferenceDto = {
   href?: string;
 };
 
-export type BusinessReferencesResponse = {
-  references: BusinessReferenceDto[];
-  sources?: {
-    projects?: "available" | "unavailable";
-    calendar?: "available" | "unavailable";
-  };
-};
+export type BusinessReferencesResponse = Schemas['BusinessReferencesResponse'];
 
 async function readJson<T>(response: Response): Promise<T> {
   const text = await response.text();
