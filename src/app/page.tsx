@@ -240,17 +240,6 @@ export default function Page() {
         upsertConversation(currentConversations, response.conversation),
       );
 
-      if (response.messages) {
-        setMessages((currentMessages) =>
-          replaceConversationMessages(
-            currentMessages,
-            payload.conversationId as MessageId,
-            response.messages ?? [],
-          ),
-        );
-        return;
-      }
-
       setMessages((currentMessages) =>
         appendMessage(currentMessages, response.message),
       );
