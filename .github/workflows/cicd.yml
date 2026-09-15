@@ -16,5 +16,5 @@ jobs:
     with:
       package_name: "message-front"
       node_version: "22"
-      cicd_version: "v1.13.2"
+      cicd_version: "v2.3.1"
     secrets: inherit
