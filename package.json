@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@mairie360/bff-message-openapi": "0.2.1",
-    "@mairie360/lib-components": "0.2.1",
+    "@mairie360/lib-components": "0.3.0",
     "daisyui": "^5.0.0",
     "lucide-react": "^0.577.0",
     "next": "15.5.25",
