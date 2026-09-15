@@ -20,17 +20,19 @@ npm run test:contracts                   # same tests, no coverage
 node --test --test-name-pattern="<name>" tests/proxy.test.cjs   # single test
 ```
 
-Tests are plain CommonJS `node:test` files: they transpile `src/**/*.ts` on the fly with `typescript.transpileModule` via a temporary `require.extensions['.ts']` hook and stub `global.fetch`. No Jest/Vitest, no DOM tests; new tests must follow that pattern and match `tests/*.test.cjs`.
+Tests are plain CommonJS `node:test` files: they transpile `src/**/*.ts` on the fly with `typescript.transpileModule` via a temporary `require.extensions['.ts']` hook and stub `global.fetch`. No Jest/Vitest, no DOM tests; new tests must follow that pattern and match `tests/*.test.cjs`. The hook does not resolve the `@/*` tsconfig alias, so a module loaded by a test must use relative runtime imports.
 
 ### OpenAPI contract
 
 `contracts/openapi.json` is a committed copy of BFF_Message's contract and `src/contracts/bff.d.ts` is generated from it (`openapi-typescript@7.10.1`, pinned in `scripts/contracts.mjs`). Never hand-edit either file.
 
 ```bash
-npm run contracts:sync      # copy from ../BFF_Message/contracts (or $BFF_CONTRACT_DIR) and regenerate types
+BFF_CONTRACT_DIR=../../BFFs/BFF_Message/contracts npm run contracts:sync   # copy the BFF contract and regenerate types
 npm run contracts:generate  # regenerate types from the local snapshot
-npm run contracts:check     # fail if types are stale, or if a neighbouring BFF checkout has a different contract
+npm run contracts:check     # fail if types are stale, or if the BFF checkout at $BFF_CONTRACT_DIR has a different contract
 ```
+
+The script's default source `../BFF_Message/contracts` resolves to `Fronts/BFF_Message`, which does not exist in the EIP checkout, so always set `BFF_CONTRACT_DIR` (without it, `check` silently skips the BFF comparison). All three commands `npm exec` `openapi-typescript`, so they need network access.
 
 ## Architecture
 
@@ -38,13 +40,13 @@ npm run contracts:check     # fail if types are stale, or if a neighbouring BFF 
 - **`forwardToBff`** strips hop-by-hop headers and the `cookie` header, turns the `accessToken` cookie into `Authorization: Bearer` when no Authorization header is present, keeps the query string and raw (binary) body, uses `redirect: 'manual'`, a 15 s timeout and `Cache-Control: no-store`, preserves upstream status/headers (including `Set-Cookie`, empty 204/205/304 bodies) and returns a controlled 502 JSON error when the BFF is unreachable. `tests/proxy.test.cjs` pins this behaviour.
 - **BFF URL** — `BFF_MESSAGE_BASE_URL` → `MESSAGE_BFF_URL` → `NEXT_PUBLIC_BFF_MESSAGE_BASE_URL` (fallback `http://localhost:4003`); resolved at request time on the server.
 - **Session adapters** — `src/app/api/{user/me,auth/me,auth/session,auth/logout}/route.ts` call `userBffRequest` (`src/lib/user-bff-proxy.ts`), which reuses `forwardToBff` against BFF User (`USER_BFF_URL` → `BFF_USER_API_URL`, fallback `http://localhost:4000`). `src/lib/auth-session.ts` (`useAuthSession`) loads `/api/user/me`, normalises roles (`Admin`/`Responsable`/`Maire`/`User`/`Guest`, with FR/EN aliases) and on 401 calls `logoutAndReload()`.
-- **Auth gate** — `src/middleware.ts` redirects every page request (matcher excludes `/api`, `/_next/*` and paths with a dot) to `LOGIN_FRONT_URL` when the `accessToken` cookie is missing or its JWT `exp` is past, clearing the cookie on `COOKIE_DOMAIN`. It only decodes the payload; signature validation is the BFF/Core's job. Note that the catch-all data routes (e.g. `/health`) also pass through it.
+- **Auth gate** — `src/middleware.ts` redirects every page request (matcher excludes `/api`, `/_next/*` and paths with a dot) to `LOGIN_FRONT_URL` when the `accessToken` cookie is missing or its JWT `exp` is past, clearing the cookie on `COOKIE_DOMAIN`. It only decodes the payload; signature validation is the BFF/Core's job. Note that the catch-all data routes (e.g. `/health`) also pass through it. For authenticated requests it also sets a per-request nonce `Content-Security-Policy` (built in `src/lib/content-security-policy.ts`, forwarded to Next.js via request headers), which is why `src/app/layout.tsx` forces dynamic rendering: a prerendered page would carry no nonce and its scripts would be blocked. Any new external origin (images, fonts, browser-side API calls) must be added to that policy.
 - **Client calls** — pages call same-origin paths (e.g. `/messaging/bootstrap`, `/conversations`, `/contacts`) through clients that parse `{ error: { message } }` / `{ message }` bodies into typed errors and, when no Authorization header is set, add a Bearer token stored in `localStorage` (`mairie360.auth.jwt`, see `src/lib/auth-token.ts`); in normal use the proxy relies on the cookie.
 - `src/app/page.tsx` uses `src/clients/messageClient.ts` (types derived from `src/contracts/bff.d.ts`) to load `/messaging/bootstrap`, then messages and contacts on demand, and maps DTOs onto the shared `Messaging` component.
 - `src/app/business-references/route.ts` is an explicit handler that forwards to the BFF with `forwardToBff` (it takes precedence over the catch-all).
 - `src/app/_components/app-shell.tsx` provides the shell/sidebar.
 - This repo targets Node **22** (CI `node_version: "22"`, Dockerfile `NODE_VERSION=22.15.0`) unlike most fronts.
-- `next.config.ts` sets `output: 'standalone'` (required by the Dockerfile) and inlines the `*_FRONT_URL` values at **build time** (defaults `https://<module>.dev.mairie360-eip.fr/`), so changing them requires a rebuild.
+- `next.config.ts` sets `output: 'standalone'` (required by the Dockerfile), `poweredByHeader: false` and static security headers on every route (`tests/security-headers.test.cjs` pins them, and the ZAP baseline fails without them), and inlines the `*_FRONT_URL` values at **build time** (defaults `https://<module>.dev.mairie360-eip.fr/`), so changing them requires a rebuild.
 
 ## CI/CD
 
