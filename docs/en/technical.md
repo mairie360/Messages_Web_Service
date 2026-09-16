@@ -20,7 +20,7 @@ The generic proxy reads the versioned OpenAPI contract to allow paths and method
 
 The following sources and limitations describe the associated BFF, which determines persistence for the displayed data.
 
-Conversations and messages use Message API. Contacts are read directly from the SQL `users` table; the user context is adapted from Core. Business references are aggregated from BFF Project and BFF Calendar. Local profile edits, attachment metadata and the read acknowledgement do not provide complete persistence.
+Conversations and messages use Message API. Contacts are read directly from the SQL `users` table, including the current user (token `sub` identifier). Business references are aggregated from BFF Project and BFF Calendar. Local profile edits, attachment metadata and the read acknowledgement do not provide complete persistence.
 
 Attachment upload currently creates metadata and does not provide durable binary storage. Mark-as-read returns a zero counter without writing to Message API. Conversation groups use the API, while some profile data remains local to the process.
 
@@ -40,10 +40,9 @@ Create `.env.local` in the repository root. Example for BFFs running on the same
 
 ```dotenv
 BFF_MESSAGE_BASE_URL=http://localhost:4003
-USER_BFF_URL=http://localhost:4000
 ```
 
-Start the associated BFF and BFF User for session flows, then start the web service. Port `5003` below is an explicit local choice to avoid collisions; it is not a claim about ports in every Compose file.
+Start BFF Message, the front's only BFF, then start the web service. Port `5003` below is an explicit local choice to avoid collisions; it is not a claim about ports in every Compose file.
 
 ```bash
 npm run dev
@@ -63,9 +62,7 @@ Values below are local examples or explicitly described behavior, not production
 | Variable or precedence | Example / stated fallback | Purpose |
 | --- | --- | --- |
 | `BFF_MESSAGE_BASE_URL` → `MESSAGE_BFF_URL` → `NEXT_PUBLIC_BFF_MESSAGE_BASE_URL` | http://localhost:4003 | Left-to-right proxy precedence; the URL shown is the local fallback. |
-| `USER_BFF_URL` → `BFF_USER_API_URL` | http://localhost:4000 | Separate precedence used by session adapters targeting BFF User. |
-| `BFF_CONTRACT_DIR` | ../BFF_Message/contracts | BFF contract directory for synchronization and checking scripts. |
-| `COOKIE_DOMAIN` | — | Cookie domain; keep it consistent with Login and BFF User. |
+| `COOKIE_DOMAIN` | — | Domain of the `accessToken` cookie, set by Login and cleared by the local logout; keep it consistent with Login. |
 | `ADMINISTRATION_FRONT_URL` | — | Navigation destination; see the source file that reads it. Variables injected by `next.config.ts` or prefixed `NEXT_PUBLIC_` are public and consumed at build time. |
 | `CALENDAR_FRONT_URL` | — | Navigation destination; see the source file that reads it. Variables injected by `next.config.ts` or prefixed `NEXT_PUBLIC_` are public and consumed at build time. |
 | `ELEARNING_FRONT_URL` | — | Navigation destination; see the source file that reads it. Variables injected by `next.config.ts` or prefixed `NEXT_PUBLIC_` are public and consumed at build time. |
@@ -75,7 +72,7 @@ Values below are local examples or explicitly described behavior, not production
 | `MESSAGE_FRONT_URL` | — | Navigation destination; see the source file that reads it. Variables injected by `next.config.ts` or prefixed `NEXT_PUBLIC_` are public and consumed at build time. |
 | `PROJECT_FRONT_URL` | — | Navigation destination; see the source file that reads it. Variables injected by `next.config.ts` or prefixed `NEXT_PUBLIC_` are public and consumed at build time. |
 
-Inside a container, `localhost` refers to that container. Use the BFF service DNS name on the Docker network or a reachable host address. Compose files sometimes include other services and legacy settings; check effective URLs and ports before using them.
+Inside a container, `localhost` refers to that container. Use the BFF service DNS name on the Docker network or a reachable host address. `docker-compose.yml` starts the database, Message API, BFF Message and this front in `next dev` mode on port 5003. The security and performance stacks start the same chain from published images. BFF Message is the only BFF there, in the contract package version.
 
 ## Routes and data contract
 
@@ -85,21 +82,21 @@ These data paths are exposed at the same origin through the proxy; Next.js pages
 
 | Method | Path | Declared body | Declared statuses |
 | --- | --- | --- | --- |
-| GET | `/health` | — | 200 |
-| GET | `/check_apis` | — | 200, 502 |
-| GET | `/business-references` | — | 200, 401 |
-| POST | `/attachments` | multipart/form-data | 201, 401 |
-| GET | `/messaging/bootstrap` | — | 200, 401 |
-| GET | `/contacts` | — | 200, 401 |
-| GET | `/conversations` | — | 200, 401 |
-| DELETE | `/conversations/{conversationId}` | — | 200 |
-| POST | `/conversations/{conversationId}/read` | application/json | 200 |
-| POST | `/groups` | application/json | 201, 401 |
-| GET | `/me` | — | 200, 401 |
-| PATCH | `/me` | application/json | 200, 400 |
-| GET | `/conversations/{conversationId}/messages` | — | 200, 401 |
-| POST | `/conversations/{conversationId}/messages` | application/json | 201, 401 |
-| POST | `/direct-messages` | application/json | 201, 401 |
+| POST | `/attachments` | multipart/form-data | 401, 2XX |
+| GET | `/business-references` | — | 2XX |
+| GET | `/check_apis` | — | 2XX |
+| GET | `/contacts` | — | 401, 2XX |
+| GET | `/conversations` | — | 401, 2XX |
+| DELETE | `/conversations/{conversationId}` | — | 2XX |
+| GET | `/conversations/{conversationId}/messages` | — | 401, 2XX |
+| POST | `/conversations/{conversationId}/messages` | application/json | 401, 2XX |
+| POST | `/conversations/{conversationId}/read` | application/json | 2XX |
+| POST | `/direct-messages` | application/json | 401, 2XX |
+| POST | `/groups` | application/json | 401, 2XX |
+| GET | `/health` | — | 2XX |
+| GET | `/me` | — | 401, 2XX |
+| PATCH | `/me` | application/json | 400, 2XX |
+| GET | `/messaging/bootstrap` | — | 401, 2XX |
 
 ### Pages and local adapters
 
@@ -111,14 +108,11 @@ These data paths are exposed at the same origin through the proxy; Next.js pages
 | Method | Local route | Source |
 | --- | --- | --- |
 | GET | `/business-references` | [src/app/business-references/route.ts](../../src/app/business-references/route.ts) |
-| GET | `/api/user/me` | [src/app/api/user/me/route.ts](../../src/app/api/user/me/route.ts) |
 | POST | `/api/auth/logout` | [src/app/api/auth/logout/route.ts](../../src/app/api/auth/logout/route.ts) |
-| GET | `/api/auth/me` | [src/app/api/auth/me/route.ts](../../src/app/api/auth/me/route.ts) |
-| GET | `/api/auth/session` | [src/app/api/auth/session/route.ts](../../src/app/api/auth/session/route.ts) |
 
 ## Session, permissions and errors
 
-The `/api/auth/me`, `/api/auth/session` and `/api/user/me` adapters use BFF User for session access; `/api/auth/logout` forwards logout. The generic proxy uses an explicit Bearer header or, when absent, the `accessToken` cookie. Business permissions remain those of the BFF and its sources.
+BFF Message is the front's only BFF: the session shown by the shell comes from `GET /me`, relayed by the proxy. `/api/auth/logout` is a local route that clears the `accessToken` cookie (same name, path and `COOKIE_DOMAIN` as Login) with no network call; the reload that follows is redirected to Login by the middleware. The JWT is not revoked server-side, exactly as with BFF User's logout, which also only cleared the cookie. The generic proxy uses an explicit Bearer header or, when absent, the `accessToken` cookie. Business permissions remain those of the BFF and its sources.
 
 The generic proxy returns 400 for an invalid path, 404 for a path outside the contract, 405 for a disallowed method and 502 when the service is unreachable or times out. Upstream responses are preserved, including empty 204/205/304 bodies.
 
@@ -126,25 +120,30 @@ Every response carries `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff
 
 ## Synchronization and verification
 
-After changing routes or schemas, export the contract in **BFF_Message** using `npm run contracts:generate`, then run in this repository:
+The contract source is the published `@mairie360/bff-message-openapi` package, pinned to an exact version in `package.json`. Never copy the contract from a **BFF_Message** checkout: the local repository can be ahead of the last published release. After a version bump:
 
 ```bash
-npm run contracts:sync
-npm run contracts:check
-npm run test:contracts
+npm install --save-exact @mairie360/bff-message-openapi@X.Y.Z   # published releases only, never 0.0.0-dev/staging
+npm run contracts:sync      # rebuild contracts/openapi.json from the installed package
+npm run contracts:check     # fail if the version isn't exact, if a second bff-*-openapi package exists, or if the snapshot is stale
+npm test
 npm run lint
 npm run build
 ```
 
-`contracts:sync` copies the BFF contract and regenerates `src/contracts/bff.d.ts`. `contracts:check` also compares a neighboring BFF when present; in an isolated checkout, it checks types against the local committed snapshot. `test:contracts` runs the Node proxy tests.
+These commands run offline. Move the `bff-message` image tags in the `docker-compose*.yml` files to the same version as well (`tests/package-contract.test.cjs` enforces it). `contracts/openapi.json` is the committed rebuild of the package, read by the proxy at build time and by the tests: never hand-edit it. Route types come straight from the package (`@mairie360/bff-message-openapi/model`); there is no generated `.d.ts` any more. `test:contracts` runs the Node tests without coverage; `npm test` runs them with 60% coverage thresholds (lines, branches, functions) reported on the original TypeScript.
 
-The type generator is pinned to `openapi-typescript@7.10.1` in `scripts/contracts.mjs` and runs through npm. For documentation-only changes, check links, accuracy in both languages and `git diff --check`; do not regenerate contracts without changing their source.
+Orval output only types successes, exposed under the `2XX` range, plus the error statuses carried by a `<OperationId><status>` model: any other error reply mocked in the tests must be declared with `outOfContract: true`.
+
+The `tests/*.contract-mocks.test.cjs` tests run the real browser client (`messageClient`, `fetchAuthSession`, `useAuthSession`) through the real Next.js handlers (contract catch-all, `/business-references`, local logout) up to a local HTTP server simulating BFF Message, driven by `contracts/openapi.json`. Every request (path, method, parameters, body) and every mocked response is validated against that contract, and any call to another host fails: BFF Message is the only reachable BFF. The proxy block replays **every** contract operation with requests and replies built by `contract.sample`, so a package bump covers new routes automatically. `tests/network-contract.test.cjs` scans `src/` to check that only `messageClient`, `auth-session` and `bff-proxy` call the network, that a single BFF URL is read, and that every path called by the browser matches a declared operation or a local route with no network. `tests/package-contract.test.cjs` checks the exact package pin, that only one `bff-*-openapi` package is used, that the snapshot is fresh, and the `bff-message` image versions. A new `messageClient` method fails the tests until it has a contract scenario.
+
+For documentation-only changes, check links, accuracy in both languages and `git diff --check`; do not regenerate contracts without changing their source.
 
 ## CI/CD and Docker execution
 
 The `contracts.yml` job uses Node.js 22, `actions/checkout@v7` and `actions/setup-node@v7`. It runs on pushes, pull requests and manual dispatch; it installs with `npm ci`, checks contracts and runs the associated tests.
 
-`cicd.yml` calls `mairie360/CICD/.github/workflows/frontend-cicd.yml@v2.0.0`, with `cicd_version: v2.0.0` and `node_version: "22"`. Reusable steps and GitHub environments determine actual checks, publications and deployments.
+`cicd.yml` calls `mairie360/CICD/.github/workflows/frontend-cicd.yml@v2.3.1`, with `cicd_version: "v2.3.1"` and `node_version: "22"`. Reusable steps and GitHub environments determine actual checks, publications and deployments.
 
 The Dockerfile defaults to `NODE_VERSION=22.15.0` and the Next.js `standalone` build; the image command is `["node", "server.js"]`. Image ports and Compose mappings can differ from the local port suggested above.
 
@@ -152,9 +151,9 @@ Before running Docker, check service variables, build secrets and networks in th
 
 ## Troubleshooting
 
-Associated BFF diagnostics: If conversations work but contacts do not, check PostgreSQL. If only business references are missing, check the two associated BFFs and session permissions. `/me` here describes the messaging profile; the web `/api/auth/*` adapters use BFF User.
+Associated BFF diagnostics: If conversations work but contacts do not, check PostgreSQL. If only business references are missing, check the BFFs that BFF Message aggregates and session permissions. `/me` provides the profile shown by the front's shell.
 
-For a proxy error, compare the path and method with the inventory, then check the BFF URL and session. For a 401 after navigating between modules, check the `accessToken` cookie, its domain and BFF User. A 404 for a requirement described in `BACKEND.md` may refer to a feature that is only proposed.
+For a proxy error, compare the path and method with the inventory, then check the BFF URL and session. For a 401 after navigating between modules, check the `accessToken` cookie, its domain and the session issued by Login. A 404 for a requirement described in `BACKEND.md` may refer to a feature that is only proposed.
 
 ## Repository reference
 
@@ -164,10 +163,11 @@ For a proxy error, compare the path and method with the inventory, then check th
 - [src/middleware.ts](../../src/middleware.ts)
 - [src/lib/bff-proxy.ts](../../src/lib/bff-proxy.ts)
 - [src/app/[...path]/route.ts](../../src/app/%5B...path%5D/route.ts)
-- [src/lib/user-bff-proxy.ts](../../src/lib/user-bff-proxy.ts)
+- [src/app/api/auth/logout/route.ts](../../src/app/api/auth/logout/route.ts)
+- [src/lib/auth-session.ts](../../src/lib/auth-session.ts)
 - [contracts/openapi.json](../../contracts/openapi.json)
-- [src/contracts/bff.d.ts](../../src/contracts/bff.d.ts)
 - [scripts/contracts.mjs](../../scripts/contracts.mjs)
+- [scripts/orval-contract.mjs](../../scripts/orval-contract.mjs)
 - [package.json](../../package.json)
 - [.github/workflows/contracts.yml](../../.github/workflows/contracts.yml)
 - [.github/workflows/cicd.yml](../../.github/workflows/cicd.yml)
