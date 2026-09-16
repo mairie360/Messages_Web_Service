@@ -1,14 +1,10 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const fs = require('node:fs');
-const ts = require('typescript');
 const { NextRequest } = require('next/server');
-const originalLoader = require.extensions['.ts'];
-require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true } }).outputText, filename);
-const { middleware } = require('../src/middleware.ts');
-const { buildContentSecurityPolicy } = require('../src/lib/content-security-policy.ts');
-const nextConfig = require('../next.config.ts').default;
-require.extensions['.ts'] = originalLoader;
+const { requireSrc } = require('./support/load-ts.cjs');
+const { middleware } = requireSrc('middleware.ts');
+const { buildContentSecurityPolicy } = requireSrc('lib/content-security-policy.ts');
+const nextConfig = requireSrc('../next.config.ts').default;
 
 const b64url = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
 const jwt = (exp) => `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ sub: '2', exp })}.signature`;
