@@ -1,52 +1,34 @@
-import type { components } from '@/contracts/bff';
-type Schemas = components['schemas'];
-import { getStoredAuthorizationHeader } from "@/lib/auth-token";
+import type {
+  BusinessReferencesResponse,
+  DeleteConversationsConversationId200,
+  GetContacts200,
+  GetConversationsConversationIdMessages200,
+  GetMe200,
+  GetMessagingBootstrap200,
+  PostConversationsConversationIdMessages201,
+  PostConversationsConversationIdMessagesBody,
+  PostDirectMessages201,
+  PostDirectMessagesBody,
+  PostGroups201,
+  PostGroupsBody,
+} from "@mairie360/bff-message-openapi/model";
+
+// Types du contrat publié de BFF Message (@mairie360/bff-message-openapi, version épinglée dans package.json).
+// Seuls les modèles de premier niveau sont nommés : les noms des sous-modèles orval changent avec le contrat.
 
 export type MessageId = string | number;
-export type ConversationKind = "direct" | "group";
-export type Presence = "online" | "offline" | "away";
-export type MessageDirection = "incoming" | "outgoing";
-export type BusinessReferenceKind = "project" | "task" | "event";
 
-export type CurrentUserDto = Schemas['CurrentUserDtoSchema'];
+export type CurrentUserDto = GetMe200["currentUser"];
 
-export type AttachmentDto = Schemas['AttachmentDtoSchema'];
+export type ContactDto = GetContacts200["contacts"][number];
 
-export type MentionDto = Schemas['MentionDtoSchema'];
-
-export type ConversationDto = Schemas['ConversationDtoSchema'];
-
-export type ContactDto = Schemas['ContactDtoSchema'];
-
-export type MessageDto = Schemas['MessageDtoSchema'];
-
-export type MessagingBootstrapResponse = Schemas['MessagingBootstrapResponse'];
-
-export type ContactsResponse = Schemas['ContactsResponse'];
-
-export type MessagesResponse = Schemas['MessagesResponse'];
-
-export type SendMessageRequest = Schemas['SendMessageBody'];
-
-export type SendMessageResponse = Schemas['SendMessageResponse'];
-
-export type NewDirectMessageRequest = Schemas['NewDirectMessageBody'];
-
-export type NewDirectMessageResponse = Schemas['NewDirectMessageResponse'];
-
-export type CreateGroupRequest = Schemas['CreateGroupBody'];
-
-export type CreateGroupResponse = Schemas['CreateGroupResponse'];
-
-export type BusinessReferenceDto = {
-  id: MessageId;
-  title: string;
-  kind: BusinessReferenceKind;
-  description?: string;
-  href?: string;
-};
-
-export type BusinessReferencesResponse = Schemas['BusinessReferencesResponse'];
+/** Erreur HTTP renvoyée par le BFF, avec son statut. */
+export class BffRequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "BffRequestError";
+  }
+}
 
 async function readJson<T>(response: Response): Promise<T> {
   const text = await response.text();
@@ -68,12 +50,6 @@ async function bffRequest<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const authorizationHeader = getStoredAuthorizationHeader();
-
-  if (authorizationHeader && !headers.has("Authorization")) {
-    headers.set("Authorization", authorizationHeader);
-  }
-
   const response = await fetch(path, {
     ...init,
     headers,
@@ -89,7 +65,7 @@ async function bffRequest<T>(
       errorBody?.message ??
       `Erreur BFF messages (${response.status})`;
 
-    throw new Error(message);
+    throw new BffRequestError(message, response.status);
   }
 
   return readJson<T>(response);
@@ -100,12 +76,16 @@ function encodeId(id: MessageId) {
 }
 
 export const messageClient = {
+  getCurrentUser() {
+    return bffRequest<GetMe200>("/me");
+  },
+
   getBootstrap() {
-    return bffRequest<MessagingBootstrapResponse>("/messaging/bootstrap");
+    return bffRequest<GetMessagingBootstrap200>("/messaging/bootstrap");
   },
 
   getContacts() {
-    return bffRequest<ContactsResponse>("/contacts");
+    return bffRequest<GetContacts200>("/contacts");
   },
 
   getBusinessReferences() {
@@ -113,13 +93,13 @@ export const messageClient = {
   },
 
   getConversationMessages(conversationId: MessageId) {
-    return bffRequest<MessagesResponse>(
+    return bffRequest<GetConversationsConversationIdMessages200>(
       `/conversations/${encodeId(conversationId)}/messages`,
     );
   },
 
-  sendMessage(conversationId: MessageId, payload: SendMessageRequest) {
-    return bffRequest<SendMessageResponse>(
+  sendMessage(conversationId: MessageId, payload: PostConversationsConversationIdMessagesBody) {
+    return bffRequest<PostConversationsConversationIdMessages201>(
       `/conversations/${encodeId(conversationId)}/messages`,
       {
         method: "POST",
@@ -128,22 +108,22 @@ export const messageClient = {
     );
   },
 
-  createDirectMessage(payload: NewDirectMessageRequest) {
-    return bffRequest<NewDirectMessageResponse>("/direct-messages", {
+  createDirectMessage(payload: PostDirectMessagesBody) {
+    return bffRequest<PostDirectMessages201>("/direct-messages", {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
-  createGroup(payload: CreateGroupRequest) {
-    return bffRequest<CreateGroupResponse>("/groups", {
+  createGroup(payload: PostGroupsBody) {
+    return bffRequest<PostGroups201>("/groups", {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
   deleteConversation(conversationId: MessageId) {
-    return bffRequest<void>(`/conversations/${encodeId(conversationId)}`, {
+    return bffRequest<DeleteConversationsConversationId200>(`/conversations/${encodeId(conversationId)}`, {
       method: "DELETE",
     });
   },

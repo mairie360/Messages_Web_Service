@@ -1,6 +1,8 @@
-import { NextRequest } from 'next/server';
-import { userBffRequest } from '@/lib/user-bff-proxy';
+import { NextResponse } from 'next/server';
+import { clearAccessTokenCookie } from '@/lib/access-token-cookie';
 
-export function POST(request: NextRequest) {
-  return userBffRequest(request, '/auth/logout');
+// Déconnexion locale : BFF Message étant le seul BFF du front, la session se termine en effaçant le
+// cookie `accessToken`, sans appel réseau. La page rechargée est ensuite redirigée vers Login.
+export function POST() {
+  return clearAccessTokenCookie(new NextResponse(null, { status: 204, headers: { 'Cache-Control': 'no-store' } }));
 }

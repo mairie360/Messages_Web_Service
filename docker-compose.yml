@@ -1,3 +1,11 @@
+# Stack de développement du front Messages : base, Message API, BFF Message et ce front
+# (development.Dockerfile, `next dev` avec synchronisation de src/).
+#
+#   docker compose up --watch      (NODE_AUTH_TOKEN exporté pour le build)
+#
+# BFF Message est le seul BFF du front ; son image suit la version du paquet de contrat
+# @mairie360/bff-message-openapi épinglée dans package.json.
+
 volumes:
   postgres-data:
   redis-data:
@@ -6,40 +14,19 @@ networks:
   backend:
   frontend:
 
-x-common-env: &common-env
-  HOSTNAME: "0.0.0.0"
-  PORT: 3000
-  REDIS_URL: redis://redis:6379
-  CORE_PUBLIC_URL: http://development.mairie360.fr
-
-# x-depends-on: &depends-on
-#   postgres:
-#     condition: service_healthy
-#   redis:
-#     condition: service_healthy
-
-x-healthcheck: &healthcheck
-  test: ["CMD", "curl", "-f", "http://localhost:3000"]
-  interval: 10s
-  timeout: 5s
-  retries: 5
-
-x-service: &service-template
-  pull_policy: always
-  restart: always
-  expose:
-    - "3000"
-  networks:
-    - backend
-    - frontend
-  healthcheck:
-    <<: *healthcheck
+x-db-env: &db-env
+  DB_TYPE: postgres
+  DB_NAME: mairie_360_database
+  DB_USER: ${DB_USER:-postgres}
+  DB_PASSWORD: ${DB_PASSWORD:-password}
+  DB_HOST: postgres
+  DB_PORT: 5432
 
 services:
   postgres:
     image: ghcr.io/mairie360/database:dev-latest
     restart: always
-    container_name: mairie360-db-message-front #change front name
+    container_name: mairie360-db-message-front
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
@@ -58,12 +45,11 @@ services:
 
   liquibase:
     image: ghcr.io/mairie360/liquibase-migrations:dev-latest
-    container_name: mairie360-liquibase-message-front #change front name
+    container_name: mairie360-liquibase-message-front
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      <<: *common-env
       LIQUIBASE_COMMAND_URL: jdbc:postgresql://postgres:5432/mairie_360_database
       LIQUIBASE_COMMAND_USERNAME: ${DB_USER:-postgres}
       LIQUIBASE_COMMAND_PASSWORD: ${DB_PASSWORD:-password}
@@ -76,7 +62,7 @@ services:
 
   redis:
     image: redis:8.4.0-bookworm
-    container_name: mairie360-redis-message-front #change front name
+    container_name: mairie360-redis-message-front
     restart: always
     expose:
       - "6379"
@@ -90,35 +76,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # core:
-  #   container_name: core-message-front-developpement
-  #   image: ghcr.io/mairie360/core-api:dev-1644fa7
-  #   ports:
-  #     - "3000:3000"
-  #   networks:
-  #     - backend
-  #   dns:
-  #     - 8.8.8.8
-  #     - 1.1.1.1
-  #   environment:
-  #     HOST: "0.0.0.0"
-  #     PORT: 3000
-  #     REDIS_URL: redis://redis:6379
-  #     DB_TYPE: postgres
-  #     DB_NAME: mairie_360_database
-  #     DB_USER: postgres
-  #     DB_HOST: postgres
-  #     DB_PASSWORD: password
-  #     DB_PORT: 5432
-  #     PUBLIC_URL: http://core.development.mairie360.fr
-  #     JWT_SECRET: b"secret"
-  #     JWT_TIMEOUT: 3600
-  #   depends_on:
-  #     liquibase:
-  #       condition: service_completed_successfully
-  #     redis:
-  #       condition: service_healthy
-      
   message-api:
     container_name: message-api-front-message-developpement
     image: ghcr.io/mairie360/message-api:dev-latest
@@ -126,19 +83,11 @@ services:
       - "3003:3003"
     networks:
       - backend
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
     environment:
+      <<: *db-env
       HOST: "0.0.0.0"
       PORT: 3003
       REDIS_URL: redis://redis:6379
-      DB_TYPE: postgres
-      DB_NAME: mairie_360_database
-      DB_USER: postgres
-      DB_HOST: postgres
-      DB_PASSWORD: password
-      DB_PORT: 5432
       PUBLIC_URL: http://core.development.mairie360.fr
       JWT_SECRET: b"secret"
       JWT_TIMEOUT: 3600
@@ -147,38 +96,43 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-  
-  #add other apis if needed
 
   bff-message:
     container_name: bff-message-message-front
-    image: ghcr.io/mairie360/bff-message:dev-latest
+    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:0.3.0}
     ports:
       - "4003:4003"
     networks:
       - backend
       - frontend
     environment:
-      CORE_API_URL: "core" 
-      CORE_API_PORT: 3000
-      MESSAGE_API_URL: "message-api" 
-      MESSAGE_API_PORT: 3003
+      # Base PostgreSQL : table users (contacts et utilisateur courant).
+      <<: *db-env
       PORT: 4003
+      MESSAGE_API_URL: message-api
+      MESSAGE_API_PORT: 3003
+      MESSAGE_API_BASE_PATH: http://message-api:3003/api
+    depends_on:
+      liquibase:
+        condition: service_completed_successfully
+      message-api:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4003/health"]
       interval: 10s
       timeout: 5s
       retries: 3
-  
-  message-front: # Ton application React
+
+  message-front:
     container_name: message-front-developpement
     build:
       context: .
       dockerfile: development.Dockerfile
       secrets:
         - NODE_AUTH_TOKEN
+    # `npm run dev` écoute sur 5003 (`next dev -p 5003`).
     ports:
-      - "5003:3000" # On map le 3000 interne sur 5003 pour éviter le conflit avec 'core'
+      - "5003:5003"
     develop:
       watch:
         - action: sync
@@ -186,22 +140,19 @@ services:
           target: /app/src
         - action: rebuild
           path: package.json
-    secrets:
-      - NODE_AUTH_TOKEN
     environment:
-      <<: *common-env
-      PORT: 3000
+      HOSTNAME: "0.0.0.0"
       BFF_MESSAGE_BASE_URL: http://bff-message:4003
-      # Force React/Vite à surveiller les fichiers correctement dans Docker
-      WATCHPACK_POLLING: "true" 
-      CHOKIDAR_USEPOLLING: "true"
+      # Surveillance des fichiers synchronisés dans le conteneur.
+      WATCHPACK_POLLING: "true"
     networks:
       - frontend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      # Sans cookie, le middleware répond 307 (redirection Login) : curl -f l'accepte.
+      test: ["CMD", "curl", "-f", "http://localhost:5003"]
       interval: 10s
       retries: 3
-        
+
 secrets:
   NODE_AUTH_TOKEN:
     environment: NODE_AUTH_TOKEN
