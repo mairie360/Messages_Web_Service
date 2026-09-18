@@ -135,8 +135,8 @@
         },
         "required": [
           "status",
-          "core_api",
-          "message_api"
+          "message_api",
+          "core_api"
         ],
         "type": "object"
       },
@@ -827,32 +827,200 @@
       },
       "GetConversationsConversationIdMessages200": {
         "properties": {
-          "attachmentIds": {
+          "conversation": {
+            "$ref": "#/components/schemas/GetConversationsConversationIdMessages200Conversation"
+          },
+          "messages": {
             "items": {
-              "type": [
-                "string",
-                "number"
-              ]
+              "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItem"
             },
             "type": "array"
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversation",
+          "messages"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMessages200Conversation": {
+        "properties": {
+          "avatarUrl": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "initials": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GetConversationsConversationIdMessages200ConversationKind"
+          },
+          "lastMessage": {
+            "type": "string"
+          },
+          "lastMessageAt": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "presence": {
+            "$ref": "#/components/schemas/GetConversationsConversationIdMessages200ConversationPresence"
+          },
+          "unreadCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMessages200ConversationKind": {
+        "enum": [
+          "direct",
+          "group"
+        ],
+        "type": "string"
+      },
+      "GetConversationsConversationIdMessages200ConversationPresence": {
+        "enum": [
+          "online",
+          "offline",
+          "away"
+        ],
+        "type": "string"
+      },
+      "GetConversationsConversationIdMessages200MessagesItem": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemAttachmentsItem"
+            },
+            "type": "array"
+          },
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
           },
           "content": {
             "type": "string"
           },
-          "mentionIds": {
+          "conversationId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "direction": {
+            "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemDirection"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "mentions": {
             "items": {
-              "type": [
-                "string",
-                "number"
-              ]
+              "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemMentionsItem"
             },
             "type": "array"
+          },
+          "sentAt": {
+            "type": "string"
           }
         },
         "required": [
-          "content"
+          "id",
+          "conversationId",
+          "content",
+          "sentAt",
+          "authorId"
         ],
         "type": "object"
+      },
+      "GetConversationsConversationIdMessages200MessagesItemAttachmentsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMessages200MessagesItemDirection": {
+        "enum": [
+          "incoming",
+          "outgoing"
+        ],
+        "type": "string"
+      },
+      "GetConversationsConversationIdMessages200MessagesItemMentionsItem": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemMentionsItemKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMessages200MessagesItemMentionsItemKind": {
+        "enum": [
+          "direct",
+          "group"
+        ],
+        "type": "string"
       },
       "GetConversationsConversationIdMessages401": {
         "properties": {
@@ -2367,19 +2535,12 @@
           "conversation": {
             "$ref": "#/components/schemas/PostConversationsConversationIdMessages201Conversation"
           },
-          "messages": {
-            "items": {
-              "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessagesItem"
-            },
-            "type": "array"
-          },
-          "nextCursor": {
-            "type": "string"
+          "message": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMessages201Message"
           }
         },
         "required": [
-          "conversation",
-          "messages"
+          "message"
         ],
         "type": "object"
       },
@@ -2440,11 +2601,11 @@
         ],
         "type": "string"
       },
-      "PostConversationsConversationIdMessages201MessagesItem": {
+      "PostConversationsConversationIdMessages201Message": {
         "properties": {
           "attachments": {
             "items": {
-              "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessagesItemAttachmentsItem"
+              "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageAttachmentsItem"
             },
             "type": "array"
           },
@@ -2467,7 +2628,7 @@
             ]
           },
           "direction": {
-            "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessagesItemDirection"
+            "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageDirection"
           },
           "id": {
             "type": [
@@ -2477,7 +2638,7 @@
           },
           "mentions": {
             "items": {
-              "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessagesItemMentionsItem"
+              "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageMentionsItem"
             },
             "type": "array"
           },
@@ -2494,7 +2655,7 @@
         ],
         "type": "object"
       },
-      "PostConversationsConversationIdMessages201MessagesItemAttachmentsItem": {
+      "PostConversationsConversationIdMessages201MessageAttachmentsItem": {
         "properties": {
           "id": {
             "type": [
@@ -2521,14 +2682,14 @@
         ],
         "type": "object"
       },
-      "PostConversationsConversationIdMessages201MessagesItemDirection": {
+      "PostConversationsConversationIdMessages201MessageDirection": {
         "enum": [
           "incoming",
           "outgoing"
         ],
         "type": "string"
       },
-      "PostConversationsConversationIdMessages201MessagesItemMentionsItem": {
+      "PostConversationsConversationIdMessages201MessageMentionsItem": {
         "properties": {
           "description": {
             "type": "string"
@@ -2540,7 +2701,7 @@
             ]
           },
           "kind": {
-            "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessagesItemMentionsItemKind"
+            "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageMentionsItemKind"
           },
           "name": {
             "type": "string"
@@ -2552,7 +2713,7 @@
         ],
         "type": "object"
       },
-      "PostConversationsConversationIdMessages201MessagesItemMentionsItemKind": {
+      "PostConversationsConversationIdMessages201MessageMentionsItemKind": {
         "enum": [
           "direct",
           "group"
@@ -2577,193 +2738,32 @@
       },
       "PostConversationsConversationIdMessagesBody": {
         "properties": {
-          "conversation": {
-            "$ref": "#/components/schemas/PostConversationsConversationIdMessagesBodyConversation"
-          },
-          "message": {
-            "$ref": "#/components/schemas/PostConversationsConversationIdMessagesBodyMessage"
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "type": "object"
-      },
-      "PostConversationsConversationIdMessagesBodyConversation": {
-        "properties": {
-          "avatarUrl": {
-            "type": "string"
-          },
-          "department": {
-            "type": "string"
-          },
-          "id": {
-            "type": [
-              "string",
-              "number"
-            ]
-          },
-          "initials": {
-            "type": "string"
-          },
-          "kind": {
-            "$ref": "#/components/schemas/PostConversationsConversationIdMessagesBodyConversationKind"
-          },
-          "lastMessage": {
-            "type": "string"
-          },
-          "lastMessageAt": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "presence": {
-            "$ref": "#/components/schemas/PostConversationsConversationIdMessagesBodyConversationPresence"
-          },
-          "unreadCount": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "id",
-          "name"
-        ],
-        "type": "object"
-      },
-      "PostConversationsConversationIdMessagesBodyConversationKind": {
-        "enum": [
-          "direct",
-          "group"
-        ],
-        "type": "string"
-      },
-      "PostConversationsConversationIdMessagesBodyConversationPresence": {
-        "enum": [
-          "online",
-          "offline",
-          "away"
-        ],
-        "type": "string"
-      },
-      "PostConversationsConversationIdMessagesBodyMessage": {
-        "properties": {
-          "attachments": {
+          "attachmentIds": {
             "items": {
-              "$ref": "#/components/schemas/PostConversationsConversationIdMessagesBodyMessageAttachmentsItem"
+              "type": [
+                "string",
+                "number"
+              ]
             },
             "type": "array"
-          },
-          "authorId": {
-            "type": [
-              "string",
-              "number"
-            ]
-          },
-          "authorName": {
-            "type": "string"
           },
           "content": {
             "type": "string"
           },
-          "conversationId": {
-            "type": [
-              "string",
-              "number"
-            ]
-          },
-          "direction": {
-            "$ref": "#/components/schemas/PostConversationsConversationIdMessagesBodyMessageDirection"
-          },
-          "id": {
-            "type": [
-              "string",
-              "number"
-            ]
-          },
-          "mentions": {
+          "mentionIds": {
             "items": {
-              "$ref": "#/components/schemas/PostConversationsConversationIdMessagesBodyMessageMentionsItem"
+              "type": [
+                "string",
+                "number"
+              ]
             },
             "type": "array"
-          },
-          "sentAt": {
-            "type": "string"
           }
         },
         "required": [
-          "id",
-          "conversationId",
-          "content",
-          "sentAt",
-          "authorId"
+          "content"
         ],
         "type": "object"
-      },
-      "PostConversationsConversationIdMessagesBodyMessageAttachmentsItem": {
-        "properties": {
-          "id": {
-            "type": [
-              "string",
-              "number"
-            ]
-          },
-          "name": {
-            "type": "string"
-          },
-          "size": {
-            "type": "number"
-          },
-          "type": {
-            "type": "string"
-          },
-          "url": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name"
-        ],
-        "type": "object"
-      },
-      "PostConversationsConversationIdMessagesBodyMessageDirection": {
-        "enum": [
-          "incoming",
-          "outgoing"
-        ],
-        "type": "string"
-      },
-      "PostConversationsConversationIdMessagesBodyMessageMentionsItem": {
-        "properties": {
-          "description": {
-            "type": "string"
-          },
-          "id": {
-            "type": [
-              "string",
-              "number"
-            ]
-          },
-          "kind": {
-            "$ref": "#/components/schemas/PostConversationsConversationIdMessagesBodyMessageMentionsItemKind"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name"
-        ],
-        "type": "object"
-      },
-      "PostConversationsConversationIdMessagesBodyMessageMentionsItemKind": {
-        "enum": [
-          "direct",
-          "group"
-        ],
-        "type": "string"
       },
       "PostConversationsConversationIdRead200": {
         "properties": {
@@ -3475,7 +3475,7 @@
   "info": {
     "title": "bff_message",
     "version": "1.0.0",
-    "x-source-package": "@mairie360/bff-message-openapi@0.3.0"
+    "x-source-package": "@mairie360/bff-message-openapi@0.4.0"
   },
   "openapi": "3.1.0",
   "paths": {

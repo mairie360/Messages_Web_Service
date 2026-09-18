@@ -14,7 +14,7 @@
     "test": "mkdir -p coverage && node --enable-source-maps --test --experimental-test-coverage --test-coverage-branches=60 --test-coverage-functions=60 --test-coverage-lines=60 --test-coverage-include='src/**' --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info tests/*.test.cjs"
   },
   "dependencies": {
-    "@mairie360/bff-message-openapi": "0.3.0",
+    "@mairie360/bff-message-openapi": "0.4.0",
     "@mairie360/lib-components": "0.3.0",
     "daisyui": "^5.0.0",
     "lucide-react": "^0.577.0",
