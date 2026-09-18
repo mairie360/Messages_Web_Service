@@ -134,7 +134,7 @@ services:
       - backend
 
   message-api:
-    image: ${MESSAGE_API_IMAGE:-ghcr.io/mairie360/message-api:0.6.1}
+    image: ${MESSAGE_API_IMAGE:-ghcr.io/mairie360/message-api:0.7.1}
     container_name: message-front-sec-message-api
     depends_on:
       liquibase:
