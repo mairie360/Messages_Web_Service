@@ -1,25 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BffRequestError, messageClient, type CurrentUserDto } from "../clients/messageClient";
 
-export const APP_ROLES = [
-  "Admin",
-  "Responsable",
-  "Maire",
-  "User",
-  "Guest",
-] as const;
-
-export type AppRole = (typeof APP_ROLES)[number];
+export type AppRole = "Admin" | "Responsable" | "Maire" | "User" | "Guest";
 
 export type AuthSessionUser = {
   name: string;
   email?: string;
-  role?: string;
+  role: AppRole;
   service?: string;
   phone?: string;
-  status?: string;
-  avatar?: string;
   avatarUrl?: string;
   position?: string;
   address?: string;
@@ -27,44 +18,18 @@ export type AuthSessionUser = {
   lastConnection?: string;
 };
 
-type SessionUser = {
-  name?: unknown;
-  first_name?: unknown;
-  last_name?: unknown;
-  email?: unknown;
-  phone?: unknown;
-  phone_number?: unknown;
-  status?: unknown;
-  role?: unknown;
-  roles?: Array<SessionRole | string> | null;
-  groups?: Array<SessionGroup | string> | null;
-};
-
-type SessionGroup = {
-  name?: unknown;
-};
-
-type SessionRole = {
-  name?: unknown;
-};
-
-type SessionResponse = {
-  user?: SessionUser | null;
-  groups?: Array<SessionGroup | string> | null;
-  roles?: Array<SessionRole | string> | null;
-};
-
 export type AuthSession = {
-  user: AuthSessionUser & { role: AppRole };
-  groups: string[];
-  roles: AppRole[];
+  user: AuthSessionUser;
   role: AppRole;
   isAdmin: boolean;
   loading: boolean;
   error: string | null;
 };
 
-const EMPTY_SESSION_USER: AuthSessionUser = { name: "" };
+export type AuthSessionResult =
+  | { status: "authenticated"; session: AuthSession }
+  | { status: "unauthorized" }
+  | { status: "error"; error: string };
 
 const ROLE_ALIASES: Record<string, AppRole> = {
   admin: "Admin",
@@ -83,56 +48,57 @@ const ROLE_ALIASES: Record<string, AppRole> = {
 function normalizeRoleKey(value: string) {
   return value
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .trim()
     .toLowerCase()
     .replace(/[\s_-]+/g, "")
     .replace(/^role/, "");
 }
 
-export function normalizeAppRole(value: unknown): AppRole | null {
-  return typeof value === "string"
-    ? ROLE_ALIASES[normalizeRoleKey(value)] ?? null
-    : null;
+/** Rôle applicatif (alias FR/EN, préfixe `ROLE_`, accents) ; `Guest` si le rôle est absent ou inconnu. */
+export function normalizeAppRole(value: string | undefined): AppRole {
+  return value ? ROLE_ALIASES[normalizeRoleKey(value)] ?? "Guest" : "Guest";
 }
 
-function getRoleName(role: SessionRole | string) {
-  return typeof role === "string" ? role : role.name;
-}
+/** Convertit l'utilisateur courant de BFF Message (`GET /me`) en session applicative. */
+export function toAuthSession(currentUser: CurrentUserDto): AuthSession {
+  const role = normalizeAppRole(currentUser.role);
+  const text = (value: string | undefined) => value?.trim() || undefined;
 
-function getGroupName(group: SessionGroup | string) {
-  return typeof group === "string" ? group : group.name;
-}
-
-export function resolveAppRoles(roles: Array<SessionRole | string>): AppRole[] {
-  const normalizedRoles = new Set(
-    roles
-      .map((role) => normalizeAppRole(getRoleName(role)))
-      .filter((role): role is AppRole => role !== null),
-  );
-
-  const resolvedRoles = APP_ROLES.filter((role) => normalizedRoles.has(role));
-
-  return resolvedRoles.length ? resolvedRoles : ["Guest"];
-}
-
-export function useAuthSession(initialUser: AuthSessionUser = EMPTY_SESSION_USER) {
-  const [session, setSession] = useState<AuthSession>({
+  return {
     user: {
-      ...initialUser,
-      name: "Chargement…",
-      email: undefined,
-      phone: undefined,
-      service: undefined,
-      status: undefined,
-      position: undefined,
-      address: undefined,
-      city: undefined,
-      lastConnection: undefined,
-      role: "Guest",
+      name: text(currentUser.name) ?? text(currentUser.email) ?? "",
+      email: text(currentUser.email),
+      role,
+      service: text(currentUser.service),
+      phone: text(currentUser.phone),
+      avatarUrl: text(currentUser.avatarUrl),
+      position: text(currentUser.position),
+      address: text(currentUser.address),
+      city: text(currentUser.city),
+      lastConnection: text(currentUser.lastConnection),
     },
-    groups: [],
-    roles: ["Guest"],
+    role,
+    isAdmin: role === "Admin",
+    loading: false,
+    error: null,
+  };
+}
+
+/** Charge la session courante auprès de BFF Message (`GET /me`, via le proxy same-origin). */
+export async function fetchAuthSession(): Promise<AuthSessionResult> {
+  try {
+    const { currentUser } = await messageClient.getCurrentUser();
+    return { status: "authenticated", session: toAuthSession(currentUser) };
+  } catch (error) {
+    if (error instanceof BffRequestError && error.status === 401) return { status: "unauthorized" };
+    return { status: "error", error: "Les informations du profil sont indisponibles." };
+  }
+}
+
+export function useAuthSession() {
+  const [session, setSession] = useState<AuthSession>({
+    user: { name: "Chargement…", role: "Guest" },
     role: "Guest",
     isAdmin: false,
     loading: true,
@@ -140,111 +106,37 @@ export function useAuthSession(initialUser: AuthSessionUser = EMPTY_SESSION_USER
   });
 
   useEffect(() => {
-    const controller = new AbortController();
+    let active = true;
 
     async function loadSession() {
-      try {
-        const response = await fetch("/api/user/me", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
+      const result = await fetchAuthSession();
 
-        if (response.status === 401) {
-          await logoutAndReload();
-          return;
-        }
+      if (!active) return;
 
-        if (!response.ok) {
-          setSession((current) => ({
-            ...current,
-            loading: false,
-            error: "Les informations du profil sont indisponibles.",
-          }));
-          return;
-        }
-
-        const body = (await response.json()) as SessionResponse;
-        const rawGroups = Array.isArray(body.groups)
-          ? body.groups
-          : Array.isArray(body.user?.groups)
-            ? body.user.groups
-            : [];
-        const groups = rawGroups
-          .map((group) => {
-            const groupName = getGroupName(group);
-            return typeof groupName === "string" ? groupName.trim() : "";
-          })
-          .filter(Boolean);
-        const userRole =
-          typeof body.user?.role === "string" && body.user.role.trim()
-            ? [body.user.role]
-            : [];
-        const responseRoles = Array.isArray(body.user?.roles)
-          ? body.user.roles
-          : Array.isArray(body.roles)
-            ? body.roles
-            : [];
-        const roles = resolveAppRoles(
-          userRole.length > 0 ? userRole : responseRoles,
-        );
-        const role = roles[0];
-        const explicitName =
-          typeof body.user?.name === "string" ? body.user.name.trim() : "";
-        const firstName =
-          typeof body.user?.first_name === "string"
-            ? body.user.first_name.trim()
-            : "";
-        const lastName =
-          typeof body.user?.last_name === "string"
-            ? body.user.last_name.trim()
-            : "";
-        const name = explicitName || `${firstName} ${lastName}`.trim();
-        const email =
-          typeof body.user?.email === "string" ? body.user.email.trim() : "";
-        const rawPhone = body.user?.phone ?? body.user?.phone_number;
-        const phone = typeof rawPhone === "string" ? rawPhone.trim() : "";
-        const status =
-          typeof body.user?.status === "string" ? body.user.status.trim() : "";
-        const groupLabel = groups.length ? groups.join(", ") : undefined;
-
-        setSession({
-          user: {
-            name: name || email,
-            email: email || undefined,
-            phone: phone || undefined,
-            status: status || undefined,
-            service: groupLabel,
-            position: undefined,
-            address: undefined,
-            city: undefined,
-            lastConnection: undefined,
-            role,
-          },
-          groups,
-          roles,
-          role,
-          isAdmin: role === "Admin",
-          loading: false,
-          error: null,
-        });
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setSession((current) => ({
-          ...current,
-          loading: false,
-          error: "Le service utilisateur est indisponible.",
-        }));
+      if (result.status === "unauthorized") {
+        await logoutAndReload();
+        return;
       }
+
+      if (result.status === "error") {
+        setSession((current) => ({ ...current, loading: false, error: result.error }));
+        return;
+      }
+
+      setSession(result.session);
     }
 
     void loadSession();
 
-    return () => controller.abort();
-  }, [initialUser]);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return session;
 }
 
+/** Efface le cookie de session (route locale, sans BFF) puis recharge : le middleware redirige vers Login. */
 export async function logoutAndReload() {
   try {
     await fetch("/api/auth/logout", {
@@ -252,10 +144,6 @@ export async function logoutAndReload() {
       cache: "no-store",
     });
   } finally {
-    try {
-      window.localStorage.clear();
-    } finally {
-      window.location.reload();
-    }
+    window.location.reload();
   }
 }

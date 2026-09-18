@@ -21,9 +21,9 @@ RUN --mount=type=secret,id=NODE_AUTH_TOKEN \
 COPY . .
 
 # 5. On gère les permissions à la fin
-RUN useradd --system --home /app --shell /usr/sbin/nologin projects && \
-    chown -R projects:projects /app
+RUN useradd --system --home /app --shell /usr/sbin/nologin nextjs && \
+    chown -R nextjs:nextjs /app
 
-USER projects
+USER nextjs
 ENV NODE_ENV=development
 CMD ["npm", "run", "dev"]

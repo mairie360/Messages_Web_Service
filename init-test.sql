@@ -9,8 +9,7 @@ VALUES
   (2, 'Perf', 'Tester', 'perf-tester@mairie360.fr', 'dummy', 'active'),
   (3, 'Contact', 'Sample', 'contact-sample@mairie360.fr', 'dummy', 'active')
 ON CONFLICT (id) DO NOTHING;
--- Core API >= 1.1.1 exige au moins un rôle sur l'utilisateur pour GET /user/me
--- (sinon 502 côté BFF User, donc sur /api/user/me et sur le shell du front).
+-- Rôle de l'utilisateur de test, repris par le shell du front (GET /me de BFF Message).
 INSERT INTO user_roles (user_id, role_id)
 SELECT 2, r.id FROM roles r WHERE lower(r.name) = 'user'
 ON CONFLICT DO NOTHING;

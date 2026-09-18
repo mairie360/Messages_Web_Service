@@ -1,10 +1,10 @@
 # Contrat web service / BFF
 
-Ce web service consomme **BFF_Message**. La copie [OpenAPI](contracts/openapi.json) définit les routes et les données échangées ; les [types TypeScript](src/contracts/bff.d.ts) sont générés depuis cette copie.
+Ce web service consomme **BFF_Message**, son seul BFF. Le contrat vient du paquet publié `@mairie360/bff-message-openapi`, épinglé à une version exacte dans `package.json` : [contracts/openapi.json](contracts/openapi.json) en est la reconstruction versionnée, et les types utilisés par le code viennent directement du paquet.
 
 ## Routes implémentées
 
-Les chemins sont relatifs au BFF. Les proxies web conservent méthode, paramètres, contenu binaire, statuts et cookies. Les chemins `/api/auth/*` restent des adaptateurs de session vers BFF User ; les pages Next.js sont distinctes des routes de données.
+Les chemins sont relatifs au BFF. Les proxies web conservent méthode, paramètres, contenu binaire, statuts et cookies. `/api/auth/logout` est une route locale qui efface le cookie de session, sans appel réseau ; les pages Next.js sont distinctes des routes de données.
 
 | Méthode | Route | Réponse / schéma |
 | --- | --- | --- |
@@ -26,9 +26,7 @@ Les chemins sont relatifs au BFF. Les proxies web conservent méthode, paramètr
 
 ## Mise à jour et validation
 
-Dans le BFF associé, exécuter `npm run contracts:generate`. Dans ce web service, exécuter `npm run contracts:sync`, puis `npm run contracts:check` et `npm run test:contracts`. Les dépôts peuvent être voisins ; sinon `BFF_CONTRACT_DIR` indique le répertoire `contracts` du BFF. La CI vérifie que les types correspondent au document livré, même sans checkout du dépôt voisin.
-
-Le générateur de types est fixé à `openapi-typescript@7.10.1`. Il est exécuté via npm ; aucun jeton privé ne figure dans les contrats.
+Après la publication d'une nouvelle version du BFF, installer le paquet correspondant (`npm install --save-exact @mairie360/bff-message-openapi@X.Y.Z`), puis exécuter `npm run contracts:sync`, `npm run contracts:check` et `npm test`. Ces commandes fonctionnent hors ligne et ne dépendent d'aucun checkout voisin ; la CI rejoue la vérification.
 
 ## Références métier
 

@@ -6,14 +6,14 @@ import encoding from 'k6/encoding';
 // ---------------------------------------------------------------------------
 // Test de charge k6 pour le front Messages (Messages_Web_Service).
 // Cible les routes réellement servies par le serveur Next.js : les pages (rendu Next.js derrière le middleware d'authentification),
-// l'adaptateur de session /api/user/me (-> BFF User),
-// /health, puis les lectures /messaging/bootstrap, /conversations et /contacts relayées par le proxy same-origin vers BFF Message.
+// /health, puis les lectures /me (session), /messaging/bootstrap, /conversations et /contacts relayées par
+// le proxy same-origin vers BFF Message, seul BFF du front.
 // L'authentification passe par le cookie accessToken, comme dans le navigateur :
 // le proxy le convertit en Authorization: Bearer vers le BFF.
 // ---------------------------------------------------------------------------
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:5003';
-// Doit correspondre au JWT_SECRET des services core-api / bff-user / APIs de la stack de test.
+// Doit correspondre au JWT_SECRET des services de la stack de test (Message API).
 const JWT_SECRET = __ENV.JWT_SECRET || 'b"secret"';
 // Utilisateur inséré par init-test.sql (sub du token).
 const USER_ID = __ENV.PERF_USER_ID || '2';
@@ -29,7 +29,7 @@ export const options = {
     checks: ['rate>0.99'],                                  // une redirection (307) n'est pas une erreur HTTP : les checks la détectent
     'http_req_duration{endpoint:page}': ['p(95)<800'],      // rendu page Next.js
     'http_req_duration{endpoint:health}': ['p(95)<150'],    // proxy same-origin -> BFF /health
-    'http_req_duration{endpoint:session}': ['p(95)<500'],   // /api/user/me -> BFF User -> Core
+    'http_req_duration{endpoint:session}': ['p(95)<500'],   // /me -> BFF Message
     'http_req_duration{endpoint:messaging}': ['p(95)<600'], // proxy + agrégation BFF + upstream
   },
 };
@@ -38,7 +38,7 @@ function b64url(value) {
   return encoding.b64encode(value, 'rawurl');
 }
 
-// JWT HS256 minimal accepté par Core API / BFF User (claims sub + role + exp).
+// JWT HS256 minimal accepté par Message API (claims sub + role + exp).
 function mintJwt() {
   const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const now = Math.floor(Date.now() / 1000);
@@ -73,8 +73,8 @@ export default function (data) {
   });
 
   group('session', () => {
-    const me = http.get(`${BASE_URL}/api/user/me`, { headers: cookie, redirects: 0, tags: { endpoint: 'session' } });
-    check(me, { '/api/user/me 200': (r) => r.status === 200 });
+    const me = http.get(`${BASE_URL}/me`, { headers: { ...cookie, Accept: 'application/json' }, redirects: 0, tags: { endpoint: 'session' } });
+    check(me, { '/me 200': (r) => r.status === 200 });
   });
 
   group('messaging reads', () => {

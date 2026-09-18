@@ -1,0 +1,148 @@
+const assert = require('node:assert/strict');
+const { after, afterEach, before, beforeEach, test } = require('node:test');
+const { requireSrc } = require('./support/load-ts.cjs');
+const { installReactRuntime, mount } = require('./support/server-view.cjs');
+
+// HTML of the messaging page (src/app/page.tsx) rendered with react-dom/server against the mocked
+// BFF Message: the real page, the real shell (session from GET /me) and the real Messaging component of
+// @mairie360/lib-components are rendered, the hook state is kept between render passes
+// (tests/support/server-view.cjs), so the markup reflects what the BFF answered.
+
+const { router } = installReactRuntime();
+const React = require('react');
+const { installBrowser } = require('./support/browser.cjs');
+const { apiError, bootstrap, businessReferences, contact, conversation, currentUser, message, messageBffMock, tokenFor, users } = require('./support/fixtures.cjs');
+const { FrontNetwork } = require('./support/front-network.cjs');
+const Page = requireSrc('app/page.tsx').default;
+
+const messageBff = messageBffMock();
+const network = new FrontNetwork([messageBff]);
+const browser = installBrowser();
+let view;
+
+// Known defect of the published @mairie360/bff-message-openapi contract (also reported by
+// message-bff.contract-mocks.test.cjs): for /conversations/{conversationId}/messages, orval swapped the
+// request body and the response models, so the real exchanges of the page cannot validate against it.
+const KNOWN_CONTRACT_DEFECTS = [
+  /^\[BFF_MESSAGE\] requête POST \/conversations\/\{conversationId\}\/messages \$body\.message: propriété requise manquante$/,
+];
+const swappedModel = (reply) => ({ ...reply, outOfContract: true });
+
+before(async () => {
+  await messageBff.start();
+  delete process.env.MESSAGE_BFF_URL;
+  delete process.env.NEXT_PUBLIC_BFF_MESSAGE_BASE_URL;
+  process.env.BFF_MESSAGE_BASE_URL = messageBff.url;
+  network.install();
+});
+after(async () => {
+  network.restore();
+  browser.restore();
+  await messageBff.stop();
+});
+beforeEach(() => {
+  messageBff.reset();
+  network.reset();
+  browser.reset();
+  router.reset();
+  network.cookies.accessToken = tokenFor(users.agent.id);
+  messageBff.on('get', '/me', { body: currentUser() });
+  messageBff.on('get', '/contacts', { body: { contacts: [contact(users.sophie), contact(users.thomas)] } });
+  messageBff.on('get', '/business-references', { body: businessReferences() });
+});
+afterEach(() => {
+  view?.unmount();
+  view = undefined;
+  assert.deepEqual([...messageBff.violations.filter((line) => !KNOWN_CONTRACT_DEFECTS.some((known) => known.test(line))), ...network.violations], []);
+});
+
+const upstream = () => messageBff.requests.map((call) => `${call.method} ${call.url.pathname}`).sort();
+
+async function renderLoadedPage(body = bootstrap()) {
+  messageBff.on('get', '/messaging/bootstrap', { body });
+  view = mount(React.createElement(Page));
+  return view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation' && view.props('Header').user.name !== 'Chargement…');
+}
+
+test('the first pass renders the empty messaging, the next ones the bootstrap, contacts and session', async () => {
+  messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+  view = mount(React.createElement(Page));
+
+  assert.equal(view.passes, 1);
+  assert.deepEqual(view.props('Messaging').conversations, []);
+  assert.equal(view.props('Messaging').emptyStateLabel, 'Chargement de la messagerie...');
+  assert.doesNotMatch(view.text(), /Équipe communication/);
+
+  const html = await view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation');
+
+  assert.deepEqual(upstream(), ['GET /business-references', 'GET /contacts', 'GET /me', 'GET /messaging/bootstrap']);
+  assert.doesNotMatch(html, /role="alert"/);
+  assert.match(view.text(), /Équipe communication/);
+  assert.match(view.text(), /Sophie Leroy/);
+  assert.match(view.text(), /Bonjour à tous/);
+  const messaging = view.props('Messaging');
+  assert.equal(messaging.activeConversationId, 'conversation-4');
+  assert.equal(messaging.currentUserId, 'user-2');
+  assert.equal(messaging.emptyStateLabel, 'Aucune conversation');
+  assert.deepEqual(messaging.contacts.map((item) => item.name), ['Sophie Leroy', 'Thomas Bernard']);
+  assert.deepEqual(messaging.businessReferences.map((reference) => reference.title), ['Budget participatif', 'Conseil municipal']);
+  await view.waitFor(() => view.props('Header').user.name === 'Agent Mairie');
+  assert.match(view.html, /<span[^>]*>Agent Mairie<\/span>/);
+  assert.match(view.html, /<footer/);
+});
+
+test('a bootstrap failure is rendered as an alert and the messaging stays empty', async () => {
+  messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('BFF_UNAVAILABLE', 'La messagerie est en maintenance'), outOfContract: true });
+  view = mount(React.createElement(Page));
+
+  const html = await view.waitFor((current) => current.includes('role="alert"'));
+
+  assert.match(html, /<p role="alert" class="messages-error">La messagerie est en maintenance<\/p>/);
+  await view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation');
+  assert.deepEqual(view.props('Messaging').conversations, []);
+  assert.doesNotMatch(view.text(), /Équipe communication/);
+});
+
+test('selecting a conversation loads its messages and renders them', async () => {
+  await renderLoadedPage();
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({
+    body: { conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }), messages: [message(2, 5, 'Salut, tu as vu le dossier ?', users.sophie), message(3, 5, 'Oui, je relis.')] },
+  }));
+
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy', { kind: 'direct' })));
+  const html = await view.waitFor((current) => current.includes('Oui, je relis.'));
+
+  assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages')[0].pathParams, { conversationId: 'conversation-5' });
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.match(html, /Salut, tu as vu le dossier \?/);
+  assert.doesNotMatch(html, /role="alert"/);
+});
+
+test('sending a message posts it to the BFF and appends the answer to the thread', async () => {
+  await renderLoadedPage();
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({
+    status: 201,
+    body: { message: message(3, 4, 'Réunion à 14h'), conversation: conversation(4, 'Équipe communication', { lastMessage: 'Réunion à 14h' }) },
+  }));
+
+  await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-4', content: 'Réunion à 14h', attachments: [], mentions: [] }));
+  const html = await view.waitFor((current) => current.includes('Réunion à 14h'));
+
+  const [call] = messageBff.calls('/conversations/{conversationId}/messages', 'POST');
+  assert.deepEqual(call.pathParams, { conversationId: 'conversation-4' });
+  assert.deepEqual(call.body, { content: 'Réunion à 14h', attachmentIds: [], mentionIds: [] });
+  assert.match(html, /Bonjour à tous/);
+  assert.equal(view.props('Messaging').messages.length, 2);
+});
+
+test('a refused send is shown as an alert without losing the thread', async () => {
+  await renderLoadedPage();
+  messageBff.on('post', '/conversations/{conversationId}/messages', { status: 403, body: apiError('FORBIDDEN', 'Vous ne faites plus partie de cette conversation'), outOfContract: true });
+
+  await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-4', content: 'Encore là ?', attachments: [], mentions: [] }));
+  const html = await view.waitFor((current) => current.includes('role="alert"'));
+
+  assert.match(html, /<p role="alert" class="messages-error">Vous ne faites plus partie de cette conversation<\/p>/);
+  assert.match(html, /Bonjour à tous/);
+  assert.doesNotMatch(html, /Encore là \?/);
+});
