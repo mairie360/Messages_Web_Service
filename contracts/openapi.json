@@ -19,122 +19,11 @@
       },
       "AttachmentDtoSchema": {
         "properties": {
-          "references": {
-            "items": {
-              "$ref": "#/components/schemas/BusinessReferencesResponseReferencesItem"
-            },
-            "type": "array"
-          },
-          "sources": {
-            "$ref": "#/components/schemas/BusinessReferencesResponseSources"
-          }
-        },
-        "required": [
-          "references",
-          "sources"
-        ],
-        "type": "object"
-      },
-      "BusinessReferencesResponseReferencesItem": {
-        "properties": {
-          "description": {
-            "type": "string"
-          },
           "id": {
             "type": [
               "string",
               "number"
             ]
-          },
-          "kind": {
-            "$ref": "#/components/schemas/BusinessReferencesResponseReferencesItemKind"
-          },
-          "title": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "title",
-          "kind"
-        ],
-        "type": "object"
-      },
-      "BusinessReferencesResponseReferencesItemKind": {
-        "enum": [
-          "project",
-          "task",
-          "event"
-        ],
-        "type": "string"
-      },
-      "BusinessReferencesResponseSources": {
-        "properties": {
-          "calendar": {
-            "$ref": "#/components/schemas/BusinessReferencesResponseSourcesCalendar"
-          },
-          "projects": {
-            "$ref": "#/components/schemas/BusinessReferencesResponseSourcesProjects"
-          }
-        },
-        "required": [
-          "projects",
-          "calendar"
-        ],
-        "type": "object"
-      },
-      "BusinessReferencesResponseSourcesCalendar": {
-        "enum": [
-          "available",
-          "unavailable"
-        ],
-        "type": "string"
-      },
-      "BusinessReferencesResponseSourcesProjects": {
-        "enum": [
-          "available",
-          "unavailable"
-        ],
-        "type": "string"
-      },
-      "CheckApiResponse": {
-        "properties": {
-          "core_api": {
-            "type": "string"
-          },
-          "message_api": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "status",
-          "core_api",
-          "message_api"
-        ],
-        "type": "object"
-      },
-      "ContactDtoSchema": {
-        "properties": {
-          "avatarUrl": {
-            "type": "string"
-          },
-          "department": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          },
-          "id": {
-            "type": [
-              "string",
-              "number"
-            ]
-          },
-          "initials": {
-            "type": "string"
           },
           "name": {
             "type": "string"
@@ -241,22 +130,6 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
-          },
-          "name": {
-            "maxLength": 100,
-            "type": "string"
-          },
-          "phone": {
-            "type": "string"
-          },
-          "position": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string"
-          },
-          "service": {
             "type": "string"
           }
         },
@@ -1622,8 +1495,8 @@
           }
         },
         "required": [
-          "id",
-          "name"
+          "conversationId",
+          "unreadCount"
         ],
         "type": "object"
       },
@@ -2015,44 +1888,6 @@
           "currentUser": {
             "$ref": "#/components/schemas/MessagingBootstrapResponseCurrentUser"
           },
-          "url": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name"
-        ],
-        "type": "object"
-      },
-      "PostAttachments401": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "details": {},
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message"
-        ],
-        "type": "object"
-      },
-      "PostAttachmentsBody": {
-        "properties": {
-          "files": {}
-        },
-        "required": [],
-        "type": "object"
-      },
-      "PostConversationsConversationIdMessages201": {
-        "properties": {
-          "conversation": {
-            "$ref": "#/components/schemas/PostConversationsConversationIdMessages201Conversation"
-          },
           "messages": {
             "items": {
               "$ref": "#/components/schemas/MessagingBootstrapResponseMessagesItem"
@@ -2061,7 +1896,9 @@
           }
         },
         "required": [
-          "conversation",
+          "contacts",
+          "currentUser",
+          "conversations",
           "messages"
         ],
         "type": "object"
@@ -2622,18 +2459,7 @@
           "email": {
             "type": "string"
           },
-          "message": {
-            "$ref": "#/components/schemas/PostConversationsConversationIdMessagesBodyMessage"
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "type": "object"
-      },
-      "PostConversationsConversationIdMessagesBodyConversation": {
-        "properties": {
-          "avatarUrl": {
+          "phone": {
             "type": "string"
           }
         },
@@ -2935,11 +2761,7 @@
           }
         },
         "required": [
-          "id",
-          "conversationId",
-          "content",
-          "sentAt",
-          "authorId"
+          "content"
         ],
         "type": "object"
       },

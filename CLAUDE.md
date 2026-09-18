@@ -47,7 +47,7 @@ npm run contracts:check     # fail if the version isn't exact, installed != pack
 
 These commands run offline. After a bump, also move the `bff-message` image tags in the `docker-compose*.yml` files to the same version (`package-contract.test.cjs` enforces it).
 
-**Known gap at `0.3.0`:** the published package has the schemas of `/conversations/{conversationId}/messages` inverted (the `GET` reply is typed as `SendMessageBody`, the `POST` body as the messages response). The fix exists on BFF_Message's `mair-121` branch but is not released. `src/` is written for the corrected contract, so until the bump `npx tsc` reports 5 errors in `page.tsx` and 4 tests fail (`getConversationMessages`, `sendMessage`, two `messaging-state` cases). Bumping the package and running `contracts:sync` clears all of them; nothing else is expected to fail.
+**Resolved at `0.4.0`:** `0.3.0` published the schemas of `/conversations/{conversationId}/messages` inverted (the `GET` reply typed as `SendMessageBody`, the `POST` body as the messages response). The fix landed in BFF_Message's `mair-121` release; `0.4.0` has the corrected contract, which is what `src/` is written for. After bumping the package, always run `contracts:sync` and commit the regenerated `contracts/openapi.json` in the same change — a version bump without a re-sync leaves the committed snapshot stale, which fails `contracts:check` in CI and, since it still carries the inverted schema, also fails the `sendMessage` network-contract test.
 
 ## Architecture
 
