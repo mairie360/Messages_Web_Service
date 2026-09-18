@@ -3,6 +3,10 @@ import "./globals.css";
 import "@mairie360/lib-components/dist/styles.css";
 import "./app-shell.css";
 
+// Rendu à la demande obligatoire : une page prérendue au build ne porterait pas le
+// nonce CSP propre à chaque requête, et ses scripts seraient bloqués.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Messagerie | Mairie360",
   description: "The Messages's module.",
