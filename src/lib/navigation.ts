@@ -10,6 +10,7 @@ const appRoutes: Partial<Record<string, string>> = {
   get training() { return frontUrl("ELEARNING_FRONT_URL"); },
   get calendar() { return frontUrl("CALENDAR_FRONT_URL"); },
   get admin() { return frontUrl("ADMINISTRATION_FRONT_URL"); },
+  get settings() { return frontUrl("SETTINGS_FRONT_URL"); },
   profile: "/profile",
 };
 

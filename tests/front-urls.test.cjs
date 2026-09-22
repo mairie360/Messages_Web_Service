@@ -60,6 +60,7 @@ test('navigation resolves every other front on use, from the URLs of this instan
     ELEARNING_FRONT_URL: 'https://elearning.test.example/',
     CALENDAR_FRONT_URL: 'https://calendar.test.example/',
     ADMINISTRATION_FRONT_URL: 'https://admin.test.example/',
+    SETTINGS_FRONT_URL: 'https://settings.test.example/',
   };
   frontUrls.setBrowserFrontUrls(urls);
   const expected = {
@@ -71,6 +72,7 @@ test('navigation resolves every other front on use, from the URLs of this instan
     training: urls.ELEARNING_FRONT_URL,
     calendar: urls.CALENDAR_FRONT_URL,
     admin: urls.ADMINISTRATION_FRONT_URL,
+    settings: urls.SETTINGS_FRONT_URL,
   };
   for (const [page, href] of Object.entries(expected)) assert.equal(navigation.getAppRoute(page), href, page);
 });
