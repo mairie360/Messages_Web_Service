@@ -1,5 +1,6 @@
 'use client';
 
+import { frontUrl } from "@/lib/front-urls";
 import { useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -38,14 +39,14 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 const appRoutes: Partial<Record<string, string>> = {
-  dashboard: process.env.LOGIN_FRONT_URL,
-  projects: process.env.PROJECT_FRONT_URL,
-  messages: process.env.MESSAGE_FRONT_URL,
-  emails: process.env.EMAIL_FRONT_URL,
-  files: process.env.FILES_FRONT_URL,
-  training: process.env.ELEARNING_FRONT_URL,
-  calendar: process.env.CALENDAR_FRONT_URL,
-  admin: process.env.ADMINISTRATION_FRONT_URL,
+  get dashboard() { return frontUrl("LOGIN_FRONT_URL"); },
+  get projects() { return frontUrl("PROJECT_FRONT_URL"); },
+  get messages() { return frontUrl("MESSAGE_FRONT_URL"); },
+  get emails() { return frontUrl("EMAIL_FRONT_URL"); },
+  get files() { return frontUrl("FILES_FRONT_URL"); },
+  get training() { return frontUrl("ELEARNING_FRONT_URL"); },
+  get calendar() { return frontUrl("CALENDAR_FRONT_URL"); },
+  get admin() { return frontUrl("ADMINISTRATION_FRONT_URL"); },
   profile: "/profile",
 };
 
