@@ -1,5 +1,6 @@
 'use client';
 
+import { getAppRoute } from "@/lib/navigation";
 import { useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -37,18 +38,6 @@ const sidebarItems: SidebarItem[] = [
   { id: "settings", label: "Paramètres", icon: Settings },
 ];
 
-const appRoutes: Partial<Record<string, string>> = {
-  dashboard: process.env.LOGIN_FRONT_URL,
-  projects: process.env.PROJECT_FRONT_URL,
-  messages: process.env.MESSAGE_FRONT_URL,
-  emails: process.env.EMAIL_FRONT_URL,
-  files: process.env.FILES_FRONT_URL,
-  training: process.env.ELEARNING_FRONT_URL,
-  calendar: process.env.CALENDAR_FRONT_URL,
-  admin: process.env.ADMINISTRATION_FRONT_URL,
-  profile: "/profile",
-};
-
 type AppShellProps = {
   activeItem: string;
   children: ReactNode | ((session: AuthSession) => ReactNode);
@@ -67,7 +56,7 @@ export function AppShell({
   const session = useAuthSession();
 
   const navigateToPage = (page: string) => {
-    const route = appRoutes[page];
+    const route = getAppRoute(page);
 
     if (route) {
       if (route.startsWith("/")) {
