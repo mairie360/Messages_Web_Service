@@ -1,6 +1,6 @@
 'use client';
 
-import { frontUrl } from "@/lib/front-urls";
+import { getAppRoute } from "@/lib/navigation";
 import { useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -38,18 +38,6 @@ const sidebarItems: SidebarItem[] = [
   { id: "settings", label: "Paramètres", icon: Settings },
 ];
 
-const appRoutes: Partial<Record<string, string>> = {
-  get dashboard() { return frontUrl("DASHBOARD_FRONT_URL"); },
-  get projects() { return frontUrl("PROJECT_FRONT_URL"); },
-  get messages() { return frontUrl("MESSAGE_FRONT_URL"); },
-  get emails() { return frontUrl("EMAIL_FRONT_URL"); },
-  get files() { return frontUrl("FILES_FRONT_URL"); },
-  get training() { return frontUrl("ELEARNING_FRONT_URL"); },
-  get calendar() { return frontUrl("CALENDAR_FRONT_URL"); },
-  get admin() { return frontUrl("ADMINISTRATION_FRONT_URL"); },
-  profile: "/profile",
-};
-
 type AppShellProps = {
   activeItem: string;
   children: ReactNode | ((session: AuthSession) => ReactNode);
@@ -68,7 +56,7 @@ export function AppShell({
   const session = useAuthSession();
 
   const navigateToPage = (page: string) => {
-    const route = appRoutes[page];
+    const route = getAppRoute(page);
 
     if (route) {
       if (route.startsWith("/")) {
