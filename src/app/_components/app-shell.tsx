@@ -39,7 +39,7 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 const appRoutes: Partial<Record<string, string>> = {
-  get dashboard() { return frontUrl("LOGIN_FRONT_URL"); },
+  get dashboard() { return frontUrl("DASHBOARD_FRONT_URL"); },
   get projects() { return frontUrl("PROJECT_FRONT_URL"); },
   get messages() { return frontUrl("MESSAGE_FRONT_URL"); },
   get emails() { return frontUrl("EMAIL_FRONT_URL"); },
