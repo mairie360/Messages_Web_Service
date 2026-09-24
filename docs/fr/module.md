@@ -13,7 +13,7 @@ Domaine fonctionnel: Messagerie instantanée.
 ## Fonctions disponibles
 
 - Liste de conversations, messages actifs et recherche de contacts.
-- Envoi direct, réponse dans une conversation, création de groupe et suppression.
+- Envoi direct, réponse dans une conversation, création de groupe et suppression. Un nouveau message à un contact est publié dans la conversation directe existante avec ce contact (`kind: 'direct'` et `contactId` fournis par BFF_Message) ; un chat n’est créé que s’il n’en existe pas.
 - Chargement des références projets, tâches et événements.
 
 ## Parcours type

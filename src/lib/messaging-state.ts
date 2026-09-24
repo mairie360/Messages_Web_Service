@@ -83,6 +83,24 @@ export function appendMessage(
   return [...currentMessages, nextMessage];
 }
 
+// TEMPORARY (MAIR-204): `contactId` is added to the Conversation schema by BFF_Message#146 but is
+// not in the pinned `@mairie360/bff-message-openapi` yet. Delete this type once the package is
+// bumped and read `conversation.contactId` from the contract type instead.
+type ConversationWithContact = MessagingConversation & { contactId?: MessageId };
+
+// The existing direct conversation with `recipientId`, if any: a new message to that contact is
+// posted there instead of creating another chat. Ids are compared in the `user-<n>` form.
+export function findDirectConversation(
+  conversations: MessagingConversation[],
+  recipientId: MessageId,
+): MessagingConversation | undefined {
+  const recipient = toMessagingUserId(recipientId);
+  return conversations.find((conversation) => {
+    const { kind, contactId } = conversation as ConversationWithContact;
+    return kind === "direct" && contactId !== undefined && toMessagingUserId(contactId) === recipient;
+  });
+}
+
 export function getPayloadIds(items?: Array<{ id: MessageId }>) {
   return items?.map((item) => item.id);
 }
