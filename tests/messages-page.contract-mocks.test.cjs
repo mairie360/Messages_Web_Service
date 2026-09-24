@@ -58,8 +58,8 @@ afterEach(() => {
 
 const upstream = () => messageBff.requests.map((call) => `${call.method} ${call.url.pathname}`).sort();
 
-async function renderLoadedPage(body = bootstrap()) {
-  messageBff.on('get', '/messaging/bootstrap', { body });
+async function renderLoadedPage(body = bootstrap(), reply = {}) {
+  messageBff.on('get', '/messaging/bootstrap', { body, ...reply });
   view = mount(React.createElement(Page));
   return view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation' && view.props('Header').user.name !== 'Chargement…');
 }
@@ -145,4 +145,41 @@ test('a refused send is shown as an alert without losing the thread', async () =
   assert.match(html, /<p role="alert" class="messages-error">Vous ne faites plus partie de cette conversation<\/p>/);
   assert.match(html, /Bonjour à tous/);
   assert.doesNotMatch(html, /Encore là \?/);
+});
+
+test('a new message to a contact without a direct conversation creates it through POST /direct-messages', async () => {
+  await renderLoadedPage();
+  messageBff.on('post', '/direct-messages', {
+    status: 201,
+    body: { conversation: conversation(10, 'Thomas Bernard', { kind: 'direct' }), message: message(7, 10, 'Bonjour Thomas') },
+  });
+
+  await view.act(() => view.props('Messaging').onNewMessageSend({ recipientId: 'user-9', message: 'Bonjour Thomas' }));
+  await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-10');
+
+  const [call] = messageBff.calls('/direct-messages', 'POST');
+  assert.deepEqual(call.body, { recipientId: 'user-9', message: 'Bonjour Thomas' });
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'POST').length, 0);
+});
+
+// `contactId` is added by BFF_Message#146 (MAIR-204) and is not in the pinned contract yet: the
+// bootstrap carrying it is out of contract until @mairie360/bff-message-openapi is bumped.
+test('a new message to a contact with a direct conversation is posted into it', async () => {
+  const body = bootstrap();
+  body.conversations = body.conversations.map((item) =>
+    item.id === 'conversation-5' ? { ...item, contactId: 'user-7' } : item);
+  await renderLoadedPage(body, { outOfContract: true });
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({
+    status: 201,
+    body: { message: message(8, 5, 'Tu as relu ?'), conversation: conversation(5, 'Sophie Leroy', { kind: 'direct', lastMessage: 'Tu as relu ?' }) },
+  }));
+
+  await view.act(() => view.props('Messaging').onNewMessageSend({ recipientId: 'user-7', message: 'Tu as relu ?' }));
+  await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5');
+
+  const [call] = messageBff.calls('/conversations/{conversationId}/messages', 'POST');
+  assert.deepEqual(call.pathParams, { conversationId: 'conversation-5' });
+  assert.deepEqual(call.body, { content: 'Tu as relu ?', attachmentIds: [], mentionIds: [] });
+  assert.equal(messageBff.calls('/direct-messages', 'POST').length, 0);
+  assert.equal(view.props('Messaging').conversations.filter((item) => item.id === 'conversation-5').length, 1);
 });

@@ -6,6 +6,7 @@ import { Messaging } from "@mairie360/lib-components";
 import { messageClient, type CurrentUserDto } from "@/clients/messageClient";
 import {
   appendMessage,
+  findDirectConversation,
   getPayloadIds,
   idsMatch,
   replaceConversationMessages,
@@ -173,8 +174,18 @@ export default function Page() {
 
     setError(null);
 
+    // Post into the existing direct conversation with this contact, if any; otherwise the BFF
+    // creates the chat.
+    const existingConversation = findDirectConversation(conversations, payload.recipientId);
+
     try {
-      const response = await messageClient.createDirectMessage(payload);
+      const response = existingConversation
+        ? await messageClient.sendMessage(existingConversation.id, {
+            content: payload.message,
+            attachmentIds: [],
+            mentionIds: [],
+          })
+        : await messageClient.createDirectMessage(payload);
 
       setConversations((currentConversations) =>
         upsertConversation(currentConversations, response.conversation),
@@ -182,7 +193,8 @@ export default function Page() {
       setMessages((currentMessages) =>
         appendMessage(currentMessages, response.message),
       );
-      setActiveConversationId(response.conversation.id);
+      const conversationId = response.conversation?.id ?? existingConversation?.id;
+      if (conversationId !== undefined) setActiveConversationId(conversationId);
     } catch (sendError) {
       setError(
         sendError instanceof Error

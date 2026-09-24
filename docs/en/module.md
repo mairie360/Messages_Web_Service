@@ -13,7 +13,7 @@ Business domain: Instant messaging.
 ## Available capabilities
 
 - Conversation list, active messages and contact search.
-- Direct messages, conversation replies, group creation and deletion.
+- Direct messages, conversation replies, group creation and deletion. A new message to a contact goes into the existing direct conversation with that contact (`kind: 'direct'` and `contactId` from BFF_Message); a chat is created only when there is none.
 - Load project, task and event references.
 
 ## Typical workflow
