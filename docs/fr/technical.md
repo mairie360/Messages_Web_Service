@@ -12,7 +12,7 @@ flowchart LR
   Next --> BFF["BFF_Message"]
 ```
 
-La page utilise le client de messagerie pour charger le bootstrap puis les messages et contacts à la demande. Elle transforme les réponses pour le composant partagé `Messaging`. La route explicite `/business-references` relaie la réponse de BFF Message.
+La page utilise le client de messagerie pour charger le bootstrap puis les messages et contacts à la demande. Elle transforme les réponses pour le composant partagé `Messaging`. Après le bootstrap, elle relit `/conversations` et le fil actif toutes les dix secondes lorsque l’onglet est visible, ainsi qu’à la reprise du focus. Les réponses arrivées après une sélection ou une mutation sont ignorées pour ne pas écraser l’état récent ; un échec de synchronisation conserve le dernier fil connu et affiche une alerte. La route explicite `/business-references` relaie la réponse de BFF Message.
 
 Le proxy générique lit le contrat OpenAPI versionné pour autoriser chemins et méthodes. Il conserve paramètres de requête, corps binaire, statuts et en-têtes utiles, filtre les en-têtes de transport, désactive le cache et n’effectue pas de suivi automatique des redirections. Son délai est de 15 secondes.
 
@@ -22,7 +22,7 @@ Les sources et limites suivantes concernent le BFF associé, dont dépend la sau
 
 Conversations et messages passent par Message API. Les contacts proviennent directement de la table SQL `users`, y compris l’utilisateur courant (identifiant `sub` du jeton). Les références métier sont agrégées depuis BFF Project et BFF Calendar. La modification locale du profil, les métadonnées de pièces jointes et l’accusé de lecture ne constituent pas une persistance complète.
 
-L’upload de pièces jointes fabrique actuellement des métadonnées et ne fournit pas un stockage binaire durable. Le marquage lu renvoie un compteur nul sans écrire dans Message API. Les groupes de conversation passent par l’API, tandis que certaines données de profil restent locales au processus.
+L’upload de pièces jointes fabrique actuellement des métadonnées et ne fournit pas un stockage binaire durable. Le marquage lu renvoie un compteur nul sans écrire dans Message API ; la page n’appelle donc pas cette route et n’efface pas localement les compteurs de non-lus. Les groupes de conversation passent par l’API, tandis que certaines données de profil restent locales au processus.
 
 L’état React gère l’affichage et les opérations en cours. Ce dépôt ne définit pas de base métier propre; les garanties de sauvegarde sont celles du BFF et de ses sources décrites ci-dessus.
 

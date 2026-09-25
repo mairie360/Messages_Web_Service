@@ -12,7 +12,7 @@ Domaine fonctionnel: Messagerie instantanée.
 
 ## Fonctions disponibles
 
-- Liste de conversations, messages actifs et recherche de contacts.
+- Liste de conversations, messages actifs et recherche de contacts, avec rafraîchissement lorsque l’onglet est visible.
 - Envoi direct, réponse dans une conversation, création de groupe et suppression.
 - Chargement des références projets, tâches et événements.
 
@@ -20,7 +20,7 @@ Domaine fonctionnel: Messagerie instantanée.
 
 1. Charger `/messaging/bootstrap` et sélectionner une conversation.
 2. Rechercher un contact ou une référence métier, puis envoyer un message.
-3. Mettre à jour la conversation et consulter les messages renvoyés par le BFF.
+3. Consulter les messages renvoyés par le BFF ; la liste et le fil actif se synchronisent à la reprise de l’onglet et toutes les dix secondes lorsqu’il reste visible.
 
 ## Place dans Mairie360
 
@@ -34,7 +34,7 @@ Conversations et messages passent par Message API. Les contacts proviennent dire
 
 ## Périmètre et limites
 
-L’upload de pièces jointes fabrique actuellement des métadonnées et ne fournit pas un stockage binaire durable. Le marquage lu renvoie un compteur nul sans écrire dans Message API. Les groupes de conversation passent par l’API, tandis que certaines données de profil restent locales au processus.
+L’upload de pièces jointes fabrique actuellement des métadonnées et ne fournit pas un stockage binaire durable. Le marquage lu renvoie un compteur nul sans écrire dans Message API : le front ne l’utilise pas pour acquitter les messages et conserve les compteurs fournis par le BFF. Les groupes de conversation passent par l’API, tandis que certaines données de profil restent locales au processus.
 
 ## Pour développer ou exploiter ce module
 

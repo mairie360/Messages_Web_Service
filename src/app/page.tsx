@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import { Messaging } from "@mairie360/lib-components";
 import { messageClient, type CurrentUserDto } from "@/clients/messageClient";
@@ -24,6 +24,9 @@ type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]
 type NewMessagePayload = Parameters<NonNullable<MessagingProps["onNewMessageSend"]>>[0];
 type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]>>[0];
 
+const MESSAGE_REFRESH_INTERVAL_MS = 10_000;
+const pageIsVisible = () => typeof document === "undefined" || !document.hidden;
+
 export default function Page() {
   const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
   const [activeConversationId, setActiveConversationId] =
@@ -35,6 +38,11 @@ export default function Page() {
     useState<MessagingBusinessReference[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const activeConversationRef = useRef<MessagingContactId>("");
+  const revisionRef = useRef(0);
+  const mutationCountRef = useRef(0);
+  const selectionLoadingRef = useRef<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -53,6 +61,7 @@ export default function Page() {
         setContacts(toMessagingContacts(bootstrap.contacts));
         setConversations(bootstrap.conversations);
         setMessages(bootstrap.messages);
+        activeConversationRef.current = bootstrap.activeConversationId ?? firstConversationId;
         setActiveConversationId(
           bootstrap.activeConversationId ?? firstConversationId,
         );
@@ -97,6 +106,76 @@ export default function Page() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!currentUser) return;
+    let disposed = false;
+    let inFlight = false;
+
+    const refresh = async () => {
+      if (disposed || inFlight || !pageIsVisible() || mutationCountRef.current > 0 ||
+          selectionLoadingRef.current !== null) return;
+      inFlight = true;
+      const revision = revisionRef.current;
+      const selectedId = activeConversationRef.current;
+      try {
+        const list = await messageClient.getConversations();
+        const selectedExists = selectedId !== "" && list.conversations.some((conversation: MessagingConversation) =>
+          idsMatch(conversation.id, selectedId),
+        );
+        const thread = selectedExists
+          ? await messageClient.getConversationMessages(selectedId)
+          : null;
+        if (disposed || !pageIsVisible() || revisionRef.current !== revision ||
+            mutationCountRef.current > 0 || selectionLoadingRef.current !== null ||
+            !idsMatch(activeConversationRef.current, selectedId)) return;
+
+        setConversations(list.conversations);
+        if (thread) {
+          setMessages((current) =>
+            replaceConversationMessages(current, selectedId, thread.messages),
+          );
+        } else if (selectedId !== "" && !selectedExists) {
+          const fallbackId = list.conversations[0]?.id ?? "";
+          activeConversationRef.current = fallbackId;
+          revisionRef.current += 1;
+          setActiveConversationId(fallbackId);
+          setMessages((current) => current.filter((message) =>
+            !idsMatch(message.conversationId, selectedId),
+          ));
+        }
+        if (!disposed) setSyncError(null);
+      } catch {
+        if (!disposed && revisionRef.current === revision && pageIsVisible()) {
+          setSyncError("La synchronisation des conversations est momentanément indisponible.");
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const triggerRefresh = () => { void refresh(); };
+    triggerRefresh();
+    const timer = window.setInterval(triggerRefresh, MESSAGE_REFRESH_INTERVAL_MS);
+    window.addEventListener("focus", triggerRefresh);
+    document.addEventListener("visibilitychange", triggerRefresh);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", triggerRefresh);
+      document.removeEventListener("visibilitychange", triggerRefresh);
+    };
+  }, [currentUser]);
+
+  const beginMutation = () => {
+    revisionRef.current += 1;
+    mutationCountRef.current += 1;
+  };
+
+  const endMutation = () => {
+    mutationCountRef.current -= 1;
+    revisionRef.current += 1;
+  };
+
   const loadContacts = async () => {
     try {
       const response = await messageClient.getContacts();
@@ -111,11 +190,16 @@ export default function Page() {
   };
 
   const loadConversationMessages = async (conversationId: MessagingContactId) => {
+    const revision = ++revisionRef.current;
+    activeConversationRef.current = conversationId;
+    selectionLoadingRef.current = revision;
     setActiveConversationId(conversationId);
     setError(null);
 
     try {
       const response = await messageClient.getConversationMessages(conversationId);
+      if (revisionRef.current !== revision ||
+          !idsMatch(activeConversationRef.current, conversationId)) return;
 
       setConversations((currentConversations) =>
         upsertConversation(currentConversations, response.conversation),
@@ -128,11 +212,13 @@ export default function Page() {
         ),
       );
     } catch (loadError) {
-      setError(
+      if (revisionRef.current === revision) setError(
         loadError instanceof Error
           ? loadError.message
           : "Les messages de cette conversation sont indisponibles.",
       );
+    } finally {
+      if (selectionLoadingRef.current === revision) selectionLoadingRef.current = null;
     }
   };
 
@@ -142,6 +228,7 @@ export default function Page() {
     }
 
     setError(null);
+    beginMutation();
 
     try {
       const response = await messageClient.sendMessage(payload.conversationId, {
@@ -163,6 +250,8 @@ export default function Page() {
           ? sendError.message
           : "Le message n'a pas pu être envoyé.",
       );
+    } finally {
+      endMutation();
     }
   };
 
@@ -172,6 +261,7 @@ export default function Page() {
     }
 
     setError(null);
+    beginMutation();
 
     try {
       const response = await messageClient.createDirectMessage(payload);
@@ -183,17 +273,21 @@ export default function Page() {
         appendMessage(currentMessages, response.message),
       );
       setActiveConversationId(response.conversation.id);
+      activeConversationRef.current = response.conversation.id;
     } catch (sendError) {
       setError(
         sendError instanceof Error
           ? sendError.message
           : "Le message direct n'a pas pu être créé.",
       );
+    } finally {
+      endMutation();
     }
   };
 
   const handleCreateGroup = async (payload: CreateGroupPayload) => {
     setError(null);
+    beginMutation();
 
     try {
       const response = await messageClient.createGroup(payload);
@@ -202,33 +296,35 @@ export default function Page() {
         upsertConversation(currentConversations, response.conversation),
       );
       setActiveConversationId(response.conversation.id);
+      activeConversationRef.current = response.conversation.id;
     } catch (createError) {
       setError(
         createError instanceof Error
           ? createError.message
           : "Le groupe n'a pas pu être créé.",
       );
+    } finally {
+      endMutation();
     }
   };
 
   const handleConversationDelete: NonNullable<MessagingProps["onConversationDelete"]> =
     async (conversationToDelete) => {
       setError(null);
+      beginMutation();
 
       try {
         await messageClient.deleteConversation(conversationToDelete.id);
 
-        setConversations((currentConversations) => {
-          const remainingConversations = currentConversations.filter(
-            (conversation) => !idsMatch(conversation.id, conversationToDelete.id),
-          );
-
-          if (idsMatch(activeConversationId, conversationToDelete.id)) {
-            setActiveConversationId(remainingConversations[0]?.id ?? "");
-          }
-
-          return remainingConversations;
-        });
+        if (idsMatch(activeConversationRef.current, conversationToDelete.id)) {
+          const fallbackId = conversations.find((conversation) =>
+            !idsMatch(conversation.id, conversationToDelete.id))?.id ?? "";
+          activeConversationRef.current = fallbackId;
+          setActiveConversationId(fallbackId);
+        }
+        setConversations((currentConversations) => currentConversations.filter(
+          (conversation) => !idsMatch(conversation.id, conversationToDelete.id),
+        ));
         setMessages((currentMessages) =>
           currentMessages.filter(
             (message) => !idsMatch(message.conversationId, conversationToDelete.id),
@@ -240,6 +336,8 @@ export default function Page() {
             ? deleteError.message
             : "La conversation n'a pas pu être supprimée.",
         );
+      } finally {
+        endMutation();
       }
     };
 
@@ -249,6 +347,11 @@ export default function Page() {
         {error && (
           <p role="alert" className="messages-error">
             {error}
+          </p>
+        )}
+        {syncError && (
+          <p role="alert" className="messages-error">
+            {syncError}
           </p>
         )}
 

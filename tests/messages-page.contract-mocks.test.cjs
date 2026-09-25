@@ -49,6 +49,15 @@ beforeEach(() => {
   messageBff.on('get', '/me', { body: currentUser() });
   messageBff.on('get', '/contacts', { body: { contacts: [contact(users.sophie), contact(users.thomas)] } });
   messageBff.on('get', '/business-references', { body: businessReferences() });
+  messageBff.on('get', '/conversations', { body: {
+    conversations: [conversation(4, 'Équipe communication'), conversation(5, 'Sophie Leroy', { kind: 'direct' })],
+  } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({
+    body: {
+      conversation: conversation(4, 'Équipe communication'),
+      messages: [message(1, 4, 'Bonjour à tous', users.sophie)],
+    },
+  }));
 });
 afterEach(() => {
   view?.unmount();
@@ -61,7 +70,9 @@ const upstream = () => messageBff.requests.map((call) => `${call.method} ${call.
 async function renderLoadedPage(body = bootstrap()) {
   messageBff.on('get', '/messaging/bootstrap', { body });
   view = mount(React.createElement(Page));
-  return view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation' && view.props('Header').user.name !== 'Chargement…');
+  return view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation' &&
+    view.props('Header').user.name !== 'Chargement…' &&
+    view.props('Messaging').conversations[0]?.unreadCount === 0);
 }
 
 test('the first pass renders the empty messaging, the next ones the bootstrap, contacts and session', async () => {
@@ -75,7 +86,8 @@ test('the first pass renders the empty messaging, the next ones the bootstrap, c
 
   const html = await view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation');
 
-  assert.deepEqual(upstream(), ['GET /business-references', 'GET /contacts', 'GET /me', 'GET /messaging/bootstrap']);
+  assert.ok(upstream().includes('GET /conversations'));
+  assert.ok(upstream().includes('GET /messaging/bootstrap'));
   assert.doesNotMatch(html, /role="alert"/);
   assert.match(view.text(), /Équipe communication/);
   assert.match(view.text(), /Sophie Leroy/);
@@ -112,7 +124,8 @@ test('selecting a conversation loads its messages and renders them', async () =>
   await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy', { kind: 'direct' })));
   const html = await view.waitFor((current) => current.includes('Oui, je relis.'));
 
-  assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages')[0].pathParams, { conversationId: 'conversation-5' });
+  assert.ok(messageBff.calls('/conversations/{conversationId}/messages').some((call) =>
+    call.pathParams.conversationId === 'conversation-5'));
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
   assert.match(html, /Salut, tu as vu le dossier \?/);
   assert.doesNotMatch(html, /role="alert"/);
@@ -145,4 +158,144 @@ test('a refused send is shown as an alert without losing the thread', async () =
   assert.match(html, /<p role="alert" class="messages-error">Vous ne faites plus partie de cette conversation<\/p>/);
   assert.match(html, /Bonjour à tous/);
   assert.doesNotMatch(html, /Encore là \?/);
+});
+
+test('focus refreshes the real conversation list and active thread without duplicates', async () => {
+  await renderLoadedPage();
+  messageBff.on('get', '/conversations', { body: { conversations: [
+    conversation(4, 'Équipe communication', { lastMessage: 'Nouveau du serveur' }),
+    conversation(6, 'Nouveau groupe', { unreadCount: 1 }),
+  ] } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication'),
+    messages: [message(1, 4, 'Bonjour à tous', users.sophie), message(3, 4, 'Nouveau du serveur', users.sophie)],
+  } }));
+
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').messages.some((item) => item.id === 'message-3'));
+
+  assert.deepEqual(view.props('Messaging').conversations.map((item) => item.id), ['conversation-4', 'conversation-6']);
+  assert.deepEqual(view.props('Messaging').messages.map((item) => item.id), ['message-1', 'message-3']);
+  assert.match(view.text(), /Nouveau du serveur/);
+});
+
+test('the visible-page interval refreshes conversations from the BFF', async () => {
+  await renderLoadedPage();
+  const previousListCalls = messageBff.calls('/conversations').length;
+  messageBff.on('get', '/conversations', { body: { conversations: [
+    conversation(4, 'Équipe communication'), conversation(8, 'Synchronisé'),
+  ] } });
+
+  browser.tickIntervals(10_000);
+  await view.waitFor(() => view.props('Messaging').conversations.some((item) => item.id === 'conversation-8'));
+
+  assert.equal(messageBff.calls('/conversations').length, previousListCalls + 1);
+});
+
+test('refresh keeps the BFF unread count without calling the non-persistent read route', async () => {
+  await renderLoadedPage();
+  messageBff.on('get', '/conversations', { body: { conversations: [
+    conversation(4, 'Équipe communication', { unreadCount: 2 }),
+  ] } });
+
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').conversations[0]?.unreadCount === 2);
+
+  assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+});
+
+test('a hidden tab does not refresh messages, then refreshes when shown', async () => {
+  await renderLoadedPage();
+  const previousListCalls = messageBff.calls('/conversations').length;
+  browser.setHidden(true);
+  browser.focus();
+  assert.equal(messageBff.calls('/conversations').length, previousListCalls);
+
+  messageBff.on('get', '/conversations', { body: { conversations: [
+    conversation(4, 'Équipe communication'), conversation(7, 'Retour visible'),
+  ] } });
+  browser.setHidden(false);
+  await view.waitFor(() => view.props('Messaging').conversations.some((item) => item.id === 'conversation-7'));
+  assert.equal(messageBff.calls('/conversations').length, previousListCalls + 1);
+});
+
+test('a failed refresh preserves the known thread and recovers on focus', async () => {
+  await renderLoadedPage();
+  messageBff.on('get', '/conversations', { status: 503, body: apiError('BFF_UNAVAILABLE', 'Indisponible'), outOfContract: true });
+  browser.focus();
+  await view.waitFor((html) => html.includes('La synchronisation des conversations est momentanément indisponible.'));
+  assert.match(view.text(), /Bonjour à tous/);
+  assert.equal(view.props('Messaging').conversations.length, 2);
+
+  messageBff.on('get', '/conversations', { body: { conversations: [conversation(4, 'Équipe communication')] } });
+  browser.focus();
+  await view.waitFor((html) => !html.includes('La synchronisation des conversations est momentanément indisponible.') &&
+    view.props('Messaging').conversations.length === 1);
+});
+
+test('a stale refresh cannot erase a message sent while it was in flight', async () => {
+  await renderLoadedPage();
+  let release;
+  let responded = false;
+  const gate = new Promise((resolve) => { release = resolve; });
+  messageBff.on('get', '/conversations', async () => {
+    await gate;
+    responded = true;
+    return { body: { conversations: [conversation(4, 'Équipe communication')] } };
+  });
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({
+    status: 201,
+    body: { message: message(9, 4, 'Envoyé pendant le rafraîchissement'), conversation: conversation(4, 'Équipe communication') },
+  }));
+  browser.focus();
+  await view.waitFor(() => messageBff.calls('/conversations').length === 2);
+  await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-4', content: 'Envoyé pendant le rafraîchissement', attachments: [], mentions: [] }));
+  release();
+  await view.waitFor(() => responded && view.props('Messaging').messages.some((item) => item.id === 'message-9'));
+  assert.equal(view.props('Messaging').messages.filter((item) => item.id === 'message-9').length, 1);
+});
+
+test('a stale refresh cannot replace a newly selected thread', async () => {
+  await renderLoadedPage();
+  let release;
+  let responded = false;
+  const gate = new Promise((resolve) => { release = resolve; });
+  messageBff.on('get', '/conversations', async () => {
+    await gate;
+    responded = true;
+    return { body: { conversations: bootstrap().conversations } };
+  });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
+    messages: [message(8, 5, 'Fil sélectionné', users.sophie)],
+  } }));
+  browser.focus();
+  await view.waitFor(() => messageBff.calls('/conversations').length === 2);
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy', { kind: 'direct' })));
+  release();
+  await view.waitFor(() => responded && view.props('Messaging').messages.some((item) => item.id === 'message-8'));
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.match(view.text(), /Fil sélectionné/);
+});
+
+test('a stale refresh cannot restore a deleted conversation', async () => {
+  await renderLoadedPage();
+  let release;
+  let responded = false;
+  const gate = new Promise((resolve) => { release = resolve; });
+  messageBff.on('get', '/conversations', async () => {
+    await gate;
+    responded = true;
+    return { body: { conversations: bootstrap().conversations } };
+  });
+  messageBff.on('delete', '/conversations/{conversationId}', {
+    body: { deleted: true, conversationId: 'conversation-4' },
+  });
+  browser.focus();
+  await view.waitFor(() => messageBff.calls('/conversations').length === 2);
+  await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+  release();
+  await view.waitFor(() => responded && view.props('Messaging').conversations.length === 1);
+  assert.deepEqual(view.props('Messaging').conversations.map((item) => item.id), ['conversation-5']);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
 });

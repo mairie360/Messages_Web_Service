@@ -69,6 +69,12 @@ const clientScenarios = {
     assert.equal(network.resolve('/business-references').route, '/business-references', 'servi par la route explicite');
     assert.deepEqual(upstream(), ['GET /business-references']);
   },
+  async getConversations() {
+    const body = { conversations: [conversation(4, 'Équipe communication', { unreadCount: 2 })] };
+    messageBff.on('get', '/conversations', { body });
+    assert.deepEqual(await messageClient.getConversations(), body);
+    assert.deepEqual(upstream(), ['GET /conversations']);
+  },
   async getConversationMessages() {
     const body = { conversation: conversation(4, 'Équipe communication'), messages: [message(1, 4, 'Bonjour', users.sophie), message(2, 4, 'Salut')] };
     messageBff.on('get', '/conversations/{conversationId}/messages', { body });

@@ -2,6 +2,7 @@ import type {
   BusinessReferencesResponse,
   DeleteConversationsConversationId200,
   GetContacts200,
+  GetConversations200,
   GetConversationsConversationIdMessages200,
   GetMe200,
   GetMessagingBootstrap200,
@@ -90,6 +91,10 @@ export const messageClient = {
 
   getBusinessReferences() {
     return bffRequest<BusinessReferencesResponse>("/business-references");
+  },
+
+  getConversations() {
+    return bffRequest<GetConversations200>("/conversations");
   },
 
   getConversationMessages(conversationId: MessageId) {
