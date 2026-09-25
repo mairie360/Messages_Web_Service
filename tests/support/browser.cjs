@@ -12,7 +12,7 @@ function installBrowser() {
   const remove = (listeners, name, callback) => listeners.get(name)?.delete(callback);
   const emit = (listeners, name) => listeners.get(name)?.forEach((callback) => callback());
   const browser = {
-    location: { reloads: 0, reload() { this.reloads += 1; } },
+    location: { reloads: 0, search: '', reload() { this.reloads += 1; } },
     setInterval(callback, delay) {
       const id = nextIntervalId++;
       intervals.set(id, { callback, delay });
@@ -41,7 +41,7 @@ function installBrowser() {
       document.hidden = hidden;
       emit(documentListeners, 'visibilitychange');
     },
-    reset() { browser.location.reloads = 0; document.hidden = false; intervals.clear(); },
+    reset() { browser.location.reloads = 0; browser.location.search = ''; document.hidden = false; intervals.clear(); },
     restore() { delete global.window; delete global.document; },
   };
 }
