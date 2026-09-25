@@ -86,7 +86,7 @@
   max-width: 980px;
 }
 
-.messages-module {
+.messages-module-frame > .messages-module {
   width: 100%;
   min-width: 0;
   min-height: 0;
@@ -173,7 +173,7 @@
 }
 
 @media (min-width: 1024px) {
-  .messages-module {
+  .messages-module-frame > .messages-module {
     grid-template-rows: minmax(0, 1fr);
   }
 

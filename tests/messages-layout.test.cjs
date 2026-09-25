@@ -20,7 +20,7 @@ test('only the messaging page is bounded to the dynamic viewport', () => {
 });
 
 test('contacts and messages keep independent scroll areas while controls stay visible', () => {
-  assert.match(rule('.messages-module'), /min-height: 0;[\s\S]*height: 100%;/);
+  assert.match(rule('.messages-module-frame > .messages-module'), /min-height: 0;[\s\S]*height: 100%;/);
   assert.match(rule('.messages-module-frame'), /min-height: 0;[\s\S]*flex: 1;/);
   assert.match(rule('.messages-module-stack'), /min-height: 0;[\s\S]*flex: 1;[\s\S]*overflow: hidden;/);
   assert.match(css, /\.messages-module > aside > div:last-child,[\s\S]*?overscroll-behavior: contain;/);
@@ -31,7 +31,7 @@ test('contacts and messages keep independent scroll areas while controls stay vi
 });
 
 test('narrow screens stack the panes and desktop keeps one grid row', () => {
-  assert.match(rule('.messages-module'), /grid-template-rows: minmax\(0, min\(13rem, 30dvh\)\) minmax\(0, 1fr\);/);
+  assert.match(rule('.messages-module-frame > .messages-module'), /grid-template-rows: minmax\(0, min\(13rem, 30dvh\)\) minmax\(0, 1fr\);/);
   assert.match(css, /@media \(max-width: 639px\)[\s\S]*?\.messages-main \{\s*padding: 10px;/);
-  assert.match(css, /@media \(min-width: 1024px\)[\s\S]*?\.messages-module \{\s*grid-template-rows: minmax\(0, 1fr\);/);
+  assert.match(css, /@media \(min-width: 1024px\)[\s\S]*?\.messages-module-frame > \.messages-module \{\s*grid-template-rows: minmax\(0, 1fr\);/);
 });
