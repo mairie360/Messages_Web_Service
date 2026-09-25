@@ -14,6 +14,7 @@ const { installBrowser } = require('./support/browser.cjs');
 const { apiError, bootstrap, businessReferences, contact, conversation, currentUser, message, messageBffMock, tokenFor, users } = require('./support/fixtures.cjs');
 const { FrontNetwork } = require('./support/front-network.cjs');
 const Page = requireSrc('app/page.tsx').default;
+const ProfilePage = requireSrc('app/profile/page.tsx').default;
 
 const messageBff = messageBffMock();
 const network = new FrontNetwork([messageBff]);
@@ -82,6 +83,8 @@ test('the first pass renders the empty messaging, the next ones the bootstrap, c
   assert.equal(view.passes, 1);
   assert.deepEqual(view.props('Messaging').conversations, []);
   assert.equal(view.props('Messaging').emptyStateLabel, 'Chargement de la messagerie...');
+  assert.equal(view.props('Messaging').style, undefined);
+  assert.match(view.html, /messages-app-root messages-app-root--bounded/);
   assert.doesNotMatch(view.text(), /Équipe communication/);
 
   const html = await view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation');
@@ -101,6 +104,15 @@ test('the first pass renders the empty messaging, the next ones the bootstrap, c
   await view.waitFor(() => view.props('Header').user.name === 'Agent Mairie');
   assert.match(view.html, /<span[^>]*>Agent Mairie<\/span>/);
   assert.match(view.html, /<footer/);
+});
+
+test('the profile keeps its normal scrollable shell', async () => {
+  view = mount(React.createElement(ProfilePage));
+  await view.waitFor(() => view.props('Header').user.name === 'Agent Mairie');
+
+  assert.match(view.html, /messages-app-root/);
+  assert.doesNotMatch(view.html, /messages-app-root--bounded/);
+  assert.match(view.html, /messages-main--scroll/);
 });
 
 test('a bootstrap failure is rendered as an alert and the messaging stays empty', async () => {
