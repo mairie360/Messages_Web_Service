@@ -18,6 +18,7 @@ import {
   type MessagingMessage,
 } from "@/lib/messaging-state";
 import { AppShell } from "./_components/app-shell";
+import { prepareMessagingScrollRegions } from "./_components/messaging-scroll-regions";
 
 type MessagingProps = ComponentProps<typeof Messaging>;
 type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
@@ -342,7 +343,7 @@ export default function Page() {
     };
 
   return (
-    <AppShell activeItem="messages">
+    <AppShell activeItem="messages" boundedContent>
       <div className="messages-module-stack">
         {error && (
           <p role="alert" className="messages-error">
@@ -355,31 +356,29 @@ export default function Page() {
           </p>
         )}
 
-        <Messaging
-          conversations={conversations}
-          contacts={contacts}
-          messages={messages}
-          businessReferences={businessReferences}
-          activeConversationId={activeConversationId}
-          currentUserId={toMessagingUserId(currentUser?.id)}
-          emptyStateLabel={
-            loading ? "Chargement de la messagerie..." : "Aucune conversation"
-          }
-          onConversationSelect={(conversation) =>
-            void loadConversationMessages(conversation.id)
-          }
-          onNewMessageClick={() => void loadContacts()}
-          onCreateGroupClick={() => void loadContacts()}
-          onSendMessage={(payload) => void handleSendMessage(payload)}
-          onNewMessageSend={(payload) => void handleNewMessageSend(payload)}
-          onCreateGroup={(payload) => void handleCreateGroup(payload)}
-          onConversationDelete={handleConversationDelete}
-          className="messages-module"
-          style={{
-            height: "min(692px, calc(100vh - 192px))",
-            minHeight: "560px",
-          }}
-        />
+        <div className="messages-module-frame" ref={prepareMessagingScrollRegions}>
+          <Messaging
+            conversations={conversations}
+            contacts={contacts}
+            messages={messages}
+            businessReferences={businessReferences}
+            activeConversationId={activeConversationId}
+            currentUserId={toMessagingUserId(currentUser?.id)}
+            emptyStateLabel={
+              loading ? "Chargement de la messagerie..." : "Aucune conversation"
+            }
+            onConversationSelect={(conversation) =>
+              void loadConversationMessages(conversation.id)
+            }
+            onNewMessageClick={() => void loadContacts()}
+            onCreateGroupClick={() => void loadContacts()}
+            onSendMessage={(payload) => void handleSendMessage(payload)}
+            onNewMessageSend={(payload) => void handleNewMessageSend(payload)}
+            onCreateGroup={(payload) => void handleCreateGroup(payload)}
+            onConversationDelete={handleConversationDelete}
+            className="messages-module"
+          />
+        </div>
       </div>
     </AppShell>
   );

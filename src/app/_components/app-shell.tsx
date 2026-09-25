@@ -41,6 +41,7 @@ const sidebarItems: SidebarItem[] = [
 type AppShellProps = {
   activeItem: string;
   children: ReactNode | ((session: AuthSession) => ReactNode);
+  boundedContent?: boolean;
   mainClassName?: string;
   mainInnerClassName?: string;
 };
@@ -48,6 +49,7 @@ type AppShellProps = {
 export function AppShell({
   activeItem,
   children,
+  boundedContent = false,
   mainClassName = "",
   mainInnerClassName = "",
 }: AppShellProps) {
@@ -87,7 +89,7 @@ export function AppShell({
   );
 
   return (
-    <div className="messages-app-root">
+    <div className={boundedContent ? "messages-app-root messages-app-root--bounded" : "messages-app-root"}>
       <div className="messages-shell">
         <div className="messages-desktop-sidebar">{renderSidebar()}</div>
 
