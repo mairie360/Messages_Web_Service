@@ -60,8 +60,8 @@ export default function Page() {
         const firstConversationId = bootstrap.conversations[0]?.id ?? "";
         const requestedConversationId = new URLSearchParams(window.location.search).get("conversation")?.trim();
         let selectedId = bootstrap.activeConversationId ?? firstConversationId;
-        let initialConversations = bootstrap.conversations;
-        let initialMessages = bootstrap.messages;
+        let initialConversations: MessagingConversation[] = bootstrap.conversations;
+        let initialMessages: MessagingMessage[] = bootstrap.messages;
 
         if (requestedConversationId) {
           try {
