@@ -143,6 +143,43 @@ test('selecting a conversation loads its messages and renders them', async () =>
   assert.doesNotMatch(html, /role="alert"/);
 });
 
+test('a conversation URL opens the authorized BFF thread without changing the default journey', async () => {
+  browser.window.location.search = '?conversation=conversation-5';
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({
+    body: {
+      conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
+      messages: [message(7, 5, 'Message ciblé', users.sophie)],
+    },
+  }));
+
+  await renderLoadedPage();
+
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.match(view.text(), /Message ciblé/);
+  assert.ok(messageBff.calls('/conversations/{conversationId}/messages').some((call) =>
+    call.pathParams.conversationId === 'conversation-5'));
+  assert.deepEqual(view.props('Messaging').conversations.map((item) => item.id), ['conversation-4', 'conversation-5']);
+});
+
+test('an inaccessible conversation URL keeps the real bootstrap and reports the failed target', async () => {
+  browser.window.location.search = '?conversation=conversation-999';
+  messageBff.on('get', '/conversations/{conversationId}/messages', (request) =>
+    request.pathParams.conversationId === 'conversation-999'
+      ? { status: 404, body: apiError('NOT_FOUND', 'Conversation introuvable'), outOfContract: true }
+      : swappedModel({ body: {
+          conversation: conversation(4, 'Équipe communication'),
+          messages: [message(1, 4, 'Bonjour à tous', users.sophie)],
+        } }),
+  );
+
+  await renderLoadedPage();
+
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.match(view.text(), /Bonjour à tous/);
+  assert.match(view.text(), /La conversation demandée est introuvable ou inaccessible/);
+  assert.equal(view.props('Messaging').conversations.length, 2);
+});
+
 test('sending a message posts it to the BFF and appends the answer to the thread', async () => {
   await renderLoadedPage();
   messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({

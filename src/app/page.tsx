@@ -58,14 +58,34 @@ export default function Page() {
         if (!isMounted) return;
 
         const firstConversationId = bootstrap.conversations[0]?.id ?? "";
+        const requestedConversationId = new URLSearchParams(window.location.search).get("conversation")?.trim();
+        let selectedId = bootstrap.activeConversationId ?? firstConversationId;
+        let initialConversations: MessagingConversation[] = bootstrap.conversations;
+        let initialMessages: MessagingMessage[] = bootstrap.messages;
+
+        if (requestedConversationId) {
+          try {
+            // The BFF decides whether this user may access the requested thread.
+            const thread = await messageClient.getConversationMessages(requestedConversationId);
+            if (!isMounted) return;
+            if (!idsMatch(thread.conversation.id, requestedConversationId)) {
+              throw new Error("La conversation demandée est indisponible.");
+            }
+            selectedId = thread.conversation.id;
+            initialConversations = upsertConversation(initialConversations, thread.conversation);
+            initialMessages = replaceConversationMessages(initialMessages, selectedId, thread.messages);
+          } catch {
+            if (!isMounted) return;
+            setError("La conversation demandée est introuvable ou inaccessible.");
+          }
+        }
+
         setCurrentUser(bootstrap.currentUser);
         setContacts(toMessagingContacts(bootstrap.contacts));
-        setConversations(bootstrap.conversations);
-        setMessages(bootstrap.messages);
-        activeConversationRef.current = bootstrap.activeConversationId ?? firstConversationId;
-        setActiveConversationId(
-          bootstrap.activeConversationId ?? firstConversationId,
-        );
+        setConversations(initialConversations);
+        setMessages(initialMessages);
+        activeConversationRef.current = selectedId;
+        setActiveConversationId(selectedId);
 
         // Load contacts independently so the recipient menu does not depend
         // on the modal opening timing or on the conversation list.
