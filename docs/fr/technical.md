@@ -57,6 +57,8 @@ npm run start -- --port 5003
 
 ## Configuration
 
+Si la session manque ou a expiré, le middleware transmet `redirect` à Login. Il construit la destination avec `MESSAGE_FRONT_URL` lu à l’exécution, puis le chemin et la query demandés, jamais avec l’hôte interne de l’ingress. Sans URL publique valide, Login utilise sa destination Projets par défaut.
+
 Les valeurs ci-dessous sont des exemples locaux ou des comportements explicitement indiqués, pas des identifiants de production.
 
 | Variable ou priorité | Exemple / repli indiqué | Rôle |

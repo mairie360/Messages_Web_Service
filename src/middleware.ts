@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ACCESS_TOKEN_COOKIE, clearAccessTokenCookie } from "./lib/access-token-cookie";
+import { readFrontUrlsFromEnv } from "./lib/front-urls";
 import {
   buildContentSecurityPolicy,
   createNonce,
@@ -37,8 +38,20 @@ function isExpiredJwt(token: string) {
 
 function redirectToLogin(request: NextRequest) {
   const loginUrl = process.env.LOGIN_FRONT_URL || DEFAULT_LOGIN_FRONT_URL;
+  const destination = new URL(loginUrl);
+  const publicFrontUrl = readFrontUrlsFromEnv().MESSAGE_FRONT_URL;
+  if (publicFrontUrl) {
+    try {
+      const requestedPage = new URL(publicFrontUrl);
+      requestedPage.pathname = request.nextUrl.pathname;
+      requestedPage.search = request.nextUrl.search;
+      destination.searchParams.set("redirect", requestedPage.href);
+    } catch {
+      // A missing or invalid public URL leaves Login's default destination in place.
+    }
+  }
 
-  return clearAccessTokenCookie(NextResponse.redirect(new URL(loginUrl, request.url)));
+  return clearAccessTokenCookie(NextResponse.redirect(destination));
 }
 
 export function middleware(request: NextRequest) {
