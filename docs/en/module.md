@@ -12,7 +12,7 @@ Business domain: Instant messaging.
 
 ## Available capabilities
 
-- Conversation list, active messages and contact search.
+- Conversation list, active messages and contact search, with refresh while the tab is visible.
 - Direct messages, conversation replies, group creation and deletion.
 - Load project, task and event references.
 
@@ -20,7 +20,7 @@ Business domain: Instant messaging.
 
 1. Load `/messaging/bootstrap` and select a conversation.
 2. Find a contact or business reference, then send a message.
-3. Update the conversation and inspect the messages returned by the BFF.
+3. Inspect messages returned by the BFF; the list and active thread sync when the tab resumes and every ten seconds while it stays visible.
 
 ## Role within Mairie360
 
@@ -34,7 +34,7 @@ Conversations and messages use Message API. Contacts are read directly from the 
 
 ## Scope and limitations
 
-Attachment upload currently creates metadata and does not provide durable binary storage. Mark-as-read returns a zero counter without writing to Message API. Conversation groups use the API, while some profile data remains local to the process.
+Attachment upload currently creates metadata and does not provide durable binary storage. Mark-as-read returns a zero counter without writing to Message API: the frontend does not use it to acknowledge messages and keeps the counts supplied by the BFF. Conversation groups use the API, while some profile data remains local to the process.
 
 ## Developing or operating this module
 
