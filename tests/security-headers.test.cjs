@@ -1,5 +1,11 @@
 const assert = require('node:assert/strict');
-const { test } = require('node:test');
+const { test, beforeEach, afterEach } = require('node:test');
+const savedLoginUrl = process.env.LOGIN_FRONT_URL;
+beforeEach(() => { process.env.LOGIN_FRONT_URL = 'https://login.mairie.test/'; });
+afterEach(() => {
+  if (savedLoginUrl === undefined) delete process.env.LOGIN_FRONT_URL;
+  else process.env.LOGIN_FRONT_URL = savedLoginUrl;
+});
 const { NextRequest } = require('next/server');
 const { requireSrc } = require('./support/load-ts.cjs');
 const { middleware } = requireSrc('middleware.ts');
