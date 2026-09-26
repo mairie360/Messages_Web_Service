@@ -15,6 +15,7 @@ const { apiError, bootstrap, businessReferences, contact, conversation, currentU
 const { FrontNetwork } = require('./support/front-network.cjs');
 const Page = requireSrc('app/page.tsx').default;
 const ProfilePage = requireSrc('app/profile/page.tsx').default;
+const { messageClient } = requireSrc('clients/messageClient.ts');
 
 const messageBff = messageBffMock();
 const network = new FrontNetwork([messageBff]);
@@ -75,6 +76,160 @@ async function renderLoadedPage(body = bootstrap()) {
     view.props('Header').user.name !== 'Chargement…' &&
     view.props('Messaging').conversations[0]?.unreadCount === 0);
 }
+
+// Observe completion without replacing the real client, Next.js route or contract mock.
+function trackReferenceRequests(t) {
+  const original = messageClient.getBusinessReferences;
+  const pending = [];
+  t.mock.method(messageClient, 'getBusinessReferences', () => {
+    const request = original();
+    pending.push(request);
+    return request;
+  });
+  return pending;
+}
+
+test('focus replaces business suggestions with the current BFF response, including an empty list', async (t) => {
+  const pending = trackReferenceRequests(t);
+  await renderLoadedPage();
+  await Promise.allSettled(pending);
+  const updated = businessReferences();
+  updated.references[0].title = 'Projet actualisé';
+  messageBff.on('get', '/business-references', { body: updated });
+
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').businessReferences[0]?.title === 'Projet actualisé');
+  assert.equal(pending.length, 2);
+  assert.equal(browser.window.location.reloads, 0);
+
+  messageBff.on('get', '/business-references', { body: { ...updated, references: [] } });
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').businessReferences.length === 0);
+  assert.equal(pending.length, 3);
+  assert.match(view.text(), /Bonjour à tous/);
+});
+
+test('business suggestions wait for visibility and do not add periodic background requests', async (t) => {
+  const pending = trackReferenceRequests(t);
+  browser.setHidden(true);
+  messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+  view = mount(React.createElement(Page));
+  await view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation');
+  browser.focus();
+  browser.tickIntervals(10_000);
+  assert.equal(pending.length, 0);
+
+  browser.setHidden(false);
+  await view.waitFor(() => view.props('Messaging').businessReferences.length === 2);
+  assert.equal(pending.length, 1);
+  browser.tickIntervals(10_000);
+  assert.equal(pending.length, 1);
+});
+
+test('failed initial business suggestions stay empty and recover on focus', async (t) => {
+  const pending = trackReferenceRequests(t);
+  messageBff.on('get', '/business-references', { status: 503, body: apiError('UNAVAILABLE', 'Indisponible'), outOfContract: true });
+  await renderLoadedPage();
+  await Promise.allSettled(pending);
+  await view.settle();
+  assert.deepEqual(view.props('Messaging').businessReferences, []);
+
+  messageBff.on('get', '/business-references', { body: businessReferences() });
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').businessReferences.length === 2);
+});
+
+test('temporary business reference failures preserve the last successful suggestions', async (t) => {
+  const pending = trackReferenceRequests(t);
+  await renderLoadedPage();
+  await Promise.allSettled(pending);
+  const known = view.props('Messaging').businessReferences;
+
+  for (const reply of [
+    { status: 503, body: apiError('UNAVAILABLE', 'Indisponible'), outOfContract: true },
+    { dropConnection: true },
+  ]) {
+    messageBff.on('get', '/business-references', reply);
+    browser.focus();
+    await Promise.allSettled(pending);
+    await view.settle();
+    assert.deepEqual(view.props('Messaging').businessReferences, known);
+  }
+
+  const recovered = { ...businessReferences(), references: businessReferences().references.slice(1) };
+  messageBff.on('get', '/business-references', { body: recovered });
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').businessReferences.length === 1);
+});
+
+for (const status of [401, 403]) {
+  test(`business suggestions are cleared after an explicit ${status} access refusal`, async (t) => {
+    const pending = trackReferenceRequests(t);
+    await renderLoadedPage();
+    await Promise.allSettled(pending);
+    assert.equal(view.props('Messaging').businessReferences.length, 2);
+    messageBff.on('get', '/business-references', { status, body: apiError('FORBIDDEN', 'Accès refusé'), outOfContract: true });
+
+    browser.focus();
+    await view.waitFor(() => view.props('Messaging').businessReferences.length === 0);
+    assert.match(view.text(), /Bonjour à tous/);
+  });
+}
+
+test('simultaneous focus and visibility events share an in-flight business reference request', async (t) => {
+  const pending = trackReferenceRequests(t);
+  await renderLoadedPage();
+  await Promise.allSettled(pending);
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  t.after(() => release());
+  const updated = businessReferences();
+  updated.references[0].title = 'Dernière réponse';
+  messageBff.on('get', '/business-references', async () => {
+    await gate;
+    return { body: updated };
+  });
+
+  browser.focus();
+  browser.setHidden(true);
+  browser.setHidden(false);
+  browser.focus();
+  assert.equal(pending.length, 2);
+  release();
+  await view.waitFor(() => view.props('Messaging').businessReferences[0]?.title === 'Dernière réponse');
+  browser.focus();
+  assert.equal(pending.length, 3);
+  await Promise.allSettled(pending);
+});
+
+test('unmount removes business reference listeners and ignores the pending response', async (t) => {
+  const pending = trackReferenceRequests(t);
+  await renderLoadedPage();
+  await Promise.allSettled(pending);
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  t.after(() => release());
+  messageBff.on('get', '/business-references', async () => {
+    await gate;
+    return { body: { ...businessReferences(), references: [] } };
+  });
+  browser.focus();
+  assert.equal(pending.length, 2);
+  view.unmount();
+  const updates = t.mock.method(view, 'invalidate');
+  const passes = view.passes;
+  browser.focus();
+  browser.setHidden(true);
+  browser.setHidden(false);
+  release();
+  await Promise.allSettled(pending);
+  await view.settle();
+
+  assert.equal(pending.length, 2);
+  assert.equal(updates.mock.callCount(), 0);
+  assert.equal(view.passes, passes);
+  assert.equal(view.props('Messaging').businessReferences.length, 2);
+});
 
 test('the first pass renders the empty messaging, the next ones the bootstrap, contacts and session', async () => {
   messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });

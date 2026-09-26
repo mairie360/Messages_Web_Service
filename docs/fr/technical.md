@@ -26,6 +26,8 @@ flowchart LR
 
 La page utilise le client de messagerie pour charger le bootstrap puis les messages et contacts à la demande. Elle transforme les réponses pour le composant partagé `Messaging`. Après le bootstrap, elle relit `/conversations` et le fil actif toutes les dix secondes lorsque l’onglet est visible, ainsi qu’à la reprise du focus. Les réponses arrivées après une sélection ou une mutation sont ignorées pour ne pas écraser l’état récent ; un échec de synchronisation conserve le dernier fil connu et affiche une alerte. La route explicite `/business-references` relaie la réponse de BFF Message.
 
+Les suggestions métier se chargent indépendamment via `messageClient.getBusinessReferences()` au montage et lors des changements de focus/visibilité si la page est visible. Un verrou de requête en cours, propre à l’effet, regroupe les événements simultanés ; aucun intervalle supplémentaire n’est créé. Chaque succès remplace la liste, y compris une liste vide. Les erreurs temporaires conservent les dernières suggestions reçues, tandis qu’un HTTP 401/403 les efface. Le démontage retire les deux écouteurs et ignore les réponses en attente. `tests/messages-page.contract-mocks.test.cjs` couvre ce cycle avec le vrai client et le proxy frontend, devant des mocks pilotés par contrat ; cela n’ajoute pas de persistance aux références envoyées, pièces jointes ou accusés de lecture.
+
 Le proxy générique lit le contrat OpenAPI versionné pour autoriser chemins et méthodes. Il conserve paramètres de requête, corps binaire, statuts et en-têtes utiles, filtre les en-têtes de transport, désactive le cache et n’effectue pas de suivi automatique des redirections. Son délai est de 15 secondes.
 
 ## Données et persistance

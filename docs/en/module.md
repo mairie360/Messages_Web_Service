@@ -14,7 +14,7 @@ Business domain: Instant messaging.
 
 - Conversation list, active messages and contact search, with refresh while the tab is visible.
 - Direct messages, conversation replies, group creation and deletion.
-- Load project, task and event references.
+- Load project, task and event references, refreshing suggestions when returning to the visible tab. Temporary failures retain the last successful list; an access refusal clears it.
 
 ## Typical workflow
 
