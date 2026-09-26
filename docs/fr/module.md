@@ -14,7 +14,7 @@ Domaine fonctionnel: Messagerie instantanée.
 
 - Liste de conversations, messages actifs et recherche de contacts, avec rafraîchissement lorsque l’onglet est visible.
 - Envoi direct, réponse dans une conversation, création de groupe et suppression.
-- Chargement des références projets, tâches et événements.
+- Chargement des références projets, tâches et événements, avec actualisation des suggestions au retour dans l’onglet visible. Une panne temporaire conserve la dernière liste reçue ; un refus d’accès la vide.
 
 ## Parcours type
 

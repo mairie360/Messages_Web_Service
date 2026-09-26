@@ -26,6 +26,8 @@ flowchart LR
 
 The page uses the messaging client to load bootstrap, then messages and contacts on demand. It maps responses for the shared `Messaging` component. After bootstrap, it fetches `/conversations` and the active thread every ten seconds while the tab is visible, and when focus resumes. Responses arriving after a selection or mutation are ignored so they cannot overwrite newer state; a sync failure preserves the last known thread and shows an alert. The explicit `/business-references` route forwards the BFF Message response.
 
+Business suggestions load independently through `messageClient.getBusinessReferences()` on mount and on focus/visibility changes while the page is visible. A per-effect in-flight guard coalesces simultaneous events; no additional polling interval is created. Successful responses replace the list, including an empty list. Transient failures keep the last successful suggestions, while HTTP 401/403 clears them. Unmount removes both listeners and ignores pending responses. `tests/messages-page.contract-mocks.test.cjs` covers this lifecycle through the real frontend client and proxy with contract-driven mocks; this does not add persistence for sent references, attachments or read acknowledgements.
+
 The generic proxy reads the versioned OpenAPI contract to allow paths and methods. It preserves query parameters, binary bodies, statuses and useful headers, filters transport headers, disables caching and does not automatically follow redirects. Its timeout is 15 seconds.
 
 ## Data and persistence

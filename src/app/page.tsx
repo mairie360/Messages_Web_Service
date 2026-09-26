@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import { Messaging } from "@mairie360/lib-components";
-import { messageClient, type CurrentUserDto } from "@/clients/messageClient";
+import { BffRequestError, messageClient, type CurrentUserDto } from "@/clients/messageClient";
 import {
   appendMessage,
   getPayloadIds,
@@ -109,21 +109,44 @@ export default function Page() {
       }
     }
 
-    async function loadBusinessReferences() {
-      try {
-        const response = await messageClient.getBusinessReferences();
-
-        if (isMounted) setBusinessReferences(response.references ?? []);
-      } catch {
-        if (isMounted) setBusinessReferences([]);
-      }
-    }
-
     void loadBootstrap();
-    void loadBusinessReferences();
 
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let inFlight = false;
+
+    async function loadBusinessReferences() {
+      if (disposed || inFlight || !pageIsVisible()) return;
+      inFlight = true;
+      try {
+        const response = await messageClient.getBusinessReferences();
+
+        if (!disposed) setBusinessReferences(response.references ?? []);
+      } catch (loadError) {
+        // Keep suggestions through transient failures, but not an explicit access refusal.
+        if (!disposed && loadError instanceof BffRequestError &&
+            (loadError.status === 401 || loadError.status === 403)) {
+          setBusinessReferences([]);
+        }
+      } finally {
+        inFlight = false;
+      }
+    }
+
+    const refreshReferences = () => { void loadBusinessReferences(); };
+    refreshReferences();
+    window.addEventListener("focus", refreshReferences);
+    document.addEventListener("visibilitychange", refreshReferences);
+
+    return () => {
+      disposed = true;
+      window.removeEventListener("focus", refreshReferences);
+      document.removeEventListener("visibilitychange", refreshReferences);
     };
   }, []);
 
