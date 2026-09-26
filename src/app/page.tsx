@@ -20,6 +20,7 @@ import {
 import { AppShell } from "./_components/app-shell";
 import { prepareMessagingScrollRegions } from "./_components/messaging-scroll-regions";
 import { presentConversationTimestamps, presentMessageTimestamps } from "@/lib/message-timestamps";
+import { buildMessageMentionOptions, presentMessageAuthors } from "@/lib/message-authors";
 
 type MessagingProps = ComponentProps<typeof Messaging>;
 type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
@@ -48,7 +49,11 @@ export default function Page() {
 
   // Keep BFF state intact; only the shared component receives display labels.
   const displayedConversations = useMemo(() => presentConversationTimestamps(conversations), [conversations]);
-  const displayedMessages = useMemo(() => presentMessageTimestamps(messages), [messages]);
+  const mentionOptions = useMemo(() => buildMessageMentionOptions(contacts, conversations), [contacts, conversations]);
+  const displayedMessages = useMemo(
+    () => presentMessageAuthors(presentMessageTimestamps(messages), toMessagingUserId(currentUser?.id), mentionOptions, businessReferences),
+    [messages, currentUser?.id, mentionOptions, businessReferences],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -409,6 +414,7 @@ export default function Page() {
             conversations={displayedConversations}
             contacts={contacts}
             messages={displayedMessages}
+            mentionOptions={mentionOptions}
             businessReferences={businessReferences}
             activeConversationId={activeConversationId}
             currentUserId={toMessagingUserId(currentUser?.id)}
