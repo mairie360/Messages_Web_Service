@@ -104,7 +104,7 @@ export function AppShell({
             user={session.user}
             isAdmin={session.isAdmin}
             setSidebarOpen={setSidebarOpen}
-            profileHref="/profile"
+            profileHref={getAppRoute("profile")}
             onPageChange={navigateToPage}
             onLogout={() => void logoutAndReload()}
           />
