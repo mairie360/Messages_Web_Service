@@ -90,7 +90,9 @@ test('bootstrap renders French timestamp labels without modifying message text o
 
   assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
   assert.equal(view.props('Messaging').messages[0].sentAt, frenchTime(timestamp));
-  assert.equal(view.props('Messaging').messages[0].content, 'Rendez-vous à 9 h 05');
+  assert.equal(body.messages[0].content, 'Rendez-vous à 9 h 05');
+  assert.match(view.text(), /Sophie Leroy/);
+  assert.match(view.text(), /Rendez-vous à 9 h 05/);
   assert.ok(view.text().includes(frenchTime(timestamp)));
   assert.equal(body.messages[0].sentAt, timestamp);
   assert.equal(body.conversations[0].lastMessageAt, timestamp);
@@ -147,7 +149,9 @@ test('send keeps user-authored date text and request payload intact, then format
   assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages', 'POST')[0].body,
     { content, attachmentIds: [], mentionIds: [] });
   assert.equal(view.props('Messaging').messages.find(item => item.id === 'message-3').sentAt, frenchTime(timestamp));
-  assert.equal(view.props('Messaging').messages.find(item => item.id === 'message-3').content, content);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'POST')[0].body.content, content);
+  assert.match(view.text(), /Agent Mairie \(vous\)/);
+  assert.match(view.text(), /Réunion à 9 h 05/);
   assert.equal(view.props('Messaging').conversations[0].lastMessage, content);
   assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
 });
