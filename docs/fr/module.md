@@ -22,6 +22,7 @@ Domaine fonctionnel: Messagerie instantanée.
 
 - Liste de conversations, messages actifs et recherche de contacts, avec rafraîchissement lorsque l’onglet est visible.
 - Envoi direct, réponse dans une conversation, création de groupe et suppression.
+- Dates des conversations et des messages affichées en français (jour/mois et heure:minute), dans le fuseau du navigateur. Les valeurs absentes ou non reconnues sont conservées sans date inventée ; le contenu des messages reste intact.
 - Chargement des références projets, tâches et événements, avec actualisation des suggestions au retour dans l’onglet visible. Une panne temporaire conserve la dernière liste reçue ; un refus d’accès la vide.
 
 ## Parcours type

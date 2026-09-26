@@ -76,6 +76,82 @@ async function renderLoadedPage(body = bootstrap()) {
     view.props('Messaging').conversations[0]?.unreadCount === 0);
 }
 
+const frenchTime = (value) => new Intl.DateTimeFormat('fr-FR', {
+  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+}).format(new Date(value));
+
+test('bootstrap renders French timestamp labels without modifying message text or source data', async () => {
+  browser.setHidden(true); // Inspect bootstrap before the independent visible-tab refresh.
+  const body = bootstrap();
+  const timestamp = '2026-09-26T23:30:00Z';
+  body.conversations[0] = conversation(4, 'Équipe communication', { lastMessageAt: timestamp });
+  body.messages[0] = message(1, 4, 'Rendez-vous à 9 h 05', users.sophie, { sentAt: timestamp });
+  await renderLoadedPage(body);
+
+  assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
+  assert.equal(view.props('Messaging').messages[0].sentAt, frenchTime(timestamp));
+  assert.equal(view.props('Messaging').messages[0].content, 'Rendez-vous à 9 h 05');
+  assert.ok(view.text().includes(frenchTime(timestamp)));
+  assert.equal(body.messages[0].sentAt, timestamp);
+  assert.equal(body.conversations[0].lastMessageAt, timestamp);
+  assert.doesNotMatch(view.text(), /2026-09-26T23:30:00Z/);
+});
+
+test('selection renders legacy times and preserves unknown or absent timestamp labels', async () => {
+  await renderLoadedPage();
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(5, 'Sophie Leroy', { kind: 'direct', lastMessageAt: '09 h 45' }),
+    messages: [
+      message(2, 5, 'Heure transmise', users.sophie, { sentAt: '09 h 45' }),
+      message(3, 5, 'Sans horodatage', users.sophie, { sentAt: undefined }),
+      message(4, 5, 'Valeur inconnue', users.sophie, { sentAt: 'Hier' }),
+    ],
+  } }));
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-4'));
+  const selected = view.props('Messaging').messages.filter(item => item.conversationId === 'conversation-5');
+  assert.deepEqual(selected.map(item => item.sentAt), ['09:45', undefined, 'Hier']);
+  assert.equal(view.props('Messaging').conversations.find(item => item.id === 'conversation-5').lastMessageAt, '09:45');
+  assert.match(view.text(), /09:45/);
+  assert.match(view.text(), /Sans horodatage/);
+  assert.doesNotMatch(view.text(), /Invalid Date/);
+});
+
+test('focus refresh formats new timestamps without changing BFF ordering or unread counts', async () => {
+  await renderLoadedPage();
+  const timestamp = '2026-09-27T08:15:00+04:00';
+  const refreshed = conversation(4, 'Équipe communication', { lastMessageAt: timestamp, unreadCount: 3 });
+  messageBff.on('get', '/conversations', { body: { conversations: [refreshed, conversation(6, 'Autre groupe')] } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: refreshed,
+    messages: [message(10, 4, 'Message actualisé', users.sophie, { sentAt: timestamp })],
+  } }));
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-10'));
+  assert.equal(view.props('Messaging').messages[0].sentAt, frenchTime(timestamp));
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-4', 'conversation-6']);
+  assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
+  assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
+});
+
+test('send keeps user-authored date text and request payload intact, then formats only the BFF reply', async () => {
+  await renderLoadedPage();
+  const timestamp = '2026-09-26T14:00:00Z';
+  const content = 'Réunion à 9 h 05, référence 2026-09-26T14:00:00Z';
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({ status: 201, body: {
+    message: message(3, 4, content, users.agent, { sentAt: timestamp }),
+    conversation: conversation(4, 'Équipe communication', { lastMessage: content, lastMessageAt: timestamp }),
+  } }));
+  await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-4', content, attachments: [], mentions: [] }));
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-3'));
+  assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages', 'POST')[0].body,
+    { content, attachmentIds: [], mentionIds: [] });
+  assert.equal(view.props('Messaging').messages.find(item => item.id === 'message-3').sentAt, frenchTime(timestamp));
+  assert.equal(view.props('Messaging').messages.find(item => item.id === 'message-3').content, content);
+  assert.equal(view.props('Messaging').conversations[0].lastMessage, content);
+  assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
+});
+
 // Observe completion without replacing the real client, Next.js route or contract mock.
 function trackReferenceRequests(t) {
   const original = messageClient.getBusinessReferences;
