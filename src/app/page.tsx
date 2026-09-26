@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import { Messaging } from "@mairie360/lib-components";
 import { BffRequestError, messageClient, type CurrentUserDto } from "@/clients/messageClient";
@@ -19,6 +19,7 @@ import {
 } from "@/lib/messaging-state";
 import { AppShell } from "./_components/app-shell";
 import { prepareMessagingScrollRegions } from "./_components/messaging-scroll-regions";
+import { presentConversationTimestamps, presentMessageTimestamps } from "@/lib/message-timestamps";
 
 type MessagingProps = ComponentProps<typeof Messaging>;
 type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
@@ -44,6 +45,10 @@ export default function Page() {
   const revisionRef = useRef(0);
   const mutationCountRef = useRef(0);
   const selectionLoadingRef = useRef<number | null>(null);
+
+  // Keep BFF state intact; only the shared component receives display labels.
+  const displayedConversations = useMemo(() => presentConversationTimestamps(conversations), [conversations]);
+  const displayedMessages = useMemo(() => presentMessageTimestamps(messages), [messages]);
 
   useEffect(() => {
     let isMounted = true;
@@ -401,9 +406,9 @@ export default function Page() {
 
         <div className="messages-module-frame" ref={prepareMessagingScrollRegions}>
           <Messaging
-            conversations={conversations}
+            conversations={displayedConversations}
             contacts={contacts}
-            messages={messages}
+            messages={displayedMessages}
             businessReferences={businessReferences}
             activeConversationId={activeConversationId}
             currentUserId={toMessagingUserId(currentUser?.id)}

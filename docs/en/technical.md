@@ -1,5 +1,19 @@
 # Messages_Web_Service — Technical documentation
 
+## Timestamp presentation — MAIR-303
+
+`src/lib/message-timestamps.ts` adapts only `sentAt` and `lastMessageAt` to
+French display labels in the browser timezone before rendering `Messaging`.
+Presentation arrays are derived with `useMemo`; raw BFF state, ordering,
+identifiers, content and network payloads stay intact. Only valid ISO date-time
+values are converted; date-only and unknown labels remain unchanged. Valid
+standalone legacy times such as `9 h 05` become `9:05`. There is no current-time
+or demo-data fallback. Responses arrive after client mount, so the server's
+timezone does not determine their browser display. Coverage includes
+`message-timestamps.test.cjs` (UTC, Réunion and Paris daylight-saving changes)
+and page loading/selection/refresh/send scenarios. No contract, dependency or
+environment change is required.
+
 ## Settings account destination — MAIR-180 slice
 
 The server route `/profile/[[...path]]` replaces the local profile screens.

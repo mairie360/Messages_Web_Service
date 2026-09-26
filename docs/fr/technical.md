@@ -1,5 +1,20 @@
 # Messages_Web_Service — Documentation technique
 
+## Présentation des horodatages — MAIR-303
+
+`src/lib/message-timestamps.ts` adapte uniquement `sentAt` et `lastMessageAt`
+au format français du navigateur, avant le rendu du composant `Messaging`.
+Les tableaux de présentation sont dérivés avec `useMemo` ; l'état BFF brut,
+l'ordre, les identifiants, les contenus et les payloads réseau restent intacts.
+Seules les dates-heures ISO valides sont converties ; une date seule ou un
+libellé inconnu reste inchangé. Les heures textuelles valides telles que
+`9 h 05` deviennent `9:05`. Aucun instant courant ni valeur de démonstration
+n'est utilisé comme repli. Les réponses arrivent après le montage côté client,
+donc le fuseau du serveur ne détermine pas leur affichage dans le navigateur.
+Tests : `message-timestamps.test.cjs` (dont UTC, Réunion et changement d'heure
+à Paris) et scénarios de page chargement/sélection/actualisation/envoi.
+Aucune modification de contrat, dépendance ou environnement.
+
 ## Profil centralisé dans Settings — lot MAIR-180
 
 La route serveur `/profile/[[...path]]` remplace les écrans de profil locaux.
