@@ -1,5 +1,13 @@
 # Messages_Web_Service — Présentation du module
 
+## Navigation des modules actifs
+
+Les menus ordinateur et mobile ne proposent plus les modules archivés E-mails
+et Fichiers, comme dans la version locale. L'ordre des autres modules et la
+visibilité réservée aux administrateurs restent inchangés ; Paramètres reste
+accessible. Les pièces jointes et documents métier des modules actifs ne sont
+pas supprimés. Ce lot ne constitue pas la migration AppShell complète.
+
 ## Un seul espace compte
 
 Le profil est désormais ouvert dans **Paramètres (Settings)**. Les anciens liens

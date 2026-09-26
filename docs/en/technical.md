@@ -14,6 +14,15 @@ timezone does not determine their browser display. Coverage includes
 and page loading/selection/refresh/send scenarios. No contract, dependency or
 environment change is required.
 
+## Active-module menu — MAIR-180 preparatory slice
+
+Only the Sidebar item list excludes `emails` and `files`; existing URL resolution,
+environment configuration, sessions and BFF calls are unchanged. Both desktop and
+mobile render the same active list. Page-level regression coverage renders the
+real Sidebar, checks item order/active item/admin visibility, opens the mobile
+menu and follows Settings while closing the drawer. No library fork or new
+package is introduced; the full MAIR-179/MAIR-180 AppShell dependency remains.
+
 ## Settings account destination — MAIR-180 slice
 
 The server route `/profile/[[...path]]` replaces the local profile screens.

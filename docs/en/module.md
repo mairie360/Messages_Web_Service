@@ -1,5 +1,12 @@
 # Messages_Web_Service — Module overview
 
+## Active-module navigation
+
+Desktop and mobile menus omit the archived E-mails and Files modules, matching
+the local presentation. The remaining module order and administrator visibility
+are unchanged; Settings remains available. Attachments and business documents
+inside active modules are not removed. This is not the full shared AppShell migration.
+
 ## One account destination
 
 Profile access now opens **Settings**. Existing `/profile` bookmarks and subpaths

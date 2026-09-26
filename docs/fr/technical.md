@@ -15,6 +15,15 @@ Tests : `message-timestamps.test.cjs` (dont UTC, Réunion et changement d'heure
 à Paris) et scénarios de page chargement/sélection/actualisation/envoi.
 Aucune modification de contrat, dépendance ou environnement.
 
+## Menu des modules actifs — lot préparatoire MAIR-180
+
+Seule la liste transmise à Sidebar exclut `emails` et `files` ; la résolution des
+URL existantes, la configuration, les sessions et les appels BFF sont inchangés.
+Ordinateur et mobile utilisent la même liste active. Le test de page rend le
+vrai Sidebar, vérifie ordre/sélection/visibilité admin, ouvre le menu mobile puis
+suit Paramètres en refermant le panneau. Aucune copie de bibliothèque ni nouvelle
+dépendance ; la migration AppShell MAIR-179/MAIR-180 reste distincte et incomplète.
+
 ## Profil centralisé dans Settings — lot MAIR-180
 
 La route serveur `/profile/[[...path]]` remplace les écrans de profil locaux.
