@@ -1,5 +1,16 @@
 # Messages_Web_Service — Technical documentation
 
+## Settings account destination — MAIR-180 slice
+
+The server route `/profile/[[...path]]` replaces the local profile screens.
+It temporarily redirects (307) to `SETTINGS_FRONT_URL`, resolved on each request;
+no business profile is fetched by this module. Missing, invalid, credential-bearing
+or legacy `profile` path destinations render an unavailable state with a link
+back to the module. Old bookmark query parameters are not forwarded. Middleware
+authentication is unchanged. No new contract, package, secret or environment
+variable is introduced. This slice does not complete shared AppShell migration
+(MAIR-179).
+
 ## Explicit frontend destinations (MAIR-177)
 
 Frontend redirects use only explicitly configured HTTP(S) URLs without embedded
@@ -119,7 +130,7 @@ These data paths are exposed at the same origin through the proxy; Next.js pages
 | Page | Source |
 | --- | --- |
 | `/` | [src/app/page.tsx](../../src/app/page.tsx) |
-| `/profile` | [src/app/profile/page.tsx](../../src/app/profile/page.tsx) |
+| `/profile/[[...path]]` | [src/app/profile/[[...path]]/page.tsx](../../src/app/profile/%5B%5B...path%5D%5D/page.tsx) |
 
 | Method | Local route | Source |
 | --- | --- | --- |

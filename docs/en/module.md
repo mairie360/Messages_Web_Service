@@ -1,5 +1,12 @@
 # Messages_Web_Service — Module overview
 
+## One account destination
+
+Profile access now opens **Settings**. Existing `/profile` bookmarks and subpaths
+redirect to the configured Settings frontend. The sidebar keeps Settings without
+a duplicate Profile entry. If Settings is not configured correctly, an explicit
+unavailable state replaces the redirect; no demo identity or simulated save is shown.
+
 [Technical documentation](technical.md) · [Français](../fr/module.md) · [README](../../README.md)
 
 Provide the instant-messaging interface with conversations, contacts and links to business objects. Calls go through BFF Message.

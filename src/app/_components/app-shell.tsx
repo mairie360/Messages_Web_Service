@@ -20,7 +20,6 @@ import {
   MessageSquare,
   Settings,
   Shield,
-  UserRound,
 } from "lucide-react";
 
 type SidebarItem = NonNullable<ComponentProps<typeof Sidebar>["items"]>[number];
@@ -34,7 +33,6 @@ const sidebarItems: SidebarItem[] = [
   { id: "training", label: "Formation", icon: GraduationCap },
   { id: "calendar", label: "Calendrier", icon: Calendar },
   { id: "admin", label: "Administration", icon: Shield, adminOnly: true, badge: "Admin" },
-  { id: "profile", label: "Profil", icon: UserRound },
   { id: "settings", label: "Paramètres", icon: Settings },
 ];
 
