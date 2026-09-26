@@ -345,6 +345,21 @@ test('the first pass renders the empty messaging, the next ones the bootstrap, c
   assert.doesNotMatch(footer, /Version|<button\b|<a\b/);
 });
 
+test('narrow screens can switch to the conversation list and return to the selected thread', async () => {
+  await renderLoadedPage();
+
+  assert.match(view.html, /Voir les conversations/);
+  assert.doesNotMatch(view.html, /messages-list-open/);
+
+  await view.act(() => view.props('MobileConversationSwitch').onToggle());
+  assert.match(view.html, /messages-list-open/);
+  assert.match(view.html, /Retour à la conversation/);
+
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication')));
+  await view.waitFor(() => !view.html.includes('messages-list-open'));
+  assert.match(view.html, /Voir les conversations/);
+});
+
 test('desktop and mobile navigation expose only active modules and keep Settings functional', async () => {
   const { setBrowserFrontUrls } = requireSrc('lib/front-urls.ts');
   const assigned = [];
