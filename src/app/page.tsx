@@ -396,7 +396,7 @@ export default function Page() {
     };
 
   return (
-    <AppShell activeItem="messages" boundedContent>
+    <AppShell activeItem="messages">
       <div className="messages-module-stack">
         {error && (
           <p role="alert" className="messages-error">

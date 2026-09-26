@@ -7,6 +7,7 @@ const { middleware } = requireSrc('middleware.ts');
 const previous = {
   LOGIN_FRONT_URL: process.env.LOGIN_FRONT_URL,
   MESSAGE_FRONT_URL: process.env.MESSAGE_FRONT_URL,
+  SETTINGS_FRONT_URL: process.env.SETTINGS_FRONT_URL,
 };
 
 test('missing or invalid Login configuration returns an uncached unavailable state', async () => {
@@ -51,4 +52,29 @@ test('an unauthenticated visit returns to the public Messages URL, not the ingre
   assert.equal(login.origin, 'https://login.mairie.test');
   assert.equal(login.searchParams.get('redirect'), 'https://messages.mairie.test/conversations/42?tab=unread');
   assert.doesNotMatch(login.href, /internal:3000/);
+});
+
+test('authenticated legacy profile bookmarks redirect to configured Settings', () => {
+  process.env.SETTINGS_FRONT_URL = 'https://settings.mairie.test/account?tab=general';
+  for (const path of ['/profile', '/profile/security?legacy=1']) {
+    const response = middleware(new NextRequest(`http://internal:3000${path}`, {
+      headers: { cookie: 'accessToken=opaque' },
+    }));
+    assert.equal(response.status, 307);
+    assert.equal(response.headers.get('location'), 'https://settings.mairie.test/account?tab=general');
+  }
+});
+
+test('invalid Settings destinations return an uncached unavailable state', async () => {
+  for (const value of [undefined, 'javascript:alert(1)', 'https://user:pass@settings.mairie.test/', 'https://settings.mairie.test/profile']) {
+    if (value === undefined) delete process.env.SETTINGS_FRONT_URL;
+    else process.env.SETTINGS_FRONT_URL = value;
+    const response = middleware(new NextRequest('http://internal:3000/profile', {
+      headers: { cookie: 'accessToken=opaque' },
+    }));
+    assert.equal(response.status, 503, String(value));
+    assert.equal(response.headers.get('location'), null);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.match(await response.text(), /Paramètres indisponibles/);
+  }
 });

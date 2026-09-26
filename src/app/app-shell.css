@@ -1,66 +1,27 @@
 .messages-app-root {
-  min-height: 100vh;
-  background: #f5f3f0;
-  color: #172033;
-}
-
-.messages-shell {
-  display: flex;
-  min-height: 100vh;
-}
-
-.messages-app-root--bounded {
   height: 100vh;
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
+  background: #f5f3f0;
+  color: #172033;
 }
 
-.messages-app-root--bounded .messages-shell {
+.messages-app-root > .flex {
   height: 100%;
   min-height: 0;
 }
 
-.messages-desktop-sidebar {
-  display: none;
-  flex-shrink: 0;
-}
-
-.messages-mobile-sidebar {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-}
-
-.messages-mobile-sidebar-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgb(0 0 0 / 45%);
-}
-
-.messages-mobile-sidebar-panel {
-  position: relative;
-  z-index: 10;
-}
-
-.messages-content {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-}
-
-.messages-app-root--bounded .messages-content {
+.messages-app-root > .flex > .flex {
   min-height: 0;
 }
 
-.messages-app-root--bounded .messages-content > header,
-.messages-app-root--bounded .messages-content > footer {
+.messages-app-root > .flex > .flex > header,
+.messages-app-root > .flex > .flex > footer {
   flex-shrink: 0;
 }
 
-.messages-main {
+.messages-app-root > .flex > .flex > main {
   display: flex;
   min-height: 0;
   flex: 1;
@@ -75,15 +36,6 @@
   min-height: 0;
   max-width: 1534px;
   margin: 0 auto;
-}
-
-.messages-main--scroll {
-  overflow: auto;
-}
-
-.messages-main-inner--profile {
-  display: block;
-  max-width: 980px;
 }
 
 .messages-module-frame > .messages-module {
@@ -153,13 +105,13 @@
 }
 
 @media (min-width: 640px) {
-  .messages-main {
+  .messages-app-root > .flex > .flex > main {
     padding: 32px 24px;
   }
 }
 
 @media (max-width: 639px) {
-  .messages-main {
+  .messages-app-root > .flex > .flex > main {
     padding: 10px;
   }
 
@@ -175,13 +127,5 @@
 @media (min-width: 1024px) {
   .messages-module-frame > .messages-module {
     grid-template-rows: minmax(0, 1fr);
-  }
-
-  .messages-desktop-sidebar {
-    display: flex;
-  }
-
-  .messages-mobile-sidebar {
-    display: none;
   }
 }

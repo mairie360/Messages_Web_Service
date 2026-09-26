@@ -1,20 +1,26 @@
+import { parseFrontUrl } from "@/lib/front-url";
 import { frontUrl } from "@/lib/front-urls";
+import type { FrontUrlKey } from "@/lib/front-urls";
 import { settingsProfileUrl } from "@/lib/settings-profile";
 
-// Other fronts are resolved on use: their URLs are only known at runtime.
-const appRoutes: Partial<Record<string, string>> = {
-  get dashboard() { return frontUrl("DASHBOARD_FRONT_URL"); },
-  get projects() { return frontUrl("PROJECT_FRONT_URL"); },
-  get messages() { return frontUrl("MESSAGE_FRONT_URL"); },
-  get emails() { return frontUrl("EMAIL_FRONT_URL"); },
-  get files() { return frontUrl("FILES_FRONT_URL"); },
-  get training() { return frontUrl("ELEARNING_FRONT_URL"); },
-  get calendar() { return frontUrl("CALENDAR_FRONT_URL"); },
-  get admin() { return frontUrl("ADMINISTRATION_FRONT_URL"); },
-  get settings() { return frontUrl("SETTINGS_FRONT_URL"); },
-  get profile() { return settingsProfileUrl(frontUrl("SETTINGS_FRONT_URL")) ?? "/profile"; },
-};
+const configuredUrl = (key: FrontUrlKey) => parseFrontUrl(frontUrl(key))?.href;
+
+/** Runtime destinations for active modules only; archived fronts are omitted. */
+export function getActiveFrontHrefs() {
+  const settings = settingsProfileUrl(frontUrl("SETTINGS_FRONT_URL"));
+  return {
+    dashboard: configuredUrl("DASHBOARD_FRONT_URL"),
+    projects: configuredUrl("PROJECT_FRONT_URL"),
+    messages: configuredUrl("MESSAGE_FRONT_URL"),
+    training: configuredUrl("ELEARNING_FRONT_URL"),
+    calendar: configuredUrl("CALENDAR_FRONT_URL"),
+    admin: configuredUrl("ADMINISTRATION_FRONT_URL"),
+    settings,
+    profile: settings,
+  };
+}
 
 export function getAppRoute(page: string) {
-  return appRoutes[page];
+  const routes: Record<string, string | undefined> = getActiveFrontHrefs();
+  return routes[page];
 }
