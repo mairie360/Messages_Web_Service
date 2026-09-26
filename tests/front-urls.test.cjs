@@ -75,4 +75,9 @@ test('navigation resolves every other front on use, from the URLs of this instan
     settings: urls.SETTINGS_FRONT_URL,
   };
   for (const [page, href] of Object.entries(expected)) assert.equal(navigation.getAppRoute(page), href, page);
+  assert.equal(navigation.getAppRoute('profile'), urls.SETTINGS_FRONT_URL);
+  frontUrls.setBrowserFrontUrls({ SETTINGS_FRONT_URL: 'https://settings.test.example/profile' });
+  assert.equal(navigation.getAppRoute('profile'), '/profile');
+  frontUrls.setBrowserFrontUrls({ SETTINGS_FRONT_URL: 'javascript:alert(1)' });
+  assert.equal(navigation.getAppRoute('profile'), '/profile');
 });

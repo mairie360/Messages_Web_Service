@@ -1,4 +1,5 @@
 import { frontUrl } from "@/lib/front-urls";
+import { settingsProfileUrl } from "@/lib/settings-profile";
 
 // Other fronts are resolved on use: their URLs are only known at runtime.
 const appRoutes: Partial<Record<string, string>> = {
@@ -11,7 +12,7 @@ const appRoutes: Partial<Record<string, string>> = {
   get calendar() { return frontUrl("CALENDAR_FRONT_URL"); },
   get admin() { return frontUrl("ADMINISTRATION_FRONT_URL"); },
   get settings() { return frontUrl("SETTINGS_FRONT_URL"); },
-  profile: "/profile",
+  get profile() { return settingsProfileUrl(frontUrl("SETTINGS_FRONT_URL")) ?? "/profile"; },
 };
 
 export function getAppRoute(page: string) {
