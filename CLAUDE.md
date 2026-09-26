@@ -51,6 +51,14 @@ These commands run offline. After a bump, also move the `bff-message` image tags
 
 ## Architecture
 
+- **Profile routing (MAIR-180 partial delivery)** — `src/app/profile/[[...path]]/page.tsx`
+  is now a dynamic Server Component redirecting old profile URLs to the existing
+  runtime `SETTINGS_FRONT_URL`. It does not load a local user/profile; absent,
+  invalid or looping destinations render an unavailable state with a return link.
+  The sidebar no longer duplicates Settings with a Profile item. Earlier profile
+  page descriptions below are superseded by this route; the shared AppShell
+  migration and BFF session contracts are unchanged.
+
 - **Contract-gated catch-all proxy** — `src/app/[...path]/route.ts` exports `proxyBffRequest` (`src/lib/bff-proxy.ts`) for every method. It matches the path against `contracts/openapi.json` `paths` (brace segments are wildcards): unknown path → 404, method not declared → 405 with `Allow`, `.`/`..` segments → 400; `/openapi.json` and `/swagger.json` are always forwarded. **A BFF route is therefore reachable from the browser only once the synced contract declares it.**
 - **`forwardToBff`** strips hop-by-hop headers and the `cookie` header, turns the `accessToken` cookie into `Authorization: Bearer` when no Authorization header is present, keeps the query string and raw (binary) body, uses `redirect: 'manual'`, a 15 s timeout and `Cache-Control: no-store`, preserves upstream status/headers (including `Set-Cookie`, empty 204/205/304 bodies) and returns a controlled 502 JSON error when the BFF is unreachable. `tests/proxy.test.cjs` pins this behaviour.
 - **BFF URL** — `BFF_MESSAGE_BASE_URL` → `MESSAGE_BFF_URL` → `NEXT_PUBLIC_BFF_MESSAGE_BASE_URL`; resolved at request time on the server. Missing or invalid configuration returns an uncached 503 without contacting an upstream; configure the URL explicitly for local development too.

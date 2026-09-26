@@ -1,5 +1,16 @@
 # Messages_Web_Service — Documentation technique
 
+## Profil centralisé dans Settings — lot MAIR-180
+
+La route serveur `/profile/[[...path]]` remplace les écrans de profil locaux.
+Elle redirige temporairement (307) vers `SETTINGS_FRONT_URL`, lue à chaque
+requête ; aucun profil métier n'est chargé dans ce module. Une destination
+absente, invalide, avec identifiants intégrés ou contenant un segment `profile`
+affiche un état d'indisponibilité avec un lien de retour au module. Les paramètres
+de l'ancien favori ne sont pas transmis. L'authentification middleware reste
+inchangée. Aucun nouveau contrat, paquet, secret ou variable n'est ajouté.
+Ce lot ne termine pas la migration complète vers l'AppShell partagé (MAIR-179).
+
 ## Destinations frontend explicites (MAIR-177)
 
 Les redirections utilisent uniquement des URL HTTP(S) configurées, sans
@@ -119,7 +130,7 @@ Ces chemins de données sont exposés à la même origine par le proxy; les page
 | Page | Source |
 | --- | --- |
 | `/` | [src/app/page.tsx](../../src/app/page.tsx) |
-| `/profile` | [src/app/profile/page.tsx](../../src/app/profile/page.tsx) |
+| `/profile/[[...path]]` | [src/app/profile/[[...path]]/page.tsx](../../src/app/profile/%5B%5B...path%5D%5D/page.tsx) |
 
 | Méthode | Route locale | Source |
 | --- | --- | --- |
