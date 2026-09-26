@@ -5,12 +5,23 @@ type RouteContext = { params: Promise<{ path: string[] }> };
 type ContractPaths = Record<string, Record<string, unknown>>;
 
 export function configuredBffUrl() {
-  return (process.env.BFF_MESSAGE_BASE_URL ??
+  const value = (process.env.BFF_MESSAGE_BASE_URL ??
     process.env.MESSAGE_BFF_URL ??
-    process.env.NEXT_PUBLIC_BFF_MESSAGE_BASE_URL ?? 'http://localhost:4003').replace(/\/+$/, '');
+    process.env.NEXT_PUBLIC_BFF_MESSAGE_BASE_URL)?.trim();
+  if (!value) return '';
+  try {
+    const url = new URL(value);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) return '';
+    return value.replace(/\/+$/, '');
+  } catch {
+    return '';
+  }
 }
 
 export async function forwardToBff(request: NextRequest, baseUrl: string, path: string) {
+  if (!baseUrl) {
+    return Response.json({ error: { message: 'Le service n’est pas configuré.' } }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+  }
   const headers = new Headers(request.headers);
   // x-nonce / content-security-policy sont ajoutés par le middleware et ne concernent pas le BFF.
   for (const name of ['host', 'connection', 'content-length', 'accept-encoding', 'cookie', 'x-nonce', 'content-security-policy']) headers.delete(name);
