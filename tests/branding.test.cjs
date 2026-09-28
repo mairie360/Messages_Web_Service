@@ -33,3 +33,10 @@ test('manifest and page metadata expose the branded assets', () => {
   assert.match(layout, /description: "Module de messagerie Mairie360\."/);
   assert.match(layout, /\/mairie360-favicon\.png\?v=/);
 });
+
+test('shared navigation uses the public Mairie360 logo', () => {
+  const appShell = read('src/app/_components/app-shell.tsx').toString('utf8');
+
+  assert.match(appShell, /sidebarProps=\{\{ brandLogoSrc: "\/mairie360-logo\.png" \}\}/);
+  assert.doesNotMatch(appShell, /brandLogoSrc: null/);
+});
