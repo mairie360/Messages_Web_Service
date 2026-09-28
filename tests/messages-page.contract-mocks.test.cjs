@@ -318,7 +318,8 @@ test('the first pass renders the empty messaging, the next ones the bootstrap, c
   assert.deepEqual(view.props('Messaging').conversations, []);
   assert.equal(view.props('Messaging').emptyStateLabel, 'Chargement de la messagerie...');
   assert.equal(view.props('Messaging').style, undefined);
-  assert.match(view.html, /messages-app-root messages-app-root--bounded/);
+  assert.match(view.html, /messages-app-root/);
+  assert.match(view.html, /messages-main-inner/);
   assert.doesNotMatch(view.text(), /Équipe communication/);
 
   const html = await view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation');
@@ -344,12 +345,35 @@ test('the first pass renders the empty messaging, the next ones the bootstrap, c
   assert.doesNotMatch(footer, /Version|<button\b|<a\b/);
 });
 
+test('narrow screens can switch to the conversation list and return to the selected thread', async () => {
+  await renderLoadedPage();
+
+  assert.match(view.html, /Voir les conversations/);
+  assert.doesNotMatch(view.html, /messages-list-open/);
+
+  await view.act(() => view.props('MobileConversationSwitch').onToggle());
+  assert.match(view.html, /messages-list-open/);
+  assert.match(view.html, /Retour à la conversation/);
+
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication')));
+  await view.waitFor(() => !view.html.includes('messages-list-open'));
+  assert.match(view.html, /Voir les conversations/);
+});
+
 test('desktop and mobile navigation expose only active modules and keep Settings functional', async () => {
   const { setBrowserFrontUrls } = requireSrc('lib/front-urls.ts');
   const assigned = [];
   const originalAssign = global.window.location.assign;
   global.window.location.assign = (href) => assigned.push(href);
-  setBrowserFrontUrls({ SETTINGS_FRONT_URL: 'https://settings.test.example/' });
+  setBrowserFrontUrls({
+    DASHBOARD_FRONT_URL: 'https://dashboard.test.example/',
+    PROJECT_FRONT_URL: 'https://projects.test.example/',
+    MESSAGE_FRONT_URL: 'https://messages.test.example/',
+    ELEARNING_FRONT_URL: 'https://training.test.example/',
+    CALENDAR_FRONT_URL: 'https://calendar.test.example/',
+    ADMINISTRATION_FRONT_URL: 'https://admin.test.example/',
+    SETTINGS_FRONT_URL: 'https://settings.test.example/',
+  });
   try {
     await renderLoadedPage();
     assert.equal(view.props('Header').profileHref, 'https://settings.test.example/');
@@ -386,10 +410,16 @@ test('desktop and mobile navigation expose only active modules and keep Settings
 });
 
 test('the sidebar keeps Settings as the only account entry', async () => {
-  await renderLoadedPage();
-  const ids = view.props('Sidebar').items.map((item) => item.id);
-  assert.equal(ids.includes('profile'), false);
-  assert.equal(ids.filter((id) => id === 'settings').length, 1);
+  const { setBrowserFrontUrls } = requireSrc('lib/front-urls.ts');
+  setBrowserFrontUrls({ SETTINGS_FRONT_URL: 'https://settings.test.example/' });
+  try {
+    await renderLoadedPage();
+    const ids = view.props('Sidebar').items.map((item) => item.id);
+    assert.equal(ids.includes('profile'), false);
+    assert.equal(ids.filter((id) => id === 'settings').length, 1);
+  } finally {
+    setBrowserFrontUrls({});
+  }
 });
 
 test('a bootstrap failure is rendered as an alert and the messaging stays empty', async () => {

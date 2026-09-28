@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Next.js 15 (App Router, React 19, TypeScript, Tailwind 4) web service for Mairie360 hosting the internal messaging module (conversations, direct messages, groups, attachments, business references). The browser only talks to this app's own origin; the Next.js server forwards data calls to **BFF_Message**. UI building blocks come from the private package `@mairie360/lib-components`. Docs are bilingual: `docs/en|fr/module.md` (functional) and `docs/en|fr/technical.md` (routes, config, troubleshooting) — update both languages together. `BFF.md` / `BACKEND.md` contain *proposed* backend needs; the OpenAPI snapshot is the source of truth for implemented behaviour.
+Next.js 16 (App Router, React 19, TypeScript, Tailwind 4) web service for Mairie360 hosting the internal messaging module (conversations, direct messages, groups, attachments, business references). The browser only talks to this app's own origin; the Next.js server forwards data calls to **BFF_Message**. UI building blocks come from the private package `@mairie360/lib-components`. Docs are bilingual: `docs/en|fr/module.md` (functional) and `docs/en|fr/technical.md` (routes, config, troubleshooting) — update both languages together. `BFF.md` / `BACKEND.md` contain *proposed* backend needs; the OpenAPI snapshot is the source of truth for implemented behaviour.
 
 ## Commands
 
@@ -14,7 +14,7 @@ Private `@mairie360/*` packages come from GitHub Packages: `.npmrc` reads `NODE_
 npm ci
 npm run dev                              # `next dev -p 5003`; needs BFF_Message reachable, see "BFF URL" below
 npm run build && npm run start -- --port 5003   # `start` has no port of its own (defaults to 3000)
-npm run lint                             # next lint (next/core-web-vitals + next/typescript)
+npm run lint                             # ESLint on src/
 npm test                                 # node:test on tests/*.test.cjs, 60% branch/function/line thresholds on src/** (source-mapped), lcov in coverage/lcov.info (what CI runs)
 npm run test:contracts                   # same tests, no coverage
 node --test --test-name-pattern="<name>" tests/proxy.test.cjs   # single test
@@ -51,13 +51,13 @@ These commands run offline. After a bump, also move the `bff-message` image tags
 
 ## Architecture
 
-- **Profile routing (MAIR-180 partial delivery)** — `src/app/profile/[[...path]]/page.tsx`
-  is now a dynamic Server Component redirecting old profile URLs to the existing
-  runtime `SETTINGS_FRONT_URL`. It does not load a local user/profile; absent,
-  invalid or looping destinations render an unavailable state with a return link.
-  The sidebar no longer duplicates Settings with a Profile item. Earlier profile
-  page descriptions below are superseded by this route; the shared AppShell
-  migration and BFF session contracts are unchanged.
+- **Shared shell and profile routing (MAIR-180)** — the frontend adapter in
+  `src/app/_components/app-shell.tsx` binds the BFF-backed session and bounded
+  messaging viewport to the published-library `AppShell`. Authenticated legacy
+  `/profile` URLs redirect to validated runtime `SETTINGS_FRONT_URL` in frontend
+  middleware; missing or invalid destinations return uncached 503. No local
+  profile UI or demo identity is rendered. BFF contracts are unchanged. Deploy
+  only after a published library version exports `AppShell`.
 
 - **Contract-gated catch-all proxy** — `src/app/[...path]/route.ts` exports `proxyBffRequest` (`src/lib/bff-proxy.ts`) for every method. It matches the path against `contracts/openapi.json` `paths` (brace segments are wildcards): unknown path → 404, method not declared → 405 with `Allow`, `.`/`..` segments → 400; `/openapi.json` and `/swagger.json` are always forwarded. **A BFF route is therefore reachable from the browser only once the synced contract declares it.**
 - **`forwardToBff`** strips hop-by-hop headers and the `cookie` header, turns the `accessToken` cookie into `Authorization: Bearer` when no Authorization header is present, keeps the query string and raw (binary) body, uses `redirect: 'manual'`, a 15 s timeout and `Cache-Control: no-store`, preserves upstream status/headers (including `Set-Cookie`, empty 204/205/304 bodies) and returns a controlled 502 JSON error when the BFF is unreachable. `tests/proxy.test.cjs` pins this behaviour.
@@ -65,11 +65,11 @@ These commands run offline. After a bump, also move the `bff-message` image tags
 - **Session** — BFF_Message is the only BFF. `src/lib/auth-session.ts` (`fetchAuthSession`, used by `useAuthSession`) reads `GET /me` through `messageClient`, normalises the role (`Admin`/`Responsable`/`Maire`/`User`/`Guest`, FR/EN aliases, `Guest` by default) and on 401 calls `logoutAndReload()`. `src/app/api/auth/logout/route.ts` is **local**: it clears the `accessToken` cookie through `clearAccessTokenCookie` (`src/lib/access-token-cookie.ts`, shared with the middleware) and makes no network call, so the JWT is not revoked server-side — exactly what BFF User's logout did.
 - **Auth gate** — `src/middleware.ts` redirects every page request (matcher excludes `/api`, `/_next/*` and paths with a dot) to `LOGIN_FRONT_URL` when the `accessToken` cookie is missing or its JWT `exp` is past, clearing the cookie on `COOKIE_DOMAIN`. It only decodes the payload (a token that is not three dot-separated segments is let through; an undecodable payload counts as expired); signature validation is the BFF/Core's job. Note that the catch-all data routes (e.g. `/health`) also pass through it. For authenticated requests it also sets a per-request nonce `Content-Security-Policy` (built in `src/lib/content-security-policy.ts`, forwarded to Next.js via request headers), which is why `src/app/layout.tsx` forces dynamic rendering: a prerendered page would carry no nonce and its scripts would be blocked. Any new external origin (images, fonts, browser-side API calls) must be added to that policy, and cross-origin assets are also blocked by the static `Cross-Origin-Embedder-Policy: require-corp` / `Cross-Origin-Resource-Policy: same-origin` headers in `next.config.ts`.
 - **Client calls** — pages call same-origin paths (e.g. `/messaging/bootstrap`, `/conversations`, `/contacts`) through `messageClient`, which parses `{ error: { message } }` / `{ message }` bodies into errors. Authentication relies only on the `accessToken` cookie turned into a Bearer by the proxy; unlike Projects/Administrator, this front stores no JWT in `localStorage`.
-- `src/app/page.tsx` uses `src/clients/messageClient.ts` (types from the contract package) to load `/messaging/bootstrap`, then messages and contacts on demand, and maps DTOs onto the shared `Messaging` component via `src/lib/messaging-state.ts`. `src/app/profile/page.tsx` renders the library `UserProfile` (read-only) from the session. `messageClient` throws `BffRequestError` (message parsed from the body, plus the HTTP status), which is how `fetchAuthSession` tells a 401 apart.
+- `src/app/page.tsx` uses `src/clients/messageClient.ts` (types from the contract package) to load `/messaging/bootstrap`, then messages and contacts on demand, and maps DTOs onto the shared `Messaging` component via `src/lib/messaging-state.ts`. `messageClient` throws `BffRequestError` (message parsed from the body, plus the HTTP status), which is how `fetchAuthSession` tells a 401 apart.
 - `src/app/business-references/route.ts` is an explicit handler that forwards to the BFF with `forwardToBff` (it takes precedence over the catch-all).
-- `src/app/_components/app-shell.tsx` provides the shell/sidebar (render-prop giving pages the `useAuthSession` state); its cross-module links read the build-time `*_FRONT_URL` values, and "dashboard" points at `LOGIN_FRONT_URL`.
+- `src/app/_components/app-shell.tsx` is a thin adapter around the shared `AppShell`, preserving `useAuthSession` and the bounded message viewport. Its cross-module links are validated `*_FRONT_URL` values read at runtime; archived fronts are omitted.
 - This repo targets Node **22** (CI `node_version: "22"`, Dockerfile `NODE_VERSION=22.15.0`) unlike most fronts.
-- `next.config.ts` sets `output: 'standalone'` (required by the Dockerfile), `poweredByHeader: false` and static security headers on every route (`tests/security-headers.test.cjs` pins them, and the ZAP baseline fails without them), and inlines the `*_FRONT_URL` values at **build time** (defaults `https://<module>.dev.mairie360-eip.fr/`), so changing them requires a rebuild.
+- `next.config.ts` sets `output: 'standalone'` (required by the Dockerfile), `poweredByHeader: false` and static security headers on every route (`tests/security-headers.test.cjs` pins them, and the ZAP baseline fails without them). `*_FRONT_URL` destinations are read at runtime, not baked into the image.
 
 ## CI/CD
 

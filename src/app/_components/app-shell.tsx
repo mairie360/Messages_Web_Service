@@ -1,125 +1,33 @@
 'use client';
 
-import { getAppRoute } from "@/lib/navigation";
-import { useState } from "react";
-import type { ComponentProps, ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import { Header, Sidebar } from "@mairie360/lib-components";
-import {
-  logoutAndReload,
-  useAuthSession,
-  type AuthSession,
-} from "@/lib/auth-session";
-import {
-  Briefcase,
-  Calendar,
-  GraduationCap,
-  LayoutDashboard,
-  MessageSquare,
-  Settings,
-  Shield,
-} from "lucide-react";
-
-type SidebarItem = NonNullable<ComponentProps<typeof Sidebar>["items"]>[number];
-
-const sidebarItems: SidebarItem[] = [
-  { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-  { id: "projects", label: "Projets", icon: Briefcase },
-  { id: "messages", label: "Messagerie", icon: MessageSquare },
-  { id: "training", label: "Formation", icon: GraduationCap },
-  { id: "calendar", label: "Calendrier", icon: Calendar },
-  { id: "admin", label: "Administration", icon: Shield, adminOnly: true, badge: "Admin" },
-  { id: "settings", label: "Paramètres", icon: Settings },
-];
+import { AppShell as SharedAppShell } from "@mairie360/lib-components";
+import type { ReactNode } from "react";
+import { logoutAndReload, useAuthSession, type AuthSession } from "@/lib/auth-session";
+import { getActiveFrontHrefs } from "@/lib/navigation";
 
 type AppShellProps = {
   activeItem: string;
   children: ReactNode | ((session: AuthSession) => ReactNode);
-  boundedContent?: boolean;
-  mainClassName?: string;
-  mainInnerClassName?: string;
 };
 
-export function AppShell({
-  activeItem,
-  children,
-  boundedContent = false,
-  mainClassName = "",
-  mainInnerClassName = "",
-}: AppShellProps) {
-  const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+/** Bind the BFF-backed session and bounded messaging viewport to the shared shell. */
+export function AppShell({ activeItem, children }: AppShellProps) {
   const session = useAuthSession();
-
-  const navigateToPage = (page: string) => {
-    const route = getAppRoute(page);
-
-    if (route) {
-      if (route.startsWith("/")) {
-        router.push(route);
-      } else {
-        window.location.assign(route);
-      }
-    }
-
-    setSidebarOpen(false);
-  };
-
-  const handleSidebarItemSelect: NonNullable<
-    ComponentProps<typeof Sidebar>["onItemSelect"]
-  > = (item) => {
-    navigateToPage(item.id);
-  };
-
-  const renderSidebar = (className?: string) => (
-    <Sidebar
-      activeItem={activeItem}
-      brandLogoSrc={null}
-      className={className}
-      isAdmin={session.isAdmin}
-      items={sidebarItems}
-      onItemSelect={handleSidebarItemSelect}
-    />
-  );
+  const frontHrefs = getActiveFrontHrefs();
 
   return (
-    <div className={boundedContent ? "messages-app-root messages-app-root--bounded" : "messages-app-root"}>
-      <div className="messages-shell">
-        <div className="messages-desktop-sidebar">{renderSidebar()}</div>
-
-        {sidebarOpen && (
-          <div className="messages-mobile-sidebar">
-            <button
-              type="button"
-              aria-label="Fermer la navigation"
-              className="messages-mobile-sidebar-backdrop"
-              onClick={() => setSidebarOpen(false)}
-            />
-            {renderSidebar("messages-mobile-sidebar-panel")}
-          </div>
-        )}
-
-        <div className="messages-content">
-          <Header
-            user={session.user}
-            isAdmin={session.isAdmin}
-            setSidebarOpen={setSidebarOpen}
-            profileHref={getAppRoute("profile")}
-            onPageChange={navigateToPage}
-            onLogout={() => void logoutAndReload()}
-          />
-
-          <main className={`messages-main ${mainClassName}`}>
-            <div className={`messages-main-inner ${mainInnerClassName}`}>
-              {typeof children === "function" ? children(session) : children}
-            </div>
-          </main>
-
-          <footer className="flex min-h-16 w-full shrink-0 items-center border-t border-[#b9d6d5] bg-white px-6 py-4 text-sm text-[#4c5258] shadow-[0_-1px_5px_rgba(0,0,0,0.08)]">
-            © {new Date().getFullYear()} Mairie360
-          </footer>
-        </div>
+    <SharedAppShell
+      activeItem={activeItem}
+      isAdmin={session.isAdmin}
+      user={session.user}
+      onLogout={() => void logoutAndReload()}
+      hrefs={{ ...frontHrefs, messages: frontHrefs.messages ?? "/" }}
+      sidebarProps={{ brandLogoSrc: null }}
+      className="messages-app-root"
+    >
+      <div className="messages-main-inner">
+        {typeof children === "function" ? children(session) : children}
       </div>
-    </div>
+    </SharedAppShell>
   );
 }

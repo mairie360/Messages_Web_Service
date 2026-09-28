@@ -4,15 +4,16 @@
 
 Desktop and mobile menus omit the archived E-mails and Files modules, matching
 the local presentation. The remaining module order and administrator visibility
-are unchanged; Settings remains available. Attachments and business documents
-inside active modules are not removed. This is not the full shared AppShell migration.
+are unchanged; Settings remains available through the shared AppShell.
+Attachments and business documents inside active modules are not removed.
 
 ## One account destination
 
 Profile access now opens **Settings**. Existing `/profile` bookmarks and subpaths
-redirect to the configured Settings frontend. The sidebar keeps Settings without
-a duplicate Profile entry. If Settings is not configured correctly, an explicit
-unavailable state replaces the redirect; no demo identity or simulated save is shown.
+redirect to the configured Settings frontend for authenticated visitors. The
+sidebar keeps Settings without a duplicate Profile entry. If Settings is not
+configured correctly, those bookmarks return an uncached 503; no demo identity
+or simulated save is shown.
 
 [Technical documentation](technical.md) · [Français](../fr/module.md) · [README](../../README.md)
 

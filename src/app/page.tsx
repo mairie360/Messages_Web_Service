@@ -30,6 +30,25 @@ type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]
 const MESSAGE_REFRESH_INTERVAL_MS = 10_000;
 const pageIsVisible = () => typeof document === "undefined" || !document.hidden;
 
+function MobileConversationSwitch({
+  showConversationList,
+  onToggle,
+}: {
+  showConversationList: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="messages-pane-switch"
+      aria-pressed={showConversationList}
+      onClick={onToggle}
+    >
+      {showConversationList ? "Retour à la conversation" : "Voir les conversations"}
+    </button>
+  );
+}
+
 export default function Page() {
   const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
   const [activeConversationId, setActiveConversationId] =
@@ -42,6 +61,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [showConversationList, setShowConversationList] = useState(false);
   const activeConversationRef = useRef<MessagingContactId>("");
   const revisionRef = useRef(0);
   const mutationCountRef = useRef(0);
@@ -96,6 +116,7 @@ export default function Page() {
         setMessages(initialMessages);
         activeConversationRef.current = selectedId;
         setActiveConversationId(selectedId);
+        setShowConversationList(selectedId === "");
 
         // Load contacts independently so the recipient menu does not depend
         // on the modal opening timing or on the conversation list.
@@ -265,6 +286,7 @@ export default function Page() {
           response.messages,
         ),
       );
+      setShowConversationList(false);
     } catch (loadError) {
       if (revisionRef.current === revision) setError(
         loadError instanceof Error
@@ -328,6 +350,7 @@ export default function Page() {
       );
       setActiveConversationId(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
+      setShowConversationList(false);
     } catch (sendError) {
       setError(
         sendError instanceof Error
@@ -351,6 +374,7 @@ export default function Page() {
       );
       setActiveConversationId(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
+      setShowConversationList(false);
     } catch (createError) {
       setError(
         createError instanceof Error
@@ -375,6 +399,7 @@ export default function Page() {
             !idsMatch(conversation.id, conversationToDelete.id))?.id ?? "";
           activeConversationRef.current = fallbackId;
           setActiveConversationId(fallbackId);
+          if (!fallbackId) setShowConversationList(true);
         }
         setConversations((currentConversations) => currentConversations.filter(
           (conversation) => !idsMatch(conversation.id, conversationToDelete.id),
@@ -396,7 +421,7 @@ export default function Page() {
     };
 
   return (
-    <AppShell activeItem="messages" boundedContent>
+    <AppShell activeItem="messages">
       <div className="messages-module-stack">
         {error && (
           <p role="alert" className="messages-error">
@@ -409,7 +434,16 @@ export default function Page() {
           </p>
         )}
 
-        <div className="messages-module-frame" ref={prepareMessagingScrollRegions}>
+        {activeConversationId && (
+          <MobileConversationSwitch
+            showConversationList={showConversationList}
+            onToggle={() => setShowConversationList((current) => !current)}
+          />
+        )}
+        <div
+          className={`messages-module-frame${showConversationList ? " messages-list-open" : ""}`}
+          ref={prepareMessagingScrollRegions}
+        >
           <Messaging
             conversations={displayedConversations}
             contacts={contacts}

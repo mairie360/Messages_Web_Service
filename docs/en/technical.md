@@ -14,25 +14,23 @@ timezone does not determine their browser display. Coverage includes
 and page loading/selection/refresh/send scenarios. No contract, dependency or
 environment change is required.
 
-## Active-module menu — MAIR-180 preparatory slice
+## Shared application shell — MAIR-180
 
-Only the Sidebar item list excludes `emails` and `files`; existing URL resolution,
-environment configuration, sessions and BFF calls are unchanged. Both desktop and
-mobile render the same active list. Page-level regression coverage renders the
-real Sidebar, checks item order/active item/admin visibility, opens the mobile
-menu and follows Settings while closing the drawer. No library fork or new
-package is introduced; the full MAIR-179/MAIR-180 AppShell dependency remains.
+The Messages page uses the shared `AppShell` for desktop/mobile navigation,
+header and footer. Its thin adapter keeps the existing BFF-backed session and
+the bounded, independently scrolling conversation viewport. Only runtime URLs
+of active modules are supplied; invalid frontend destinations are omitted.
+No BFF call or contract changes. This frontend requires a published
+`@mairie360/lib-components` release exporting `AppShell` before deployment.
 
 ## Settings account destination — MAIR-180 slice
 
-The server route `/profile/[[...path]]` replaces the local profile screens.
-It temporarily redirects (307) to `SETTINGS_FRONT_URL`, resolved on each request;
-no business profile is fetched by this module. Missing, invalid, credential-bearing
-or legacy `profile` path destinations render an unavailable state with a link
-back to the module. Old bookmark query parameters are not forwarded. Middleware
-authentication is unchanged. No new contract, package, secret or environment
-variable is introduced. This slice does not complete shared AppShell migration
-(MAIR-179).
+Authenticated requests to `/profile` and its subpaths redirect (307) in
+middleware to `SETTINGS_FRONT_URL`, resolved on each request; no business profile
+is fetched by this module. Missing, invalid, credential-bearing or legacy
+`profile` path destinations return an uncached HTTP 503. Old bookmark query
+parameters are not forwarded. The existing authentication gate runs first.
+No new BFF contract, secret or runtime variable is introduced.
 
 ## Explicit frontend destinations (MAIR-177)
 
@@ -50,7 +48,7 @@ can be resolved. No BFF/API contract or deployment variable is added.
 
 ## Architecture and request handling
 
-Next.js 15.5.25, React 19 and TypeScript application using the App Router. The browser calls same-origin routes; the Next.js server forwards data to **BFF_Message**.
+Next.js 16.3.6, React 19 and TypeScript application using the App Router. The browser calls same-origin routes; the Next.js server forwards data to **BFF_Message**.
 
 ```mermaid
 flowchart LR
@@ -153,7 +151,7 @@ These data paths are exposed at the same origin through the proxy; Next.js pages
 | Page | Source |
 | --- | --- |
 | `/` | [src/app/page.tsx](../../src/app/page.tsx) |
-| `/profile/[[...path]]` | [src/app/profile/[[...path]]/page.tsx](../../src/app/profile/%5B%5B...path%5D%5D/page.tsx) |
+| `/profile` and subpaths | [src/middleware.ts](../../src/middleware.ts) redirects to Settings |
 
 | Method | Local route | Source |
 | --- | --- | --- |
