@@ -22,7 +22,7 @@ export function AppShell({ activeItem, children }: AppShellProps) {
       user={session.user}
       onLogout={() => void logoutAndReload()}
       hrefs={{ ...frontHrefs, messages: frontHrefs.messages ?? "/" }}
-      sidebarProps={{ brandLogoSrc: null }}
+      sidebarProps={{ brandLogoSrc: "/mairie360-logo.png" }}
       className="messages-app-root"
     >
       <div className="messages-main-inner">
