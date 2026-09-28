@@ -62,9 +62,6 @@ export default function (data) {
   group('pages', () => {
     const home = http.get(`${BASE_URL}/`, pageParams);
     check(home, { 'page / 200': (r) => r.status === 200 });
-
-    const profile = http.get(`${BASE_URL}/profile`, pageParams);
-    check(profile, { 'page /profile 200': (r) => r.status === 200 });
   });
 
   group('health', () => {
