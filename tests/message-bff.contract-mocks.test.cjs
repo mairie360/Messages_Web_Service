@@ -81,6 +81,16 @@ const clientScenarios = {
     assert.deepEqual(await messageClient.getConversationMessages('conversation-4'), body);
     assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages')[0].pathParams, { conversationId: 'conversation-4' });
   },
+  async uploadAttachments() {
+    const body = { attachments: [{ id: 'stored-1', name: 'agenda.txt', size: 6, type: 'text/plain' }] };
+    messageBff.on('post', '/attachments', { status: 201, body });
+    const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
+    assert.deepEqual(await messageClient.uploadAttachments([file]), body);
+    const [call] = messageBff.calls('/attachments', 'post');
+    assert.match(call.headers['content-type'], /^multipart\/form-data; boundary=/);
+    assert.match(call.rawBody.toString('utf8'), /name="files"; filename="agenda\.txt"/);
+    assert.match(call.rawBody.toString('utf8'), /agenda/);
+  },
   async sendMessage() {
     const body = { message: message(3, 4, 'Réunion à 14h'), conversation: conversation(4, 'Équipe communication', { lastMessage: 'Réunion à 14h' }) };
     messageBff.on('post', '/conversations/{conversationId}/messages', { status: 201, body });

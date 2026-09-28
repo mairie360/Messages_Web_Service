@@ -156,6 +156,68 @@ test('send keeps user-authored date text and request payload intact, then format
   assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
 });
 
+test('selected files are uploaded before their server IDs are attached to a message', async () => {
+  await renderLoadedPage();
+  const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain' };
+  const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
+  await view.act(() => view.props('Messaging').onAttach([file], [attachment]));
+  messageBff.on('post', '/attachments', { status: 201, body: {
+    attachments: [{ id: 'stored-42', name: 'agenda.txt', size: 6, type: 'text/plain' }],
+  } });
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({ status: 201, body: {
+    message: message(3, 4, 'Voici le document', users.agent),
+    conversation: conversation(4, 'Équipe communication', { lastMessage: 'Voici le document' }),
+  } }));
+
+  await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content: 'Voici le document', attachments: [attachment], mentions: [],
+  }));
+  await view.waitFor(() => view.props('Messaging').messages.some((item) => item.id === 'message-3'));
+
+  const writes = messageBff.requests.filter((call) => call.method === 'POST');
+  assert.deepEqual(writes.map((call) => call.template), ['/attachments', '/conversations/{conversationId}/messages']);
+  assert.match(writes[0].headers['content-type'], /^multipart\/form-data; boundary=/);
+  assert.deepEqual(writes[1].body, { content: 'Voici le document', attachmentIds: ['stored-42'], mentionIds: [] });
+  assert.doesNotMatch(JSON.stringify(writes[1].body), /agenda\.txt-123-0/);
+});
+
+test('failed or unregistered file uploads never send a message with a local attachment ID', async () => {
+  await renderLoadedPage();
+  const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain' };
+  await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content: 'Sans fichier réel', attachments: [attachment], mentions: [],
+  }));
+  await view.waitFor((html) => html.includes('La pièce jointe sélectionnée est indisponible'));
+  assert.equal(messageBff.calls('/attachments', 'post').length, 0);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'post').length, 0);
+
+  const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
+  await view.act(() => view.props('Messaging').onAttach([file], [attachment]));
+  messageBff.on('post', '/attachments', { status: 401, body: apiError('UNAUTHORIZED', 'Envoi du fichier refusé') });
+  await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content: 'Sans fichier enregistré', attachments: [attachment], mentions: [],
+  }));
+  await view.waitFor((html) => html.includes('Envoi du fichier refusé'));
+  assert.equal(messageBff.calls('/attachments', 'post').length, 1);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'post').length, 0);
+});
+
+test('an upload response without an ID cannot be mistaken for a sent attachment', async () => {
+  await renderLoadedPage();
+  const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain' };
+  const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
+  await view.act(() => view.props('Messaging').onAttach([file], [attachment]));
+  messageBff.on('post', '/attachments', { status: 201, body: { attachments: [] } });
+
+  await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content: 'Fichier non confirmé', attachments: [attachment], mentions: [],
+  }));
+  await view.waitFor((html) => html.includes('Le transfert des pièces jointes n’a pas été confirmé'));
+
+  assert.equal(messageBff.calls('/attachments', 'post').length, 1);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'post').length, 0);
+});
+
 // Observe completion without replacing the real client, Next.js route or contract mock.
 function trackReferenceRequests(t) {
   const original = messageClient.getBusinessReferences;
