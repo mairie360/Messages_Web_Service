@@ -1,4 +1,4 @@
-// lib-components 0.3.0 does not expose attributes for its two internal scroll panes.
+// The shared component does not expose attributes for its two internal scroll panes.
 // Keep keyboard scrolling and accessible names local to the Messages frontend.
 export function prepareMessagingScrollRegions(container: HTMLDivElement | null) {
   if (!container) return;
