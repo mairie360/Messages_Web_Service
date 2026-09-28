@@ -216,6 +216,8 @@ services:
     environment:
       HOSTNAME: "0.0.0.0"
       PORT: 5003
+      # The unauthenticated health probe expects a redirect, not a missing-login 503.
+      LOGIN_FRONT_URL: "${LOGIN_FRONT_URL:-http://login-front.invalid/}"
       BFF_MESSAGE_BASE_URL: http://bff-message:4003
     expose:
       - "5003"
