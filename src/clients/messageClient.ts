@@ -8,6 +8,7 @@ import type {
   GetMessagingBootstrap200,
   PostConversationsConversationIdMessages201,
   PostConversationsConversationIdMessagesBody,
+  PostAttachments201,
   PostDirectMessages201,
   PostDirectMessagesBody,
   PostGroups201,
@@ -47,7 +48,7 @@ async function bffRequest<T>(
 
   headers.set("Accept", "application/json");
 
-  if (init.body && !headers.has("Content-Type")) {
+  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -101,6 +102,15 @@ export const messageClient = {
     return bffRequest<GetConversationsConversationIdMessages200>(
       `/conversations/${encodeId(conversationId)}/messages`,
     );
+  },
+
+  uploadAttachments(files: File[]) {
+    const body = new FormData();
+    files.forEach((file) => body.append("files", file, file.name));
+    return bffRequest<PostAttachments201>("/attachments", {
+      method: "POST",
+      body,
+    });
   },
 
   sendMessage(conversationId: MessageId, payload: PostConversationsConversationIdMessagesBody) {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import { Messaging } from "@mairie360/lib-components";
-import { BffRequestError, messageClient, type CurrentUserDto } from "@/clients/messageClient";
+import { BffRequestError, messageClient, type CurrentUserDto, type MessageId } from "@/clients/messageClient";
 import {
   appendMessage,
   getPayloadIds,
@@ -24,11 +24,15 @@ import { buildMessageMentionOptions, presentMessageAuthors } from "@/lib/message
 
 type MessagingProps = ComponentProps<typeof Messaging>;
 type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
+type DraftAttachment = Parameters<NonNullable<MessagingProps["onAttach"]>>[1][number];
 type NewMessagePayload = Parameters<NonNullable<MessagingProps["onNewMessageSend"]>>[0];
 type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]>>[0];
 
 const MESSAGE_REFRESH_INTERVAL_MS = 10_000;
 const pageIsVisible = () => typeof document === "undefined" || !document.hidden;
+const hasServerId = (id: unknown): id is MessageId =>
+  (typeof id === "string" && id.trim().length > 0) ||
+  (typeof id === "number" && Number.isFinite(id));
 
 function MobileConversationSwitch({
   showConversationList,
@@ -66,6 +70,9 @@ export default function Page() {
   const revisionRef = useRef(0);
   const mutationCountRef = useRef(0);
   const selectionLoadingRef = useRef<number | null>(null);
+  // Draft descriptors contain local object URLs, never BFF attachment IDs.
+  // Weak keys allow removed files to be released without an explicit removal callback.
+  const attachmentFilesRef = useRef(new WeakMap<DraftAttachment, File>());
 
   // Keep BFF state intact; only the shared component receives display labels.
   const displayedConversations = useMemo(() => presentConversationTimestamps(conversations), [conversations]);
@@ -299,7 +306,8 @@ export default function Page() {
   };
 
   const handleSendMessage = async (payload: SendMessagePayload) => {
-    if (!payload.conversationId || payload.content.trim().length === 0) {
+    const draftAttachments = payload.attachments ?? [];
+    if (!payload.conversationId || (payload.content.trim().length === 0 && draftAttachments.length === 0)) {
       return;
     }
 
@@ -307,9 +315,30 @@ export default function Page() {
     beginMutation();
 
     try {
+      let attachmentIds: MessageId[] = [];
+      if (draftAttachments.length > 0) {
+        const files: File[] = [];
+        for (const attachment of draftAttachments) {
+          const file = attachmentFilesRef.current.get(attachment);
+          if (!file) {
+            throw new Error("La pièce jointe sélectionnée est indisponible. Ajoutez-la de nouveau.");
+          }
+          files.push(file);
+        }
+        const uploaded = await messageClient.uploadAttachments(files);
+        if (!Array.isArray(uploaded?.attachments) || uploaded.attachments.length !== draftAttachments.length) {
+          throw new Error("Le transfert des pièces jointes n’a pas été confirmé. Aucun message n’a été envoyé.");
+        }
+        attachmentIds = uploaded.attachments.map((attachment: { id: unknown }) => {
+          if (!hasServerId(attachment?.id)) {
+            throw new Error("Le transfert des pièces jointes n’a pas été confirmé. Aucun message n’a été envoyé.");
+          }
+          return attachment.id;
+        });
+      }
       const response = await messageClient.sendMessage(payload.conversationId, {
         content: payload.content,
-        attachmentIds: getPayloadIds(payload.attachments),
+        attachmentIds,
         mentionIds: getPayloadIds(payload.mentions),
       });
 
@@ -327,6 +356,9 @@ export default function Page() {
           : "Le message n'a pas pu être envoyé.",
       );
     } finally {
+      draftAttachments.forEach((attachment) => {
+        if (attachment.url?.startsWith("blob:")) URL.revokeObjectURL?.(attachment.url);
+      });
       endMutation();
     }
   };
@@ -461,6 +493,11 @@ export default function Page() {
             onNewMessageClick={() => void loadContacts()}
             onCreateGroupClick={() => void loadContacts()}
             onSendMessage={(payload) => void handleSendMessage(payload)}
+            onAttach={(files, attachments) => {
+              attachments.forEach((attachment, index) => {
+                if (files[index]) attachmentFilesRef.current.set(attachment, files[index]);
+              });
+            }}
             onNewMessageSend={(payload) => void handleNewMessageSend(payload)}
             onCreateGroup={(payload) => void handleCreateGroup(payload)}
             onConversationDelete={handleConversationDelete}
