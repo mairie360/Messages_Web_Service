@@ -149,9 +149,14 @@ describe('BFF_Message errors surfaced by messageClient', () => {
     await assert.rejects(messageClient.createGroup({ name: 'Groupe', memberIds: [] }), { message: 'Authentification requise' });
   });
 
-  test('an undocumented non-JSON failure falls back to a status message', async () => {
+  test('an undocumented non-JSON failure uses a readable fallback', async () => {
     messageBff.on('get', '/contacts', { status: 500, raw: 'Internal Server Error', contentType: 'text/plain', outOfContract: true });
-    await assert.rejects(messageClient.getContacts(), { status: 500, message: 'Erreur BFF messages (500)' });
+    await assert.rejects(messageClient.getContacts(), { status: 500, message: 'Le service de messagerie est temporairement indisponible.' });
+  });
+
+  test('an empty 400 response does not expose a raw status', async () => {
+    messageBff.on('get', '/contacts', { status: 400, raw: '', outOfContract: true });
+    await assert.rejects(messageClient.getContacts(), { status: 400, message: 'La demande n’a pas pu aboutir.' });
   });
 
   test('an unreachable BFF becomes the controlled 502 error of the proxy', async () => {

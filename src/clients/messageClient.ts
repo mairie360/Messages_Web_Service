@@ -62,10 +62,14 @@ async function bffRequest<T>(
     const errorBody = await readJson<{ message?: string; error?: { message?: string } }>(
       response,
     ).catch(() => null);
-    const message =
-      errorBody?.error?.message ??
-      errorBody?.message ??
-      `Erreur BFF messages (${response.status})`;
+    const serviceMessage = [errorBody?.error?.message, errorBody?.message].find(
+      (value) => typeof value === "string" && value.trim(),
+    );
+    const message = serviceMessage ?? (
+      response.status >= 500
+        ? "Le service de messagerie est temporairement indisponible."
+        : "La demande n’a pas pu aboutir."
+    );
 
     throw new BffRequestError(message, response.status);
   }
