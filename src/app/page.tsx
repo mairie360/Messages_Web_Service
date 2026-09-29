@@ -308,7 +308,7 @@ export default function Page() {
   const handleSendMessage = async (payload: SendMessagePayload) => {
     const draftAttachments = payload.attachments ?? [];
     if (!payload.conversationId || (payload.content.trim().length === 0 && draftAttachments.length === 0)) {
-      return;
+      return false;
     }
 
     setError(null);
@@ -349,23 +349,31 @@ export default function Page() {
       setMessages((currentMessages) =>
         appendMessage(currentMessages, response.message),
       );
+      draftAttachments.forEach((attachment) => {
+        if (attachment.url?.startsWith("blob:")) {
+          try {
+            URL.revokeObjectURL?.(attachment.url);
+          } catch {
+            // A local preview cleanup failure must not turn a confirmed send into a retry.
+          }
+        }
+      });
+      return true;
     } catch (sendError) {
       setError(
         sendError instanceof Error
           ? sendError.message
           : "Le message n'a pas pu être envoyé.",
       );
+      return false;
     } finally {
-      draftAttachments.forEach((attachment) => {
-        if (attachment.url?.startsWith("blob:")) URL.revokeObjectURL?.(attachment.url);
-      });
       endMutation();
     }
   };
 
   const handleNewMessageSend = async (payload: NewMessagePayload) => {
     if (payload.message.trim().length === 0) {
-      return;
+      return false;
     }
 
     setError(null);
@@ -383,12 +391,14 @@ export default function Page() {
       setActiveConversationId(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
       setShowConversationList(false);
+      return true;
     } catch (sendError) {
       setError(
         sendError instanceof Error
           ? sendError.message
           : "Le message direct n'a pas pu être créé.",
       );
+      return false;
     } finally {
       endMutation();
     }
@@ -492,13 +502,13 @@ export default function Page() {
             }
             onNewMessageClick={() => void loadContacts()}
             onCreateGroupClick={() => void loadContacts()}
-            onSendMessage={(payload) => void handleSendMessage(payload)}
+            onSendMessage={handleSendMessage}
             onAttach={(files, attachments) => {
               attachments.forEach((attachment, index) => {
                 if (files[index]) attachmentFilesRef.current.set(attachment, files[index]);
               });
             }}
-            onNewMessageSend={(payload) => void handleNewMessageSend(payload)}
+            onNewMessageSend={handleNewMessageSend}
             onCreateGroup={(payload) => void handleCreateGroup(payload)}
             onConversationDelete={handleConversationDelete}
             className="messages-module"

@@ -156,9 +156,10 @@ test('send keeps user-authored date text and request payload intact, then format
   assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
 });
 
-test('selected files are uploaded before their server IDs are attached to a message', async () => {
+test('selected files are uploaded before their server IDs are attached to a message', async (t) => {
   await renderLoadedPage();
-  const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain' };
+  const revokePreview = t.mock.method(URL, 'revokeObjectURL');
+  const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:sent-agenda' };
   const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
   await view.act(() => view.props('Messaging').onAttach([file], [attachment]));
   messageBff.on('post', '/attachments', { status: 201, body: {
@@ -169,9 +170,10 @@ test('selected files are uploaded before their server IDs are attached to a mess
     conversation: conversation(4, 'Équipe communication', { lastMessage: 'Voici le document' }),
   } }));
 
-  await view.act(() => view.props('Messaging').onSendMessage({
+  const sendResult = await view.act(() => view.props('Messaging').onSendMessage({
     conversationId: 'conversation-4', content: 'Voici le document', attachments: [attachment], mentions: [],
   }));
+  assert.equal(sendResult, true);
   await view.waitFor(() => view.props('Messaging').messages.some((item) => item.id === 'message-3'));
 
   const writes = messageBff.requests.filter((call) => call.method === 'POST');
@@ -179,14 +181,18 @@ test('selected files are uploaded before their server IDs are attached to a mess
   assert.match(writes[0].headers['content-type'], /^multipart\/form-data; boundary=/);
   assert.deepEqual(writes[1].body, { content: 'Voici le document', attachmentIds: ['stored-42'], mentionIds: [] });
   assert.doesNotMatch(JSON.stringify(writes[1].body), /agenda\.txt-123-0/);
+  assert.equal(revokePreview.mock.callCount(), 1);
+  assert.equal(revokePreview.mock.calls[0].arguments[0], 'blob:sent-agenda');
 });
 
-test('failed or unregistered file uploads never send a message with a local attachment ID', async () => {
+test('failed or unregistered file uploads never send a message with a local attachment ID', async (t) => {
   await renderLoadedPage();
-  const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain' };
-  await view.act(() => view.props('Messaging').onSendMessage({
+  const revokePreview = t.mock.method(URL, 'revokeObjectURL');
+  const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:retry-agenda' };
+  const missingFileResult = await view.act(() => view.props('Messaging').onSendMessage({
     conversationId: 'conversation-4', content: 'Sans fichier réel', attachments: [attachment], mentions: [],
   }));
+  assert.equal(missingFileResult, false);
   await view.waitFor((html) => html.includes('La pièce jointe sélectionnée est indisponible'));
   assert.equal(messageBff.calls('/attachments', 'post').length, 0);
   assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'post').length, 0);
@@ -194,12 +200,14 @@ test('failed or unregistered file uploads never send a message with a local atta
   const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
   await view.act(() => view.props('Messaging').onAttach([file], [attachment]));
   messageBff.on('post', '/attachments', { status: 401, body: apiError('UNAUTHORIZED', 'Envoi du fichier refusé') });
-  await view.act(() => view.props('Messaging').onSendMessage({
+  const refusedUploadResult = await view.act(() => view.props('Messaging').onSendMessage({
     conversationId: 'conversation-4', content: 'Sans fichier enregistré', attachments: [attachment], mentions: [],
   }));
+  assert.equal(refusedUploadResult, false);
   await view.waitFor((html) => html.includes('Envoi du fichier refusé'));
   assert.equal(messageBff.calls('/attachments', 'post').length, 1);
   assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'post').length, 0);
+  assert.equal(revokePreview.mock.callCount(), 0);
 });
 
 test('an upload response without an ID cannot be mistaken for a sent attachment', async () => {
@@ -570,12 +578,25 @@ test('a refused send is shown as an alert without losing the thread', async () =
   await renderLoadedPage();
   messageBff.on('post', '/conversations/{conversationId}/messages', { status: 403, body: apiError('FORBIDDEN', 'Vous ne faites plus partie de cette conversation'), outOfContract: true });
 
-  await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-4', content: 'Encore là ?', attachments: [], mentions: [] }));
+  const sendResult = await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-4', content: 'Encore là ?', attachments: [], mentions: [] }));
+  assert.equal(sendResult, false);
   const html = await view.waitFor((current) => current.includes('role="alert"'));
 
   assert.match(html, /<p role="alert" class="messages-error">Vous ne faites plus partie de cette conversation<\/p>/);
   assert.match(html, /Bonjour à tous/);
   assert.doesNotMatch(html, /Encore là \?/);
+});
+
+test('a refused direct message returns failure and preserves the selected conversation', async () => {
+  await renderLoadedPage();
+  messageBff.on('post', '/direct-messages', { status: 403, body: apiError('FORBIDDEN', 'Message direct refusé'), outOfContract: true });
+  const result = await view.act(() => view.props('Messaging').onNewMessageSend({
+    recipientId: `user-${users.thomas.id}`, message: 'Bonjour Thomas',
+  }));
+
+  assert.equal(result, false);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.match(view.text(), /Message direct refusé/);
 });
 
 test('focus refreshes the real conversation list and active thread without duplicates', async () => {
