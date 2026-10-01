@@ -411,6 +411,8 @@ test('the first pass renders the empty messaging, the next ones the bootstrap, c
   assert.match(view.html, /<footer/);
   const footer = view.html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/)?.[0];
   assert.ok(footer);
+  assert.match(view.html, /<aside\b[^]*?<footer\b[^]*?<\/footer>[^]*?<\/aside>/);
+  assert.doesNotMatch(view.html, /<\/main>\s*<footer\b/);
   assert.match(footer.replace(/<[^>]*>/g, ''), new RegExp(`© ${new Date().getFullYear()} Mairie360`));
   assert.doesNotMatch(footer, /Version|<button\b|<a\b/);
 });

@@ -1,5 +1,21 @@
 # Messages_Web_Service — Technical documentation
 
+## Shared footer — MAIR-180
+
+The unchanged CI audit exposed the transitive tooling dependency
+`brace-expansion@1.1.18`. Its lock entry now resolves to the compatible patched
+`1.1.21`, with registry-verified integrity, as documented in
+[the upstream advisory](https://github.com/advisories/GHSA-qhr7-859c-m2p7).
+No audit threshold, workflow or security policy is relaxed.
+
+The package is pinned to published `@mairie360/lib-components@0.6.5` from
+[lib-components #388](https://github.com/mairie360/lib-components/pull/388).
+AppShell now places copyright in the dark sidebar, outside scrolling navigation.
+The mobile drawer retains focus management. No content-footer band reduces the
+main viewport; only supplied information is shown, with no invented version.
+Contracts, APIs/BFFs and deployment approvals are unchanged. Consumer adoption
+is tracked in [shared issue #387](https://github.com/mairie360/lib-components/issues/387).
+
 ## Timestamp presentation — MAIR-303
 
 `src/lib/message-timestamps.ts` adapts only `sentAt` and `lastMessageAt` to
