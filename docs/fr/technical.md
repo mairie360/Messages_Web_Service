@@ -88,6 +88,13 @@ Conversations et messages passent par Message API. Les contacts proviennent dire
 
 L’upload de pièces jointes fabrique actuellement des métadonnées et ne fournit pas un stockage binaire durable. Le marquage lu renvoie un compteur nul sans écrire dans Message API ; la page n’appelle donc pas cette route et n’efface pas localement les compteurs de non-lus. Les groupes de conversation passent par l’API, tandis que certaines données de profil restent locales au processus.
 
+Le callback de groupe retourne la promesse réelle de `messageClient.createGroup()`
+et une confirmation booléenne : `true` après intégration de la conversation reçue,
+ou `false` après affichage de l’erreur du service. La bibliothèque frontend partagée
+utilise ce résultat pour conserver le formulaire en échec plutôt que le fermer
+avant confirmation. Le corps et le contrat de `POST /groups` restent inchangés
+(MAIR-377).
+
 L’état React gère l’affichage et les opérations en cours. Ce dépôt ne définit pas de base métier propre; les garanties de sauvegarde sont celles du BFF et de ses sources décrites ci-dessus.
 
 ## Installation et lancement local

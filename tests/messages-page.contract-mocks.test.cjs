@@ -601,6 +601,45 @@ test('a refused direct message returns failure and preserves the selected conver
   assert.match(view.text(), /Message direct refusé/);
 });
 
+test('group creation exposes the pending promise and confirms only the BFF-created conversation', async () => {
+  await renderLoadedPage();
+  let reply;
+  messageBff.on('post', '/groups', () => new Promise((resolve) => { reply = resolve; }));
+  const payload = { name: 'Groupe confirmé', description: 'Depuis le formulaire', memberIds: [`user-${users.sophie.id}`] };
+  const pending = view.props('Messaging').onCreateGroup(payload);
+  assert.equal(typeof pending?.then, 'function', 'the library must receive the actual service promise');
+  await view.waitFor(() => typeof reply === 'function');
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.equal(view.props('Messaging').conversations.length, 2, 'no optimistic group is invented');
+
+  reply({ status: 201, body: { conversation: conversation(6, payload.name) } });
+  assert.equal(await pending, true);
+  await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-6');
+  assert.equal(view.props('Messaging').conversations.length, 3);
+  const [call] = messageBff.calls('/groups', 'POST');
+  assert.deepEqual(call.body, payload);
+});
+
+test('refused group creation returns false, preserves the existing thread and supports retry', async () => {
+  await renderLoadedPage();
+  const payload = { name: 'Groupe à réessayer', description: 'Conservée', memberIds: [`user-${users.sophie.id}`] };
+  messageBff.on('post', '/groups', { status: 503, body: apiError('UNAVAILABLE', 'Création indisponible'), outOfContract: true });
+  const refused = await view.act(() => view.props('Messaging').onCreateGroup(payload));
+  assert.equal(refused, false);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.equal(view.props('Messaging').conversations.length, 2);
+  assert.match(view.text(), /Création indisponible/);
+  assert.match(view.text(), /Bonjour à tous/);
+
+  messageBff.on('post', '/groups', { status: 201, body: { conversation: conversation(6, payload.name) } });
+  const confirmed = await view.act(() => view.props('Messaging').onCreateGroup(payload));
+  assert.equal(confirmed, true);
+  await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-6');
+  assert.doesNotMatch(view.text(), /Création indisponible/);
+  assert.equal(messageBff.calls('/groups', 'POST').length, 2);
+  assert.deepEqual(messageBff.calls('/groups', 'POST')[1].body, messageBff.calls('/groups', 'POST')[0].body);
+});
+
 test('focus refreshes the real conversation list and active thread without duplicates', async () => {
   await renderLoadedPage();
   messageBff.on('get', '/conversations', { body: { conversations: [

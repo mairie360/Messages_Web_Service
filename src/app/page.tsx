@@ -417,12 +417,14 @@ export default function Page() {
       setActiveConversationId(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
       setShowConversationList(false);
+      return true;
     } catch (createError) {
       setError(
         createError instanceof Error
           ? createError.message
           : "Le groupe n'a pas pu être créé.",
       );
+      return false;
     } finally {
       endMutation();
     }
@@ -509,7 +511,7 @@ export default function Page() {
               });
             }}
             onNewMessageSend={handleNewMessageSend}
-            onCreateGroup={(payload) => void handleCreateGroup(payload)}
+            onCreateGroup={handleCreateGroup}
             onConversationDelete={handleConversationDelete}
             className="messages-module"
           />
