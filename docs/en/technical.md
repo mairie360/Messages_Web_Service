@@ -86,6 +86,12 @@ Conversations and messages use Message API. Contacts are read directly from the 
 
 Attachment upload currently creates metadata and does not provide durable binary storage. Mark-as-read returns a zero counter without writing to Message API; the page therefore does not call that route or locally clear unread counts. Conversation groups use the API, while some profile data remains local to the process.
 
+The group callback returns the actual `messageClient.createGroup()` promise and a
+boolean confirmation: `true` after the returned conversation is integrated, or
+`false` after the service error is displayed. The shared frontend library uses
+that result to retain a failed form instead of closing it optimistically. The
+existing `POST /groups` payload and contract are unchanged (MAIR-377).
+
 React state manages display and pending operations. This repository defines no business database of its own; save guarantees come from the BFF and its sources described above.
 
 ## Installation and local startup

@@ -13,12 +13,12 @@ test('the installed shared UI matches the exact published sidebar-footer release
   const lock = read('package-lock.json');
   const entry = lock.packages['node_modules/@mairie360/lib-components'];
   const installed = read('node_modules/@mairie360/lib-components/package.json');
-  assert.equal(manifest.dependencies['@mairie360/lib-components'], '0.6.5');
-  assert.equal(lock.packages[''].dependencies['@mairie360/lib-components'], '0.6.5');
-  assert.equal(entry.version, '0.6.5');
-  assert.equal(installed.version, '0.6.5');
-  assert.equal(entry.resolved, 'https://npm.pkg.github.com/download/@mairie360/lib-components/0.6.5/aec5908d28ed00fe0be065ddcf6784e5909c648c');
-  assert.equal(entry.integrity, 'sha512-7AFNzGUe2LTl4BYbIET5LTtrUA2JkwtDEmNx6fZDIBIILjbs8pW0PbtbjxpBM3NTNulTy/bC0k8wAfbgjygXcw==');
+  assert.equal(manifest.dependencies['@mairie360/lib-components'], '0.6.6');
+  assert.equal(lock.packages[''].dependencies['@mairie360/lib-components'], '0.6.6');
+  assert.equal(entry.version, '0.6.6');
+  assert.equal(installed.version, '0.6.6');
+  assert.equal(entry.resolved, 'https://npm.pkg.github.com/download/@mairie360/lib-components/0.6.6/c3bc75a70fbf534de98944e547e83c2dcbe76b3a');
+  assert.equal(entry.integrity, 'sha512-8L/SKmYBXSevuJmVVUArUENIMJoFs+Yt70m7yHqYlCMxNwK7CwZhlNacg7g8wRp5zhM//wlMZBo4xnNsqv99Cg==');
 });
 
 test('the published shell keeps copyright inside the sidebar without a fictitious version', () => {

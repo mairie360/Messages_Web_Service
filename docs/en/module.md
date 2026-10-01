@@ -29,6 +29,11 @@ Business domain: Instant messaging.
 
 - Conversation list, active messages and contact search, with refresh while the tab is visible.
 - Direct messages, conversation replies, group creation and deletion.
+
+Group creation keeps its name, optional description and selected members until
+the service confirms success. While pending, form and close controls are disabled
+to prevent duplicate creation. A refusal preserves the form for retry and displays
+an error; only the server-created conversation is added to the list.
 - Conversation and message timestamps displayed in French (day/month and hour:minute), using the browser timezone. Missing or unrecognized values are preserved without invented dates; message content is unchanged.
 - Load project, task and event references, refreshing suggestions when returning to the visible tab. Temporary failures retain the last successful list; an access refusal clears it.
 
