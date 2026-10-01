@@ -2,6 +2,12 @@
 
 ## Pied de page partagé — MAIR-180
 
+L’audit CI inchangé a détecté la dépendance d’outillage transitive
+`brace-expansion@1.1.18`. Son entrée verrouillée passe à la version corrigée
+compatible `1.1.21`, avec l’intégrité vérifiée sur le registre, conformément à
+[l’avis amont](https://github.com/advisories/GHSA-qhr7-859c-m2p7).
+Aucun seuil d’audit, workflow ou contrôle de sécurité n’est assoupli.
+
 Le paquet est épinglé à `@mairie360/lib-components@0.6.5`, publié par
 [lib-components #388](https://github.com/mairie360/lib-components/pull/388).
 L’AppShell affiche désormais le copyright dans la sidebar sombre, hors de la
