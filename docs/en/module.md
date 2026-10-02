@@ -27,6 +27,12 @@ Business domain: Instant messaging.
 
 ## Available capabilities
 
+Default presentation uses the local reference's 17px root size and system font.
+The shared header scales with its existing rem sizing; small-text tokens are not
+overridden. Conversations and messages retain independent scroll areas on desktop.
+On narrower screens, the conversation-list toggle keeps one full-height pane
+visible at a time and preserves the unsent draft when switching panes.
+
 - Conversation list, active messages and contact search, with refresh while the tab is visible.
 - Direct messages, conversation replies, group creation and deletion.
 
