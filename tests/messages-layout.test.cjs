@@ -27,6 +27,13 @@ test('the messaging shell stays bounded to the dynamic viewport', () => {
   assert.match(rule('.messages-app-root > .flex > .flex > main'), /display: flex;[\s\S]*min-height: 0;[\s\S]*overflow: hidden;/);
 });
 
+test('the messaging panel fills the reference space and retains its card shadow', () => {
+  assert.match(rule('.messages-app-root > .flex > .flex > main'), /padding: 20px;/);
+  assert.match(rule('.messages-main-inner'), /width: 100%;[\s\S]*max-width: none;/);
+  assert.doesNotMatch(css, /max-width: 1534px;|padding: 32px 24px;/);
+  assert.match(rule('.messages-module-frame > .messages-module'), /box-shadow: 0 5px 15px rgb\(23 32 51 \/ 14%\), 0 1px 3px rgb\(23 32 51 \/ 12%\);/);
+});
+
 test('contacts and messages keep independent scroll areas while controls stay visible', () => {
   assert.match(rule('.messages-module-frame > .messages-module'), /min-height: 0;[\s\S]*height: 100%;/);
   assert.match(rule('.messages-module-frame'), /min-height: 0;[\s\S]*flex: 1;/);
@@ -43,5 +50,5 @@ test('narrow screens show one full-height pane at a time and desktop shows both'
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*?\.messages-pane-switch \{\s*display: inline-flex;/);
   assert.match(css, /\.messages-list-open \.messages-module > aside \{\s*display: flex;/);
   assert.match(css, /\.messages-list-open \.messages-module > div:nth-child\(2\) \{\s*display: none;/);
-  assert.match(css, /@media \(max-width: 639px\)[\s\S]*?\.messages-app-root > \.flex > \.flex > main \{\s*padding: 10px;/);
+  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?\.messages-app-root > \.flex > \.flex > main \{\s*padding: 10px;/);
 });
