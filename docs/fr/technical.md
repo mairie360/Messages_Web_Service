@@ -8,8 +8,8 @@ compatible `1.1.21`, avec l’intégrité vérifiée sur le registre, conformém
 [l’avis amont](https://github.com/advisories/GHSA-qhr7-859c-m2p7).
 Aucun seuil d’audit, workflow ou contrôle de sécurité n’est assoupli.
 
-Le paquet est épinglé à `@mairie360/lib-components@0.6.5`, publié par
-[lib-components #388](https://github.com/mairie360/lib-components/pull/388).
+Le paquet est épinglé à `@mairie360/lib-components@0.6.8`, publié par
+[la publication réussie de 0.6.8](https://github.com/mairie360/lib-components/actions/runs/36836970818), qui inclut la correction du pied de page #388.
 L’AppShell affiche désormais le copyright dans la sidebar sombre, hors de la
 navigation défilante. Le tiroir mobile conserve sa gestion du focus. Aucun bandeau
 de pied de page ne réduit la zone de contenu ; seules les informations fournies
