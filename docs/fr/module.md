@@ -38,6 +38,12 @@ gardent leurs zones de défilement indépendantes sur ordinateur. Sur les écran
 plus étroits, le bouton de bascule affiche un seul panneau en pleine hauteur et
 conserve le brouillon non envoyé lors du changement de panneau.
 
+Le panneau utilise toute la largeur disponible comme la référence, sans plafond
+sur grand écran. Les marges extérieures sont de 20px à partir de 768px et de 10px
+en dessous ; le panneau conserve l’ombre à deux couches de la référence. Ces
+styles frontend préservent les scrolls bornés, la bascule et les contrôles de
+rédaction accessibles, sans simuler notification, identité ou donnée métier.
+
 - Liste de conversations, messages actifs et recherche de contacts, avec rafraîchissement lorsque l’onglet est visible.
 - Envoi direct, réponse dans une conversation, création de groupe et suppression.
 

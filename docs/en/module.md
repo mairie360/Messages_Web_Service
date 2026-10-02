@@ -35,6 +35,12 @@ overridden. Conversations and messages retain independent scroll areas on deskto
 On narrower screens, the conversation-list toggle keeps one full-height pane
 visible at a time and preserves the unsent draft when switching panes.
 
+The message panel uses the reference's full available width without a desktop
+maximum-width cap. Outer spacing is 20px from 768px upward and 10px below that
+breakpoint; the panel keeps the reference two-layer card shadow. These frontend
+styles preserve bounded scrolling, pane switching and always reachable composer
+controls; they do not add simulated notifications, identity or business data.
+
 - Conversation list, active messages and contact search, with refresh while the tab is visible.
 - Direct messages, conversation replies, group creation and deletion.
 
