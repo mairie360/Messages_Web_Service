@@ -44,6 +44,14 @@ controls; they do not add simulated notifications, identity or business data.
 - Conversation list, active messages and contact search, with refresh while the tab is visible.
 - Direct messages, conversation replies, group creation and deletion.
 
+Deletion keeps the known conversation and messages until the published response
+confirms `deleted: true`. If an ID is returned, it must match the requested
+conversation. A missing/invalid acknowledgement or refusal displays an error
+and leaves retry available. Only one deletion may be pending; a visible status
+replaces the delete action until completion. A different thread selected while
+deleting remains selected and may finish loading after the deletion completes.
+This frontend guard does not add server persistence or change the BFF contract.
+
 Group creation keeps its name, optional description and selected members until
 the service confirms success. While pending, form and close controls are disabled
 to prevent duplicate creation. A refusal preserves the form for retry and displays

@@ -779,3 +779,161 @@ test('a stale refresh cannot restore a deleted conversation', async () => {
   assert.deepEqual(view.props('Messaging').conversations.map((item) => item.id), ['conversation-5']);
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
 });
+
+for (const [label, reply] of [
+  ['an empty 200 response', { raw: '', outOfContract: true }],
+  ['a missing acknowledgement', { body: {}, outOfContract: true }],
+  ['a false acknowledgement', { body: { deleted: false }, outOfContract: true }],
+  ['a string acknowledgement', { body: { deleted: 'true' }, outOfContract: true }],
+  ['a different conversation ID', { body: { deleted: true, conversationId: 'conversation-5' } }],
+]) {
+  test(`deletion preserves the selected conversation and messages after ${label}`, async () => {
+    await renderLoadedPage();
+    messageBff.on('delete', '/conversations/{conversationId}', reply);
+    await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+
+    assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-4', 'conversation-5']);
+    assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+    assert.match(view.text(), /Bonjour à tous/);
+    assert.match(view.html, /role="alert"[^]*?La suppression de la conversation n’a pas été confirmée/);
+    assert.equal(typeof view.props('Messaging').onConversationDelete, 'function', 'retry is available');
+  });
+}
+
+test('a confirmed deletion accepts the contract optional ID and preserves other messages', async () => {
+  await renderLoadedPage();
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
+    messages: [message(8, 5, 'Fil conservé', users.sophie)],
+  } }));
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-8'));
+  messageBff.on('delete', '/conversations/{conversationId}', { body: { deleted: true } });
+  await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.deepEqual(view.props('Messaging').messages.map(item => item.id), ['message-8']);
+  assert.match(view.text(), /Fil conservé/);
+  assert.doesNotMatch(view.text(), /La suppression de la conversation n’a pas été confirmée/);
+});
+
+test('a deletion refusal permits one guarded retry and preserves data while pending', async () => {
+  await renderLoadedPage();
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  messageBff.on('delete', '/conversations/{conversationId}', async () => {
+    await gate;
+    return { status: 503, body: apiError('UNAVAILABLE', 'Suppression momentanément refusée'), outOfContract: true };
+  });
+  const deleteHandler = view.props('Messaging').onConversationDelete;
+  let attempts;
+  await view.act(() => {
+    attempts = [deleteHandler(conversation(4, 'Équipe communication')), deleteHandler(conversation(4, 'Équipe communication'))];
+  });
+  try {
+    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}', 'DELETE').length >= 1);
+    assert.equal(messageBff.calls('/conversations/{conversationId}', 'DELETE').length, 1);
+    assert.equal(view.props('Messaging').onConversationDelete, undefined);
+    assert.match(view.html, /role="status"[^]*?Suppression de la conversation en cours/);
+    assert.match(view.text(), /Bonjour à tous/);
+    const reads = messageBff.calls('/conversations').length;
+    browser.focus();
+    browser.tickIntervals(10_000);
+    assert.equal(messageBff.calls('/conversations').length, reads, 'no refresh races a pending delete');
+  } finally {
+    release();
+    await Promise.all(attempts);
+  }
+  await view.waitFor(html => html.includes('Suppression momentanément refusée'));
+  assert.equal(view.props('Messaging').conversations.length, 2);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.equal(typeof view.props('Messaging').onConversationDelete, 'function');
+  assert.doesNotMatch(view.text(), /Suppression de la conversation en cours/);
+
+  messageBff.on('delete', '/conversations/{conversationId}', { body: { deleted: true, conversationId: 'conversation-4' } });
+  await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+  assert.equal(messageBff.calls('/conversations/{conversationId}', 'DELETE').length, 2);
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+  assert.doesNotMatch(view.text(), /Suppression momentanément refusée|Suppression de la conversation en cours/);
+});
+
+test('a delayed deletion preserves a conversation selected while it was pending', async () => {
+  await renderLoadedPage();
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  messageBff.on('delete', '/conversations/{conversationId}', async () => {
+    await gate;
+    return { body: { deleted: true, conversationId: 'conversation-4' } };
+  });
+  let pending;
+  await view.act(() => { pending = view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')); });
+  try {
+    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}', 'DELETE').length === 1);
+    messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+      conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
+      messages: [message(8, 5, 'Sélection pendant suppression', users.sophie)],
+    } }));
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-8'));
+  } finally {
+    release();
+    await pending;
+  }
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+  assert.match(view.text(), /Sélection pendant suppression/);
+});
+
+test('a newly selected thread may finish loading after another conversation is deleted', async () => {
+  await renderLoadedPage();
+  let releaseDelete;
+  let releaseSelection;
+  const deletionGate = new Promise(resolve => { releaseDelete = resolve; });
+  const selectionGate = new Promise(resolve => { releaseSelection = resolve; });
+  messageBff.on('delete', '/conversations/{conversationId}', async () => {
+    await deletionGate;
+    return { body: { deleted: true, conversationId: 'conversation-4' } };
+  });
+  messageBff.on('get', '/conversations/{conversationId}/messages', async () => {
+    await selectionGate;
+    return swappedModel({ body: {
+      conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
+      messages: [message(8, 5, 'Sélection chargée après suppression', users.sophie)],
+    } });
+  });
+  let pendingDelete;
+  await view.act(() => { pendingDelete = view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')); });
+  try {
+    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}', 'DELETE').length === 1);
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5');
+    releaseDelete();
+    await pendingDelete;
+  } finally {
+    releaseDelete();
+    releaseSelection();
+    await pendingDelete;
+  }
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-8'));
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.match(view.text(), /Sélection chargée après suppression/);
+});
+
+test('a confirmed numeric ID removes the last conversation and returns to the mobile list', async () => {
+  browser.setHidden(true);
+  const body = bootstrap();
+  body.conversations = [conversation(4, 'Dernier fil', { id: 4 })];
+  body.activeConversationId = 4;
+  body.messages = [message(1, 4, 'Dernier message', users.sophie, { conversationId: 4 })];
+  await renderLoadedPage(body);
+  messageBff.on('delete', '/conversations/{conversationId}', { body: { deleted: true, conversationId: '4' } });
+  await view.act(() => view.props('Messaging').onConversationDelete(body.conversations[0]));
+  assert.deepEqual(view.props('Messaging').conversations, []);
+  assert.deepEqual(view.props('Messaging').messages, []);
+  assert.equal(view.props('Messaging').activeConversationId, '');
+  assert.match(view.html, /messages-module-frame messages-list-open/);
+  assert.match(view.text(), /Aucune conversation/);
+  assert.doesNotMatch(view.text(), /Dernier message|Suppression de la conversation en cours/);
+});
