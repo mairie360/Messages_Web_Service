@@ -13,7 +13,7 @@ function rule(selector) {
 
 test('default typography matches the reference without overriding shared text tokens or header height', () => {
   assert.match(rule('html'), /font-size: 17px;/);
-  assert.match(rule('body'), /font-family: system-ui, sans-serif;/);
+  assert.match(rule('html body'), /font-family: system-ui, sans-serif;/);
   assert.doesNotMatch(css, /--text-(?:xs|sm)\s*:|\.text-(?:xs|sm)\s*\{/);
   const headerRule = css.match(/\.messages-app-root > \.flex > \.flex > header,[\s\S]*?\{([^}]+)\}/);
   assert.ok(headerRule, 'the shared header retains its shrink protection');

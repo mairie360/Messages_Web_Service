@@ -28,6 +28,8 @@ Business domain: Instant messaging.
 ## Available capabilities
 
 Default presentation uses the local reference's 17px root size and system font.
+The font rule takes precedence over the library's body default independently
+of production CSS chunk ordering.
 The shared header scales with its existing rem sizing; small-text tokens are not
 overridden. Conversations and messages retain independent scroll areas on desktop.
 On narrower screens, the conversation-list toggle keeps one full-height pane

@@ -3,7 +3,8 @@ html {
   font-size: 17px;
 }
 
-body {
+/* More specific than the library's body rule, regardless of CSS chunk order. */
+html body {
   font-family: system-ui, sans-serif;
 }
 
