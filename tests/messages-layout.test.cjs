@@ -11,6 +11,15 @@ function rule(selector) {
   return css.slice(start, css.indexOf('}', start));
 }
 
+test('default typography matches the reference without overriding shared text tokens or header height', () => {
+  assert.match(rule('html'), /font-size: 17px;/);
+  assert.match(rule('body'), /font-family: system-ui, sans-serif;/);
+  assert.doesNotMatch(css, /--text-(?:xs|sm)\s*:|\.text-(?:xs|sm)\s*\{/);
+  const headerRule = css.match(/\.messages-app-root > \.flex > \.flex > header,[\s\S]*?\{([^}]+)\}/);
+  assert.ok(headerRule, 'the shared header retains its shrink protection');
+  assert.doesNotMatch(headerRule[1], /(?:min-|max-)?height:/);
+});
+
 test('the messaging shell stays bounded to the dynamic viewport', () => {
   assert.match(rule('.messages-app-root'), /height: 100dvh;[\s\S]*min-height: 0;[\s\S]*overflow: hidden;/);
   assert.match(rule('.messages-app-root > .flex'), /height: 100%;[\s\S]*min-height: 0;/);

@@ -29,6 +29,13 @@ Domaine fonctionnel: Messagerie instantanée.
 
 ## Fonctions disponibles
 
+La présentation par défaut reprend la taille racine de 17px et la police système
+de la référence locale. Le header partagé conserve son dimensionnement en rem ;
+les tailles de petits textes ne sont pas redéfinies. Les conversations et messages
+gardent leurs zones de défilement indépendantes sur ordinateur. Sur les écrans
+plus étroits, le bouton de bascule affiche un seul panneau en pleine hauteur et
+conserve le brouillon non envoyé lors du changement de panneau.
+
 - Liste de conversations, messages actifs et recherche de contacts, avec rafraîchissement lorsque l’onglet est visible.
 - Envoi direct, réponse dans une conversation, création de groupe et suppression.
 
