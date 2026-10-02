@@ -66,10 +66,12 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [showConversationList, setShowConversationList] = useState(false);
+  const [deletingConversation, setDeletingConversation] = useState(false);
   const activeConversationRef = useRef<MessagingContactId>("");
   const revisionRef = useRef(0);
   const mutationCountRef = useRef(0);
   const selectionLoadingRef = useRef<number | null>(null);
+  const deletionPendingRef = useRef(false);
   // Draft descriptors contain local object URLs, never BFF attachment IDs.
   // Weak keys allow removed files to be released without an explicit removal callback.
   const attachmentFilesRef = useRef(new WeakMap<DraftAttachment, File>());
@@ -251,11 +253,13 @@ export default function Page() {
   const beginMutation = () => {
     revisionRef.current += 1;
     mutationCountRef.current += 1;
+    selectionLoadingRef.current = null;
   };
 
-  const endMutation = () => {
+  const endMutation = (preserveSelection = false) => {
     mutationCountRef.current -= 1;
     revisionRef.current += 1;
+    if (!preserveSelection) selectionLoadingRef.current = null;
   };
 
   const loadContacts = async () => {
@@ -280,7 +284,7 @@ export default function Page() {
 
     try {
       const response = await messageClient.getConversationMessages(conversationId);
-      if (revisionRef.current !== revision ||
+      if (selectionLoadingRef.current !== revision ||
           !idsMatch(activeConversationRef.current, conversationId)) return;
 
       setConversations((currentConversations) =>
@@ -295,7 +299,7 @@ export default function Page() {
       );
       setShowConversationList(false);
     } catch (loadError) {
-      if (revisionRef.current === revision) setError(
+      if (selectionLoadingRef.current === revision) setError(
         loadError instanceof Error
           ? loadError.message
           : "Les messages de cette conversation sont indisponibles.",
@@ -432,11 +436,22 @@ export default function Page() {
 
   const handleConversationDelete: NonNullable<MessagingProps["onConversationDelete"]> =
     async (conversationToDelete) => {
+      // An immediate guard also covers repeated callbacks before React renders.
+      if (deletionPendingRef.current) return;
+      deletionPendingRef.current = true;
+      setDeletingConversation(true);
       setError(null);
       beginMutation();
 
       try {
-        await messageClient.deleteConversation(conversationToDelete.id);
+        const response = await messageClient.deleteConversation(conversationToDelete.id);
+        // The published contract requires deleted:true; an optional ID must
+        // refer to the requested thread before any known local data is removed.
+        if (response?.deleted !== true ||
+            (response.conversationId !== undefined &&
+             !idsMatch(response.conversationId, conversationToDelete.id))) {
+          throw new Error("La suppression de la conversation n’a pas été confirmée. Réessayez.");
+        }
 
         if (idsMatch(activeConversationRef.current, conversationToDelete.id)) {
           const fallbackId = conversations.find((conversation) =>
@@ -460,13 +475,22 @@ export default function Page() {
             : "La conversation n'a pas pu être supprimée.",
         );
       } finally {
-        endMutation();
+        deletionPendingRef.current = false;
+        setDeletingConversation(false);
+        // An unrelated thread selected after deletion started may still be
+        // loading; do not discard that response when this delete completes.
+        endMutation(!idsMatch(activeConversationRef.current, conversationToDelete.id));
       }
     };
 
   return (
     <AppShell activeItem="messages">
       <div className="messages-module-stack">
+        {deletingConversation && (
+          <p role="status" className="messages-operation-status">
+            Suppression de la conversation en cours…
+          </p>
+        )}
         {error && (
           <p role="alert" className="messages-error">
             {error}
@@ -512,7 +536,7 @@ export default function Page() {
             }}
             onNewMessageSend={handleNewMessageSend}
             onCreateGroup={handleCreateGroup}
-            onConversationDelete={handleConversationDelete}
+            onConversationDelete={deletingConversation ? undefined : handleConversationDelete}
             className="messages-module"
           />
         </div>
