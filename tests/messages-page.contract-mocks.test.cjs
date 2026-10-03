@@ -71,7 +71,7 @@ const upstream = () => messageBff.requests.map((call) => `${call.method} ${call.
 async function renderLoadedPage(body = bootstrap()) {
   messageBff.on('get', '/messaging/bootstrap', { body });
   view = mount(React.createElement(Page));
-  return view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation' &&
+  return view.waitFor(() => view.find('Messaging').length > 0 && view.props('Messaging').emptyStateLabel === 'Aucune conversation' &&
     view.props('Header').user.name !== 'Chargement…' &&
     view.props('Messaging').conversations[0]?.unreadCount === 0);
 }
@@ -263,7 +263,7 @@ test('business suggestions wait for visibility and do not add periodic backgroun
   browser.setHidden(true);
   messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
   view = mount(React.createElement(Page));
-  await view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation');
+  await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Messaging').emptyStateLabel === 'Aucune conversation');
   browser.focus();
   browser.tickIntervals(10_000);
   assert.equal(pending.length, 0);
@@ -380,19 +380,20 @@ test('unmount removes business reference listeners and ignores the pending respo
   assert.equal(view.props('Messaging').businessReferences.length, 2);
 });
 
-test('the first pass renders the empty messaging, the next ones the bootstrap, contacts and session', async () => {
+test('the first pass withholds messaging controls until bootstrap, contacts and session are loaded', async () => {
   messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
   view = mount(React.createElement(Page));
 
   assert.equal(view.passes, 1);
-  assert.deepEqual(view.props('Messaging').conversations, []);
-  assert.equal(view.props('Messaging').emptyStateLabel, 'Chargement de la messagerie...');
-  assert.equal(view.props('Messaging').style, undefined);
+  assert.equal(view.find('Messaging').length, 0);
+  assert.match(view.text(), /Chargement de la messagerie/);
+  assert.equal(view.hostElements((props, text, tag) => tag === 'button' && text === 'Chargement en cours…')[0].props.disabled, true);
+  assert.doesNotMatch(view.text(), /Aucune conversation/);
   assert.match(view.html, /messages-app-root/);
   assert.match(view.html, /messages-main-inner/);
   assert.doesNotMatch(view.text(), /Équipe communication/);
 
-  const html = await view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation');
+  const html = await view.waitFor(() => view.find('Messaging').length > 0);
 
   assert.ok(upstream().includes('GET /conversations'));
   assert.ok(upstream().includes('GET /messaging/bootstrap'));
@@ -494,16 +495,159 @@ test('the sidebar keeps Settings as the only account entry', async () => {
   }
 });
 
-test('a bootstrap failure is rendered as an alert and the messaging stays empty', async () => {
+test('a bootstrap failure is unavailable, not an empty result, and has explicit retry without write controls', async () => {
   messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('BFF_UNAVAILABLE', 'La messagerie est en maintenance'), outOfContract: true });
   view = mount(React.createElement(Page));
 
   const html = await view.waitFor((current) => current.includes('role="alert"'));
 
   assert.match(html, /<p role="alert" class="messages-error">La messagerie est en maintenance<\/p>/);
-  await view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation');
-  assert.deepEqual(view.props('Messaging').conversations, []);
+  assert.equal(view.find('Messaging').length, 0);
+  assert.match(view.text(), /Messagerie indisponible/);
+  assert.doesNotMatch(view.text(), /Aucune conversation/);
+  assert.equal([...html.matchAll(/<button\b[^>]*>Réessayer<\/button>/g)].length, 1);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
   assert.doesNotMatch(view.text(), /Équipe communication/);
+});
+
+test('explicit bootstrap retries survive another refusal then use real returned data without reloading', async () => {
+  browser.setHidden(true);
+  messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true });
+  view = mount(React.createElement(Page));
+  await view.waitFor(html => html.includes('Lecture refusée'));
+  await view.click('Réessayer');
+  await view.waitFor(html => html.includes('Lecture refusée') && html.includes('Réessayer'));
+  assert.equal(messageBff.calls('/messaging/bootstrap').length, 2);
+  assert.equal(view.find('Messaging').length, 0);
+  messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+  await view.click('Réessayer');
+  await view.waitFor(() => view.find('Messaging').length > 0);
+  assert.equal(messageBff.calls('/messaging/bootstrap').length, 3);
+  assert.match(view.text(), /Bonjour à tous/);
+  assert.equal(view.props('Messaging').currentUserId, 'user-2');
+  assert.doesNotMatch(view.text(), /Lecture refusée|Réessayer|Messagerie indisponible/);
+  assert.equal(browser.window.location.reloads, 0);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+});
+
+test('a pending bootstrap retry rejects repeated callbacks before and after rendering', async () => {
+  browser.setHidden(true);
+  messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true });
+  view = mount(React.createElement(Page));
+  await view.waitFor(html => html.includes('Lecture refusée'));
+  const retry = view.hostElements((props, text, tag) => tag === 'button' && text === 'Réessayer')[0].props.onClick;
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  messageBff.on('get', '/messaging/bootstrap', async () => { await gate; return { body: bootstrap() }; });
+  try {
+    await view.act(() => { retry(); retry(); retry(); });
+    await view.waitFor(() => messageBff.calls('/messaging/bootstrap').length === 2);
+    assert.equal(view.find('Messaging').length, 0);
+    assert.match(view.html, /aria-busy="true"/);
+    const pending = view.hostElements((props, text, tag) => tag === 'button' && text === 'Chargement en cours…')[0];
+    assert.equal(pending.props.disabled, true);
+    await view.act(() => pending.props.onClick());
+    assert.equal(messageBff.calls('/messaging/bootstrap').length, 2);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+  } finally {
+    release();
+    await view.waitFor(() => view.find('Messaging').length > 0);
+  }
+  assert.equal(messageBff.calls('/messaging/bootstrap').length, 2);
+});
+
+test('a confirmed empty bootstrap is distinct from refusal and enables the normal messaging journey', async () => {
+  browser.setHidden(true);
+  const empty = { ...bootstrap(), conversations: [], messages: [], contacts: [], activeConversationId: '' };
+  messageBff.on('get', '/messaging/bootstrap', { body: empty });
+  messageBff.on('get', '/contacts', { body: { contacts: [] } });
+  view = mount(React.createElement(Page));
+  await view.waitFor(() => view.find('Messaging').length > 0);
+  assert.deepEqual(view.props('Messaging').conversations, []);
+  assert.deepEqual(view.props('Messaging').contacts, []);
+  assert.equal(view.props('Messaging').emptyStateLabel, 'Aucune conversation');
+  assert.equal(typeof view.props('Messaging').onCreateGroup, 'function');
+  assert.doesNotMatch(view.text(), /Messagerie indisponible|Réessayer/);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+});
+
+test('retry retains the requested authorized thread and bootstrap contacts when contacts are refused', async () => {
+  browser.setHidden(true);
+  browser.window.location.search = '?conversation=conversation-5';
+  messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true });
+  view = mount(React.createElement(Page));
+  await view.waitFor(html => html.includes('Lecture refusée'));
+  messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+  messageBff.on('get', '/contacts', { status: 401, body: apiError('UNAUTHORIZED', 'Contacts refusés') });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
+    messages: [message(7, 5, 'Message ciblé après reprise', users.sophie)],
+  } }));
+  await view.click('Réessayer');
+  await view.waitFor(() => view.find('Messaging').length > 0);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.match(view.text(), /Message ciblé après reprise/);
+  assert.deepEqual(view.props('Messaging').contacts.map(item => item.name), ['Sophie Leroy', 'Thomas Bernard']);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+});
+
+test('a disposed bootstrap completion and a saved retry callback do not update an unmounted page', async (t) => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  messageBff.on('get', '/messaging/bootstrap', async () => { await gate; return { body: bootstrap() }; });
+  const original = messageClient.getBootstrap;
+  let pending;
+  t.mock.method(messageClient, 'getBootstrap', () => { pending = original(); return pending; });
+  view = mount(React.createElement(Page));
+  await view.waitFor(() => messageBff.calls('/messaging/bootstrap').length === 1);
+  const retry = view.hostElements((props, text, tag) => tag === 'button' && text === 'Chargement en cours…')[0].props.onClick;
+  view.unmount();
+  const updates = t.mock.method(view, 'invalidate');
+  release();
+  await pending;
+  await new Promise(resolve => setImmediate(resolve));
+  retry();
+  assert.equal(updates.mock.callCount(), 0);
+  assert.equal(messageBff.calls('/messaging/bootstrap').length, 1);
+  assert.equal(messageBff.calls('/contacts').length, 0);
+});
+
+test('bootstrap effect cleanup and replay ignores the older response after the replacement succeeds', async (t) => {
+  browser.setHidden(true);
+  const originalEffect = React.useEffect;
+  let bootstrapEffect;
+  t.mock.method(React, 'useEffect', (effect, deps) => {
+    bootstrapEffect ??= effect; // Page registers its bootstrap effect before rendering children.
+    return originalEffect(effect, deps);
+  });
+  const releases = [];
+  messageBff.on('get', '/messaging/bootstrap', () => new Promise(resolve => { releases.push(resolve); }));
+  const original = messageClient.getBootstrap;
+  const pending = [];
+  t.mock.method(messageClient, 'getBootstrap', () => { const request = original(); pending.push(request); return request; });
+  view = mount(React.createElement(Page));
+  await view.waitFor(() => releases.length === 1);
+  // Replay only this effect lifecycle; this is not a full browser StrictMode test.
+  const bootstrapSlot = view.find('Page')[0].slots.find(slot => slot?.effect);
+  bootstrapSlot.cleanup();
+  const cleanup = bootstrapEffect();
+  try {
+    await view.waitFor(() => releases.length === 2);
+    const replacement = bootstrap();
+    replacement.messages[0].content = 'Réponse récente confirmée';
+    releases[1]({ body: replacement });
+    await view.waitFor(() => view.find('Messaging').length > 0);
+    releases[0]({ body: bootstrap() });
+    await Promise.all(pending);
+    await view.settle();
+    assert.match(view.text(), /Réponse récente confirmée/);
+    assert.doesNotMatch(view.text(), /Bonjour à tous/);
+    assert.equal(messageBff.calls('/contacts').length, 1);
+  } finally {
+    releases.forEach(release => release({ body: bootstrap() }));
+    cleanup();
+    await Promise.allSettled(pending);
+  }
 });
 
 test('selecting a conversation loads its messages and renders them', async () => {
