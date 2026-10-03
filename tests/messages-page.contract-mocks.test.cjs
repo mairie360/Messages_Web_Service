@@ -937,3 +937,180 @@ test('a confirmed numeric ID removes the last conversation and returns to the mo
   assert.match(view.text(), /Aucune conversation/);
   assert.doesNotMatch(view.text(), /Dernier message|Suppression de la conversation en cours/);
 });
+
+const fallbackThread = () => swappedModel({ body: {
+  conversation: conversation(5, 'Sophie Leroy', { kind: 'direct', unreadCount: 3 }),
+  messages: [message(20, 5, 'Historique officiel du fil suivant', users.sophie)],
+} });
+
+async function renderFallbackPage(body = bootstrap()) {
+  // This helper observes bootstrap before polling; the existing helper expects zero unread.
+  body.conversations[0].unreadCount = 0;
+  return renderLoadedPage(body);
+}
+
+test('a confirmed active deletion immediately loads the fallback thread without another poll', async () => {
+  browser.setHidden(true);
+  await renderFallbackPage();
+  messageBff.on('delete', '/conversations/{conversationId}', { body: { deleted: true, conversationId: 'conversation-4' } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
+  await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.match(view.text(), /Historique officiel du fil suivant/);
+  assert.doesNotMatch(view.text(), /Bonjour à tous/);
+  assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages').map(call => call.pathParams.conversationId), ['conversation-5']);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+  assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
+});
+
+for (const label of ['disappeared active thread', 'new first conversation']) {
+  test(`one visible refresh loads the ${label} fallback immediately`, async () => {
+    browser.setHidden(true);
+    const body = bootstrap();
+    if (label === 'new first conversation') {
+      body.conversations = [];
+      body.messages = [];
+      body.activeConversationId = '';
+    }
+    messageBff.on('get', '/messaging/bootstrap', { body });
+    view = mount(React.createElement(Page));
+    await view.waitFor(() => view.props('Header').user.name !== 'Chargement…' && view.props('Messaging').emptyStateLabel === 'Aucune conversation');
+    messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
+    messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
+    browser.setHidden(false);
+    await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
+    assert.equal(messageBff.calls('/conversations').length, 1, 'same refresh, not another ten-second interval');
+    assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 1);
+    assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+    assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
+    assert.doesNotMatch(view.text(), /Bonjour à tous/);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+  });
+}
+
+for (const mode of ['delete', 'sync']) {
+  test(`a refused ${mode} fallback read preserves known remaining messages and recovers on selection`, async () => {
+    browser.setHidden(true);
+    const body = bootstrap();
+    body.messages.push(message(19, 5, 'Historique déjà connu', users.sophie));
+    await renderFallbackPage(body);
+    messageBff.on('get', '/conversations/{conversationId}/messages', { status: 503, body: apiError('UNAVAILABLE', 'Historique momentanément indisponible'), outOfContract: true });
+    if (mode === 'delete') {
+      messageBff.on('delete', '/conversations/{conversationId}', { body: { deleted: true } });
+      await view.act(() => view.props('Messaging').onConversationDelete(body.conversations[0]));
+    } else {
+      messageBff.on('get', '/conversations', { body: { conversations: [body.conversations[1]] } });
+      browser.setHidden(false);
+    }
+    await view.waitFor(html => html.includes('role="alert"') && view.props('Messaging').activeConversationId === 'conversation-5');
+    assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+    assert.match(view.text(), /Historique déjà connu/);
+    assert.doesNotMatch(view.text(), /Bonjour à tous/);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 1);
+    messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
+    await view.act(() => view.props('Messaging').onConversationSelect(body.conversations[1]));
+    await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
+    assert.doesNotMatch(view.html, /role="alert"/);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 2);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+  });
+}
+
+test('a selected read carrying another conversation ID cannot resurrect a removed thread', async () => {
+  browser.setHidden(true);
+  await renderFallbackPage();
+  messageBff.on('delete', '/conversations/{conversationId}', { body: { deleted: true } });
+  // The default mock returns conversation-4 even though fallback requests conversation-5.
+  await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+  await view.waitFor(html => html.includes('role="alert"'));
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+  assert.doesNotMatch(view.text(), /Bonjour à tous/);
+});
+
+for (const outcome of ['success', 'refusal']) {
+  test(`a late fallback ${outcome} cannot replace a newer selected thread`, async () => {
+    browser.setHidden(true);
+    const body = bootstrap();
+    body.conversations.push(conversation(6, 'Troisième fil'));
+    await renderFallbackPage(body);
+    let release;
+    let responded = false;
+    const gate = new Promise(resolve => { release = resolve; });
+    messageBff.on('get', '/conversations', { body: { conversations: body.conversations.slice(1) } });
+    messageBff.on('get', '/conversations/{conversationId}/messages', async call => {
+      if (call.pathParams.conversationId === 'conversation-5') {
+        await gate;
+        responded = true;
+        return outcome === 'success' ? fallbackThread() : { status: 503, body: apiError('UNAVAILABLE', 'Refus tardif'), outOfContract: true };
+      }
+      return swappedModel({ body: { conversation: body.conversations[2], messages: [message(21, 6, 'Sélection plus récente', users.thomas)] } });
+    });
+    browser.setHidden(false);
+    try {
+      await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages').length === 1);
+      await view.act(() => view.props('Messaging').onConversationSelect(body.conversations[2]));
+      await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-21'));
+    } finally {
+      release();
+    }
+    await view.waitFor(() => responded);
+    assert.equal(view.props('Messaging').activeConversationId, 'conversation-6');
+    assert.match(view.text(), /Sélection plus récente/);
+    assert.doesNotMatch(view.html, /role="alert"/);
+    assert.equal(view.props('Messaging').messages.some(item => item.id === 'message-20'), false);
+  });
+}
+
+for (const action of ['send', 'delete']) {
+  test(`a fallback read cannot overwrite a newer confirmed ${action} in that thread`, async () => {
+    browser.setHidden(true);
+    const body = bootstrap();
+    body.conversations.push(conversation(6, 'Troisième fil'));
+    await renderFallbackPage(body);
+    let release;
+    let responded = false;
+    const gate = new Promise(resolve => { release = resolve; });
+    messageBff.on('delete', '/conversations/{conversationId}', call => ({ body: { deleted: true, conversationId: call.pathParams.conversationId } }));
+    messageBff.on('get', '/conversations/{conversationId}/messages', async call => {
+      if (call.pathParams.conversationId === 'conversation-5') {
+        await gate;
+        responded = true;
+        return fallbackThread();
+      }
+      return swappedModel({ body: { conversation: body.conversations[2], messages: [message(21, 6, 'Troisième historique officiel')] } });
+    });
+    await view.act(() => view.props('Messaging').onConversationDelete(body.conversations[0]));
+    try {
+      await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages').length === 1);
+      if (action === 'send') {
+        messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({ status: 201, body: {
+          conversation: body.conversations[1], message: message(22, 5, 'Nouvel envoi confirmé'),
+        } }));
+        await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-5', content: 'Nouvel envoi confirmé', attachments: [], mentions: [] }));
+      } else {
+        await view.act(() => view.props('Messaging').onConversationDelete(body.conversations[1]));
+        await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-21'));
+      }
+    } finally {
+      release();
+    }
+    await view.waitFor(() => responded);
+    assert.equal(view.props('Messaging').messages.some(item => item.id === 'message-20'), false);
+    assert.equal(view.props('Messaging').activeConversationId, action === 'send' ? 'conversation-5' : 'conversation-6');
+    assert.match(view.text(), action === 'send' ? /Nouvel envoi confirmé/ : /Troisième historique officiel/);
+  });
+}
+
+test('a mismatched fallback refresh reports the failure without restoring the vanished thread', async () => {
+  browser.setHidden(true);
+  await renderFallbackPage();
+  messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
+  // Default thread response is for the vanished conversation-4.
+  browser.setHidden(false);
+  await view.waitFor(html => html.includes('Sélectionnez-la de nouveau pour réessayer'));
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+  assert.doesNotMatch(view.text(), /Bonjour à tous/);
+});
