@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import { Messaging } from "@mairie360/lib-components";
 import { BffRequestError, messageClient, type CurrentUserDto, type MessageId } from "@/clients/messageClient";
@@ -63,6 +63,7 @@ export default function Page() {
   const [businessReferences, setBusinessReferences] =
     useState<MessagingBusinessReference[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [showConversationList, setShowConversationList] = useState(false);
@@ -72,6 +73,7 @@ export default function Page() {
   const mutationCountRef = useRef(0);
   const selectionLoadingRef = useRef<number | null>(null);
   const deletionPendingRef = useRef(false);
+  const bootstrapLifecycleRef = useRef({ mounted: false, generation: 0, pending: false });
   // Draft descriptors contain local object URLs, never BFF attachment IDs.
   // Weak keys allow removed files to be released without an explicit removal callback.
   const attachmentFilesRef = useRef(new WeakMap<DraftAttachment, File>());
@@ -84,77 +86,96 @@ export default function Page() {
     [messages, currentUser?.id, mentionOptions, businessReferences],
   );
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadBootstrap = useCallback(async () => {
+    const lifecycle = bootstrapLifecycleRef.current;
+    // The ref guards repeated commands before React can render the disabled button.
+    if (!lifecycle.mounted || lifecycle.pending) return;
+    lifecycle.pending = true;
+    const generation = ++lifecycle.generation;
+    const isCurrent = () => lifecycle.mounted && lifecycle.generation === generation;
+    try {
+      const bootstrap = await messageClient.getBootstrap();
 
-    async function loadBootstrap() {
-      setLoading(true);
-      setError(null);
+      if (!isCurrent()) return;
 
-      try {
-        const bootstrap = await messageClient.getBootstrap();
+      const firstConversationId = bootstrap.conversations[0]?.id ?? "";
+      const requestedConversationId = new URLSearchParams(window.location.search).get("conversation")?.trim();
+      let selectedId = bootstrap.activeConversationId ?? firstConversationId;
+      let initialConversations: MessagingConversation[] = bootstrap.conversations;
+      let initialMessages: MessagingMessage[] = bootstrap.messages;
 
-        if (!isMounted) return;
-
-        const firstConversationId = bootstrap.conversations[0]?.id ?? "";
-        const requestedConversationId = new URLSearchParams(window.location.search).get("conversation")?.trim();
-        let selectedId = bootstrap.activeConversationId ?? firstConversationId;
-        let initialConversations: MessagingConversation[] = bootstrap.conversations;
-        let initialMessages: MessagingMessage[] = bootstrap.messages;
-
-        if (requestedConversationId) {
-          try {
-            // The BFF decides whether this user may access the requested thread.
-            const thread = await messageClient.getConversationMessages(requestedConversationId);
-            if (!isMounted) return;
-            if (!idsMatch(thread.conversation.id, requestedConversationId)) {
-              throw new Error("La conversation demandée est indisponible.");
-            }
-            selectedId = thread.conversation.id;
-            initialConversations = upsertConversation(initialConversations, thread.conversation);
-            initialMessages = replaceConversationMessages(initialMessages, selectedId, thread.messages);
-          } catch {
-            if (!isMounted) return;
-            setError("La conversation demandée est introuvable ou inaccessible.");
-          }
-        }
-
-        setCurrentUser(bootstrap.currentUser);
-        setContacts(toMessagingContacts(bootstrap.contacts));
-        setConversations(initialConversations);
-        setMessages(initialMessages);
-        activeConversationRef.current = selectedId;
-        setActiveConversationId(selectedId);
-        setShowConversationList(selectedId === "");
-
-        // Load contacts independently so the recipient menu does not depend
-        // on the modal opening timing or on the conversation list.
+      if (requestedConversationId) {
         try {
-          const contactsResponse = await messageClient.getContacts();
-          if (isMounted) {
-            setContacts(toMessagingContacts(contactsResponse.contacts));
+          // The BFF decides whether this user may access the requested thread.
+          const thread = await messageClient.getConversationMessages(requestedConversationId);
+          if (!isCurrent()) return;
+          if (!idsMatch(thread.conversation.id, requestedConversationId)) {
+            throw new Error("La conversation demandée est indisponible.");
           }
+          selectedId = thread.conversation.id;
+          initialConversations = upsertConversation(initialConversations, thread.conversation);
+          initialMessages = replaceConversationMessages(initialMessages, selectedId, thread.messages);
         } catch {
-          // Bootstrap contacts remain available as a fallback.
+          if (!isCurrent()) return;
+          setError("La conversation demandée est introuvable ou inaccessible.");
         }
-      } catch (loadError) {
-        if (!isMounted) return;
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "La messagerie est indisponible.",
-        );
-      } finally {
-        if (isMounted) setLoading(false);
+      }
+
+      setCurrentUser(bootstrap.currentUser);
+      setContacts(toMessagingContacts(bootstrap.contacts));
+      setConversations(initialConversations);
+      setMessages(initialMessages);
+      activeConversationRef.current = selectedId;
+      setActiveConversationId(selectedId);
+      setShowConversationList(selectedId === "");
+
+      // Load contacts independently so the recipient menu does not depend
+      // on the modal opening timing or on the conversation list.
+      try {
+        const contactsResponse = await messageClient.getContacts();
+        if (isCurrent()) {
+          setContacts(toMessagingContacts(contactsResponse.contacts));
+        }
+      } catch {
+        // Bootstrap contacts remain available as a fallback.
+      }
+    } catch (loadError) {
+      if (!isCurrent()) return;
+      setBootstrapError(
+        loadError instanceof Error
+          ? loadError.message
+          : "La messagerie est indisponible.",
+      );
+    } finally {
+      if (isCurrent()) {
+        lifecycle.pending = false;
+        setLoading(false);
       }
     }
+  }, []);
 
+  const retryBootstrap = () => {
+    const lifecycle = bootstrapLifecycleRef.current;
+    if (!lifecycle.mounted || lifecycle.pending) return;
+    setLoading(true);
+    setBootstrapError(null);
+    setError(null);
+    void loadBootstrap();
+  };
+
+  useEffect(() => {
+    const lifecycle = bootstrapLifecycleRef.current;
+    lifecycle.mounted = true;
     void loadBootstrap();
 
     return () => {
-      isMounted = false;
+      // The existing client has no AbortSignal parameter. Ignore disposed responses
+      // rather than claiming transport cancellation or changing the client contract.
+      lifecycle.mounted = false;
+      lifecycle.generation += 1;
+      lifecycle.pending = false;
     };
-  }, []);
+  }, [loadBootstrap]);
 
   useEffect(() => {
     let disposed = false;
@@ -486,60 +507,88 @@ export default function Page() {
   return (
     <AppShell activeItem="messages">
       <div className="messages-module-stack">
-        {deletingConversation && (
-          <p role="status" className="messages-operation-status">
-            Suppression de la conversation en cours…
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="messages-error">
-            {error}
-          </p>
-        )}
-        {syncError && (
-          <p role="alert" className="messages-error">
-            {syncError}
-          </p>
-        )}
+        {loading || !currentUser ? (
+          <section
+            aria-labelledby="messages-bootstrap-title"
+            aria-busy={loading}
+            className="min-h-0 overflow-y-auto rounded-lg bg-white p-6 shadow-sm"
+          >
+            <h1 id="messages-bootstrap-title" className="text-xl font-semibold">
+              {loading ? "Chargement de la messagerie" : "Messagerie indisponible"}
+            </h1>
+            {bootstrapError ? (
+              <p role="alert" className="messages-error">{bootstrapError}</p>
+            ) : null}
+            <p role="status" className="my-4">
+              {loading
+                ? "Les conversations sont en cours de chargement."
+                : "Les conversations n’ont pas pu être chargées. Vous pouvez réessayer."}
+            </p>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={retryBootstrap}
+              className="rounded-md bg-gray-900 px-4 py-2 text-white disabled:cursor-wait disabled:opacity-60"
+            >
+              {loading ? "Chargement en cours…" : "Réessayer"}
+            </button>
+          </section>
+        ) : (
+          <>
+            {deletingConversation && (
+              <p role="status" className="messages-operation-status">
+                Suppression de la conversation en cours…
+              </p>
+            )}
+            {error && (
+              <p role="alert" className="messages-error">
+                {error}
+              </p>
+            )}
+            {syncError && (
+              <p role="alert" className="messages-error">
+                {syncError}
+              </p>
+            )}
 
-        {activeConversationId && (
-          <MobileConversationSwitch
-            showConversationList={showConversationList}
-            onToggle={() => setShowConversationList((current) => !current)}
-          />
+            {activeConversationId && (
+              <MobileConversationSwitch
+                showConversationList={showConversationList}
+                onToggle={() => setShowConversationList((current) => !current)}
+              />
+            )}
+            <div
+              className={`messages-module-frame${showConversationList ? " messages-list-open" : ""}`}
+              ref={prepareMessagingScrollRegions}
+            >
+              <Messaging
+                conversations={displayedConversations}
+                contacts={contacts}
+                messages={displayedMessages}
+                mentionOptions={mentionOptions}
+                businessReferences={businessReferences}
+                activeConversationId={activeConversationId}
+                currentUserId={toMessagingUserId(currentUser?.id)}
+                emptyStateLabel="Aucune conversation"
+                onConversationSelect={(conversation) =>
+                  void loadConversationMessages(conversation.id)
+                }
+                onNewMessageClick={() => void loadContacts()}
+                onCreateGroupClick={() => void loadContacts()}
+                onSendMessage={handleSendMessage}
+                onAttach={(files, attachments) => {
+                  attachments.forEach((attachment, index) => {
+                    if (files[index]) attachmentFilesRef.current.set(attachment, files[index]);
+                  });
+                }}
+                onNewMessageSend={handleNewMessageSend}
+                onCreateGroup={handleCreateGroup}
+                onConversationDelete={deletingConversation ? undefined : handleConversationDelete}
+                className="messages-module"
+              />
+            </div>
+          </>
         )}
-        <div
-          className={`messages-module-frame${showConversationList ? " messages-list-open" : ""}`}
-          ref={prepareMessagingScrollRegions}
-        >
-          <Messaging
-            conversations={displayedConversations}
-            contacts={contacts}
-            messages={displayedMessages}
-            mentionOptions={mentionOptions}
-            businessReferences={businessReferences}
-            activeConversationId={activeConversationId}
-            currentUserId={toMessagingUserId(currentUser?.id)}
-            emptyStateLabel={
-              loading ? "Chargement de la messagerie..." : "Aucune conversation"
-            }
-            onConversationSelect={(conversation) =>
-              void loadConversationMessages(conversation.id)
-            }
-            onNewMessageClick={() => void loadContacts()}
-            onCreateGroupClick={() => void loadContacts()}
-            onSendMessage={handleSendMessage}
-            onAttach={(files, attachments) => {
-              attachments.forEach((attachment, index) => {
-                if (files[index]) attachmentFilesRef.current.set(attachment, files[index]);
-              });
-            }}
-            onNewMessageSend={handleNewMessageSend}
-            onCreateGroup={handleCreateGroup}
-            onConversationDelete={deletingConversation ? undefined : handleConversationDelete}
-            className="messages-module"
-          />
-        </div>
       </div>
     </AppShell>
   );
