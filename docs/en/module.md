@@ -37,7 +37,10 @@ visible at a time and preserves the unsent draft when switching panes.
 
 The message panel uses the reference's full available width without a desktop
 maximum-width cap. Outer spacing is 20px from 768px upward and 10px below that
-breakpoint; the panel keeps the reference two-layer card shadow. These frontend
+breakpoint; the panel keeps the reference two-layer card shadow. The stack does
+not clip that outer shadow; viewport and message-content clipping remain in
+their own containers. From 1024px the conversation column is 300px, as in the
+reference. Below that width the full-height pane switch is retained. These frontend
 styles preserve bounded scrolling, pane switching and always reachable composer
 controls; they do not add simulated notifications, identity or business data.
 

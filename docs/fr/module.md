@@ -40,7 +40,11 @@ conserve le brouillon non envoyé lors du changement de panneau.
 
 Le panneau utilise toute la largeur disponible comme la référence, sans plafond
 sur grand écran. Les marges extérieures sont de 20px à partir de 768px et de 10px
-en dessous ; le panneau conserve l’ombre à deux couches de la référence. Ces
+en dessous ; le panneau conserve l’ombre à deux couches de la référence. Le
+conteneur intermédiaire ne coupe pas cette ombre extérieure ; le viewport et
+le contenu du fil restent bornés dans leurs propres conteneurs. La colonne des
+conversations mesure 300px à partir de 1024px, comme dans la référence. En dessous,
+la bascule entre panneaux pleine hauteur est conservée. Ces
 styles frontend préservent les scrolls bornés, la bascule et les contrôles de
 rédaction accessibles, sans simuler notification, identité ou donnée métier.
 

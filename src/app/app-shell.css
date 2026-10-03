@@ -71,7 +71,15 @@ html body {
   flex: 1;
   flex-direction: column;
   gap: 12px;
-  overflow: hidden;
+  /* The module clips its own content; clipping this same-size stack also
+     hides the card's outer shadow. The padded main bounds the viewport. */
+  overflow: visible;
+}
+
+@media (min-width: 1024px) {
+  .messages-module-frame > .messages-module {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
 }
 
 .messages-pane-switch {
