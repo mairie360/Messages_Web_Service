@@ -19,6 +19,7 @@ import {
 } from "@/lib/messaging-state";
 import { AppShell } from "./_components/app-shell";
 import { prepareMessagingScrollRegions } from "./_components/messaging-scroll-regions";
+import { manageMessagingModalFocus } from "./_components/messaging-modal-focus";
 import { presentConversationTimestamps, presentMessageTimestamps } from "@/lib/message-timestamps";
 import { buildMessageMentionOptions, presentMessageAuthors } from "@/lib/message-authors";
 
@@ -54,6 +55,10 @@ function MobileConversationSwitch({
 }
 
 export default function Page() {
+  const moduleRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (moduleRef.current) return manageMessagingModalFocus(moduleRef.current);
+  }, []);
   const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
   const [activeConversationId, setActiveConversationId] =
     useState<MessagingContactId>("");
@@ -485,7 +490,7 @@ export default function Page() {
 
   return (
     <AppShell activeItem="messages">
-      <div className="messages-module-stack">
+      <div className="messages-module-stack" ref={moduleRef}>
         {deletingConversation && (
           <p role="status" className="messages-operation-status">
             Suppression de la conversation en cours…
