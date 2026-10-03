@@ -153,6 +153,7 @@ export default function Page() {
 
     return () => {
       isMounted = false;
+      selectionLoadingRef.current = null;
     };
   }, []);
 
@@ -206,9 +207,23 @@ export default function Page() {
         const selectedExists = selectedId !== "" && list.conversations.some((conversation: MessagingConversation) =>
           idsMatch(conversation.id, selectedId),
         );
-        const thread = selectedExists
-          ? await messageClient.getConversationMessages(selectedId)
-          : null;
+        const nextId = selectedExists ? selectedId : list.conversations[0]?.id ?? "";
+        let thread: Awaited<ReturnType<typeof messageClient.getConversationMessages>> | null = null;
+        let fallbackReadFailed = false;
+        if (nextId !== "") {
+          try {
+            thread = await messageClient.getConversationMessages(nextId);
+            if (!idsMatch(thread.conversation.id, nextId)) {
+              throw new Error("Les messages reçus ne correspondent pas à la conversation sélectionnée.");
+            }
+          } catch (readError) {
+            // A failed read of a still-existing thread preserves the previous view.
+            // A confirmed disappearance must not resurrect it when its replacement fails.
+            if (selectedExists) throw readError;
+            thread = null;
+            fallbackReadFailed = true;
+          }
+        }
         if (disposed || !pageIsVisible() || revisionRef.current !== revision ||
             mutationCountRef.current > 0 || selectionLoadingRef.current !== null ||
             !idsMatch(activeConversationRef.current, selectedId)) return;
@@ -216,18 +231,21 @@ export default function Page() {
         setConversations(list.conversations);
         if (thread) {
           setMessages((current) =>
-            replaceConversationMessages(current, selectedId, thread.messages),
+            replaceConversationMessages(current, nextId, thread.messages),
           );
-        } else if (selectedId !== "" && !selectedExists) {
-          const fallbackId = list.conversations[0]?.id ?? "";
-          activeConversationRef.current = fallbackId;
+        }
+        if (!idsMatch(nextId, selectedId)) {
+          activeConversationRef.current = nextId;
           revisionRef.current += 1;
-          setActiveConversationId(fallbackId);
+          setActiveConversationId(nextId);
           setMessages((current) => current.filter((message) =>
             !idsMatch(message.conversationId, selectedId),
           ));
+          if (nextId === "") setShowConversationList(true);
         }
-        if (!disposed) setSyncError(null);
+        if (!disposed) setSyncError(fallbackReadFailed
+          ? "Les messages de la conversation sélectionnée sont momentanément indisponibles. Sélectionnez-la de nouveau pour réessayer."
+          : null);
       } catch {
         if (!disposed && revisionRef.current === revision && pageIsVisible()) {
           setSyncError("La synchronisation des conversations est momentanément indisponible.");
@@ -286,6 +304,9 @@ export default function Page() {
       const response = await messageClient.getConversationMessages(conversationId);
       if (selectionLoadingRef.current !== revision ||
           !idsMatch(activeConversationRef.current, conversationId)) return;
+      if (!idsMatch(response.conversation.id, conversationId)) {
+        throw new Error("Les messages reçus ne correspondent pas à la conversation sélectionnée. Réessayez.");
+      }
 
       setConversations((currentConversations) =>
         upsertConversation(currentConversations, response.conversation),
@@ -298,6 +319,7 @@ export default function Page() {
         ),
       );
       setShowConversationList(false);
+      setSyncError(null);
     } catch (loadError) {
       if (selectionLoadingRef.current === revision) setError(
         loadError instanceof Error
@@ -459,6 +481,7 @@ export default function Page() {
           activeConversationRef.current = fallbackId;
           setActiveConversationId(fallbackId);
           if (!fallbackId) setShowConversationList(true);
+          else void loadConversationMessages(fallbackId);
         }
         setConversations((currentConversations) => currentConversations.filter(
           (conversation) => !idsMatch(conversation.id, conversationToDelete.id),
