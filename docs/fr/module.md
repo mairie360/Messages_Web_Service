@@ -90,6 +90,15 @@ Conversations et messages passent par Message API. Les contacts proviennent dire
 
 ## Périmètre et limites
 
+Le CSS ciblé du consommateur Messages restitue l'ombre de sidebar et les boutons
+de navigation d'au moins44px de la référence, sans copier la navigation ni changer
+l'AppShell publié. Dans le tiroir mobile, la sidebar reste sous son bouton Fermer
+au lieu d'hériter de l'empilement desktop. La bascule pleine hauteur conserve une
+rangée de48px plutôt que l'ancienne liste empilée. La recette des sources anciennes
+utilise le runtime Next16/UI disponible : elle ne certifie pas l'installation
+d'origine. Version, identité et notifications fictives ne sont pas réintroduites.
+L'empilement de l'ombre du header et la parité globale du shell restent distincts.
+
 Le consommateur composé dispose d'une recette native en vrai390×844 : reprise
 initiale au clavier, bascule des panneaux, focus des deux dialogues de création,
 navigation mobile, réception2s sans chevauchement, disparition confirmée/reprise

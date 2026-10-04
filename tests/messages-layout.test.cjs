@@ -27,6 +27,19 @@ test('the messaging shell stays bounded to the dynamic viewport', () => {
   assert.match(rule('.messages-app-root > .flex > .flex > main'), /display: flex;[\s\S]*min-height: 0;[\s\S]*overflow: hidden;/);
 });
 
+test('shared sidebar retains the reference navigation rhythm and outer shadow', () => {
+  const sidebar = rule('.messages-app-root [aria-label="Navigation principale"]');
+  assert.match(sidebar, /position: relative;/);
+  assert.match(sidebar, /z-index: 20;/);
+  assert.match(sidebar, /box-shadow: 8px 0 24px rgb\(12 28 48 \/ 28%\);/);
+  const buttons = rule('.messages-app-root [aria-label="Navigation principale"] nav button');
+  assert.match(buttons, /flex-shrink: 0;/);
+  assert.match(buttons, /min-height: 44px;/);
+  // The drawer close button is z-10 in the published shell. The desktop z-20
+  // sidebar must not cover that control when rendered inside the mobile drawer.
+  assert.match(rule('.messages-app-root [aria-label="Navigation mobile"] [aria-label="Navigation principale"]'), /z-index: 0;/);
+});
+
 test('the messaging panel fills the reference space and retains its card shadow', () => {
   assert.match(rule('.messages-app-root > .flex > .flex > main'), /padding: 20px;/);
   assert.match(rule('.messages-main-inner'), /width: 100%;[\s\S]*max-width: none;/);

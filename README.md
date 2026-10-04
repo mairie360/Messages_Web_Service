@@ -42,6 +42,47 @@ clients, bibliothèque partagée et déploiements ne changent pas.
 
 `BACKEND.md`, lorsqu’il est présent, contient des besoins backend proposés; consulter les guides et le contrat OpenAPI versionné pour identifier le comportement actuel.
 
+## Reference sidebar presentation (MAIR-180, #201)
+
+Paired old-source/candidate QA found 42px navigation buttons and no sidebar
+shadow in the consumer, versus the preserved reference's minimum44px and
+`8px 0 24px rgb(12 28 48 / 28%)`. Scoped consumer CSS restores these two details
+with the reference positioning/stacking and a structural regression that fails
+before the correction. The mobile drawer sidebar has a separate lower stacking
+level to keep the published Close button visible and pointer-accessible; desktop
+z-20 must not cover the drawer's z-10 control. The published AppShell and runtime routes stay
+unchanged; no local sidebar copy, fake footer version or business data is added.
+
+The mobile list/thread switch remains intentionally full-height, consuming48px
+outside the panel rather than reverting to the old cramped stacked list. The
+old-source QA runtime is rebuilt on available Next16.3.6/UI0.6.10: it does not
+certify the original Next15 installation, deployed authentication or persistence.
+Its disposable ancillary identity/preferences/notification replies do not ship.
+Header-shadow layering, shared recipient draft isolation and actual-head CI/main
+integration/local snapshot acceptance remain distinct open checks.
+
+Final-source verification: 210 Node tests pass with coverage91.49/94.20/96.23%
+and unchanged60% gates; contract0.4.0, TypeScript, lint (one inherited warning)
+and production webpack build pass. One-worker/768MiB build settings are temporary
+and restored exactly. Genuine390/640/767/768/1280/1920 measurements show no document
+overflow and preserve the panel dimensions. Native390px search, selected official
+thread, unsent draft/pane switching, both creation forms and drawer focus/close
+pass. The final drawer Close button is visible, hit-testable and closes on click;
+Escape returns focus. Console warn/error is empty before shutdown, no overlay.
+Final-source fixture ledger84GET/zero writes/zero violations under the existing
+explicit thread-operation/model exception; earlier intermediate runs are distinct.
+No native send/upload/delete/group submission or deployed persistence is inferred.
+
+Le consommateur retrouve l'ombre de sidebar et les boutons de44px de la référence
+par CSS/test ciblés, sans dupliquer la navigation ni modifier la bibliothèque,
+les API/BFF ou les contrats. La rangée mobile de48px est volontairement conservée.
+L'ancienne version locale et ses données restent intactes ; pas de version ou
+notification fictive publiée, ni certification de droits/persistance déployés.
+La recette finale confirme210tests, build/TS/contrat/lint, les six largeurs sans
+débordement, recherche/fil reçu/brouillon, dialogues et bouton Fermer mobile visible
+et cliquable.84GET, aucune écriture ni violation dans l'exception de contrat déjà
+déclarée ; console vide avant arrêt. Pas de validation des écritures déployées.
+
 ## Reference reception cadence (MAIR-212)
 
 Conversation lists and the active thread refresh every two seconds while the

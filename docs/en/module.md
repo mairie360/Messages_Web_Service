@@ -92,6 +92,16 @@ Conversations and messages use Message API. Contacts are read directly from the 
 
 ## Scope and limitations
 
+The Messages consumer restores the preserved reference sidebar shadow and 44px
+minimum navigation-button height using scoped CSS, without copying navigation
+or changing the published AppShell. Inside the mobile drawer, the sidebar stays
+below its published Close button instead of inheriting the desktop stacking level.
+The mobile full-height list/thread switch
+intentionally adds a 48px control row instead of restoring the old stacked list.
+Reference-source QA uses the available Next16/UI runtime, not a certification of
+the original installation. Fake version, identity and notification data are not
+restored. Header-shadow layering and global shell parity remain separate checks.
+
 The composed consumer has genuine390×844 native evidence for keyboard bootstrap
 recovery, pane switching, both creation-dialog focus lifecycles, mobile navigation,
 two-second non-overlapping reception, confirmed disappearance/read recovery and
