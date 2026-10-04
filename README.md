@@ -106,3 +106,27 @@ DTOs. The known operation/model mismatch for thread responses is explicitly
 recorded by the existing test harness, not hidden as deployed-service validation.
 Persistent read acknowledgement remains outside this frontend correction and
 blocked under MAIR-269; MAIR-212 / issue #144 must remain open for that acceptance.
+
+## Messaging dialog keyboard focus (MAIR-318)
+
+The Messages consumer supplies focus lifecycle for the published New message and
+Create group dialogs: initial focus, Tab/Shift+Tab containment, Escape through
+the existing enabled Close button, and return to the opener. Disabled, hidden,
+inert and unrendered controls are excluded. Observers/listeners are cleaned up.
+No library override, BFF/API, contract, client, proxy or authentication change is
+required. The pending Close guard remains owned by the published component.
+
+Tracking: [MAIR-318](https://mairie-360.atlassian.net/browse/MAIR-318),
+[Messages #212](https://github.com/mairie360/Messages_Web_Service/issues/212).
+The issue must remain open until exact-head CI, integration and a refreshed
+local-main verification are complete. This is not global RGAA certification.
+
+Validation: ten controller tests with DOM doubles, plus native production-build
+QA at 1280x720 and 390x844 with the published UI 0.6.8. Both dialogs, contact
+filtering/selection, draft editing, button validation, focus loops and Escape
+return were exercised. The temporary HTTP fixture made GET requests only; real
+POST pending/refusal/confirmation is not claimed. Unit tests cover the disabled
+Close guard. Production configuration, dependencies and demo data are unchanged.
+
+Separate known gap: the composer draft can follow the user from conversation A
+to B. That recipient-isolation issue is not resolved by this focus change.
