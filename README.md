@@ -85,3 +85,24 @@ Packaging tests do not prove a complete application image or deployed UI:
 issue #205 remains open until applicable CI, integration, full image verification
 and the exact compiled local snapshot are evidenced. Functional issues #176,
 #149, #144 and #139 stay distinct; PR #140 is explicitly excluded.
+
+## Conversation fallback recovery
+
+A confirmed deletion of the selected conversation immediately reads the remaining
+selected thread through the existing message operation. Visible synchronization
+also reads the replacement thread in the same cycle when the active conversation
+disappears, or when a first conversation arrives in a previously empty list.
+It does not wait for another two-second interval to make that thread usable.
+
+A refused replacement read retains any previously confirmed messages in the
+remaining thread, reports the failure and permits recovery by selecting that
+conversation again. A confirmed disappearance is not undone by a read refusal.
+Responses for another ID, an earlier selection, or a read started before a
+confirmed send/deletion cannot replace newer state. Unread counts remain those
+supplied by the service; this recovery never acknowledges messages as read.
+
+The page tests cover these paths using isolated HTTP fixtures and the published
+DTOs. The known operation/model mismatch for thread responses is explicitly
+recorded by the existing test harness, not hidden as deployed-service validation.
+Persistent read acknowledgement remains outside this frontend correction and
+blocked under MAIR-269; MAIR-212 / issue #144 must remain open for that acceptance.
