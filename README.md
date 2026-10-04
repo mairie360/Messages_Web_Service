@@ -160,3 +160,55 @@ No acknowledgement, new business protocol or reference fixture ships. Historical
 isolated proofs are not a new composed visual or deployment certification.
 Only successful applicable actual-head CI allows integration; issues and Jira
 remain open until their own remaining criteria and exact main/local validation.
+
+### Composed mobile verification — 4 October 2026
+
+The exact composed source at 0ae9f0c was exercised with the published UI 0.6.10
+in a genuinely measured **390×844** integrated-browser viewport (document390).
+Initial refusal stays distinct from empty data; keyboard Retry announces pending
+and reveals only the received conversations after confirmation. On mobile, the
+full-height pane switch keeps the unsent draft. Both New message and Create group
+dialogs opened after recovery enter Close, wrap Shift+Tab/Tab, close through Escape
+and restore their own opener. The mobile navigation drawer also contains focus
+and returns it to its trigger. There is no document overflow or framework overlay.
+
+After confirmed disappearance of the selected conversation, the candidate selects
+the remaining thread immediately and exposes a read refusal without restoring the
+removed conversation. Keyboard reselection after recovery shows the official
+thread; a confirmed empty list removes the selection/composer. The service's unread
+count remains three, never simulated as zero. The draft moving from one recipient
+to another is reproduced, **not fixed**: library #407 remains separate and no send
+was attempted. Native send/upload/delete/group-submit pending acceptance is not
+inferred from these GET-only interactions.
+
+Two distinct fixture sessions recorded 15 GET and 198 GET, no writes or read
+acknowledgement, maximum concurrent list reads one. The first session ended when
+its server stopped; its later synchronization error is not a successful fault
+recipe. The second completed 136 list cycles: ordinary intervals1995–2003ms,
+one restart transition1910ms and one deliberately slow read producing5999ms between
+starts. Its final confirmed-empty UI and console were checked before shutdown.
+Both ledgers have no HTTP/DTO violations **under the existing explicit published
+thread-operation/model exception and declared disposable503 replies**, not strict
+operation-schema or deployed authentication/persistence certification.
+
+81 real-page/focus/scroll regressions were rerun successfully. The older209-test
+and desktop build evidence retains its original revision; this new recipe does
+not certify all widths, all routes/RGAA or live authorization. The first screenshot
+taken immediately after resizing still has desktop capture dimensions and is not
+mobile proof; subsequent pending/dialog/refusal/recovery/empty captures are390×844.
+The first reference source's two-second timer, visibility and revision guards were
+re-read unchanged. Its simulated acknowledgement/zero-count behavior is not copied;
+fresh paired old-source native comparison remains separate from this candidate-only
+recipe. No API/BFF, client/proxy/contract/auth, library source, dependency, policy,
+demo data, deployment approval or cluster pin changes. Own servers are stopped.
+
+La recette du candidat composé est désormais observée en **vrai390×844** : reprise
+du bootstrap au clavier, bascule des panneaux/brouillon, deux dialogues et tiroir
+au clavier, disparition confirmée/reprise du fil puis liste vide. Les deux sessions
+15GET/198GET sont distinctes et sans écriture ; les exceptions de contrat restent
+explicites. Le brouillon passant d'un destinataire à l'autre reste le défaut407,
+aucun envoi réalisé. La première capture redimensionnée et l'erreur après arrêt
+ne valent pas preuve mobile/réussite. L'ancien code conserve sa cadence2s ; pas de
+nouvelle comparaison native appariée ni persistance simulée copiée. CI réellement
+verte, intégration main et recette exacte de local-current restent requises avant
+clôture ; aucune API/BFF ou donnée de démonstration publiée.

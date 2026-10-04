@@ -90,6 +90,14 @@ Conversations et messages passent par Message API. Les contacts proviennent dire
 
 ## Périmètre et limites
 
+Le consommateur composé dispose d'une recette native en vrai390×844 : reprise
+initiale au clavier, bascule des panneaux, focus des deux dialogues de création,
+navigation mobile, réception2s sans chevauchement, disparition confirmée/reprise
+du fil et liste vide confirmée. La recette n'effectue que des GET : elle ne valide
+pas les écritures. Le défaut distinct407 d'isolation du brouillon par destinataire
+est reproduit sans envoi. Voir le README pour sessions et limites exactes ; cette
+vérification du candidat n'est pas une nouvelle paire avec l'ancien ni un test déployé.
+
 Le contrat installé0.4.0 et les fixtures isolées ne prouvent ni stockage binaire
 durable, ni acquittement persistant, ni droits déployés. L'acquittement amont actuel
 est refusé ; le front ne l'appelle pas et n'invente pas de compteur nul. Download/
