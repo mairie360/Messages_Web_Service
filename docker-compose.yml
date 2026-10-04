@@ -129,7 +129,7 @@ services:
       context: .
       dockerfile: development.Dockerfile
       secrets:
-        - NODE_AUTH_TOKEN
+        - node_auth_token
     # `npm run dev` écoute sur 5003 (`next dev -p 5003`).
     ports:
       - "5003:5003"
@@ -154,5 +154,5 @@ services:
       retries: 3
 
 secrets:
-  NODE_AUTH_TOKEN:
+  node_auth_token:
     environment: NODE_AUTH_TOKEN

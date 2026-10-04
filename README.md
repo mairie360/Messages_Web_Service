@@ -43,3 +43,28 @@ Tracking: [MAIR-212](https://mairie-360.atlassian.net/browse/MAIR-212) and
 Cadence, slow-read deduplication, unsent draft preservation, hidden-tab polling
 and teardown are covered by real-page HTTP-contract-backed regressions.
 Integration and exact-head CI remain required before declaring delivery.
+
+## Image packaging / Packaging des images (MAIR-436, #205)
+
+Production/development images and consumer CI use Node 24.21.0; official images
+are pinned by digest. The existing `NODE_AUTH_TOKEN` is provided as the required
+BuildKit secret `node_auth_token` only during `npm ci`. The committed `.npmrc` is
+mounted read-only for that step: registry, release-age policy and lock stay
+unchanged. All three Compose frontend builds use that secret, never a build
+argument or runtime credential. Production retains non-root Node/curl, standalone
+assets and port 5003; development retains `npm run dev`.
+
+Les images production/développement et la CI utilisent Node 24.21.0, avec digest
+officiel épinglé. Le jeton existant n’est disponible que pendant `npm ci` via le
+secret BuildKit requis `node_auth_token`, avec politique npm montée en lecture
+seule. Aucun autre service Compose, comportement métier, API/BFF, contrat,
+dépendance ou droit n’est modifié. Le runtime reste non-root sur le port 5003.
+
+The exact legacy required security status runs real blocking Semgrep/Gitleaks
+using reviewed immutable shared actions; the reusable 4.0.2 audit stays enabled.
+No protection, scan threshold or deployment gate is weakened. Global permissions,
+push filtering and dependency criteria remain separate open MAIR-436 work.
+Packaging tests do not prove a complete application image or deployed UI:
+issue #205 remains open until applicable CI, integration, full image verification
+and the exact compiled local snapshot are evidenced. Functional issues #176,
+#149, #144 and #139 stay distinct; PR #140 is explicitly excluded.
