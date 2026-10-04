@@ -15,6 +15,23 @@ The guides describe the implemented module, its current limitations, local setup
 
 Les guides décrivent le module implémenté, ses limites actuelles, le démarrage local, les routes, les données, les vérifications et la CI/CD.
 
+## Initial loading recovery / Reprise du chargement initial (MAIR-457, #207)
+
+Initial loading and refusal are separate from a confirmed empty conversation list.
+Messaging write controls appear only after the existing bootstrap completes. An
+explicit Retry repeats that read without reloading, prevents overlapping commands,
+and retains the existing deep-link and contact-fallback behavior. Disposed or older
+responses are ignored logically: the unchanged client does not support transport
+cancellation. No acknowledgement or write is performed by recovery.
+
+L’attente et le refus initial ne sont pas présentés comme une liste vide confirmée.
+Réessayer relance la lecture existante sans recharger la page ni envoyer d’écriture.
+La commande indique l’attente et bloque les doublons ; les liens directs et le
+repli des contacts restent conservés. Les réponses anciennes/après démontage sont
+ignorées, sans prétendre annuler le transport. Tests et fixtures restent isolés ;
+ils ne prouvent ni authentification ni persistance déployées. API/BFF, contrats,
+clients, bibliothèque partagée et déploiements ne changent pas.
+
 ## Contracts and background / Contrats et compléments
 
 - [BFF.md](BFF.md)
