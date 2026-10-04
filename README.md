@@ -106,3 +106,19 @@ DTOs. The known operation/model mismatch for thread responses is explicitly
 recorded by the existing test harness, not hidden as deployed-service validation.
 Persistent read acknowledgement remains outside this frontend correction and
 blocked under MAIR-269; MAIR-212 / issue #144 must remain open for that acceptance.
+
+## Shared UI alignment / Alignement UI partagé — MAIR-180
+
+This consumer pins the published `@mairie360/lib-components@0.6.10`, including
+its exact download URL and SHA512 integrity. Only the shared UI entry changes
+in the lockfile; all other dependencies and security policies are preserved.
+Tracking: [MAIR-180](https://mairie-360.atlassian.net/browse/MAIR-180) and
+[cross-frontend issue](https://github.com/mairie360/Login_Web_Service/issues/142).
+Login stays standalone without header/sidebar/footer; authenticated module
+shells and the existing Elearning confirmation/rating features are preserved.
+No API/BFF, contract, runtime configuration, demo data or deployment approval change.
+
+Le pin exact et l'intégrité du package publié sont alignés sur Elearning sans
+le rétrograder. Les tests de release vérifient le manifeste, le lockfile et le
+vrai package installé. Une validation isolée ne remplace pas la CI verte,
+l'intégration des sept consommateurs et la recette de la copie locale livrée.
