@@ -92,6 +92,14 @@ Conversations and messages use Message API. Contacts are read directly from the 
 
 ## Scope and limitations
 
+The composed consumer has genuine390×844 native evidence for keyboard bootstrap
+recovery, pane switching, both creation-dialog focus lifecycles, mobile navigation,
+two-second non-overlapping reception, confirmed disappearance/read recovery and
+confirmed empty data. The recipe makes GET requests only; write flows are not
+certified by it. Recipient draft isolation remains the separate library #407
+defect, reproduced without sending. See README for exact sessions and bounds;
+this candidate-only verification is not a new paired old-source or deployed test.
+
 The installed 0.4.0 contract and isolated fixtures do not prove durable binary
 storage, persistent read acknowledgement or deployed permissions. Current upstream
 read acknowledgement is refused; the frontend does not call it or invent a zero
