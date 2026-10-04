@@ -28,7 +28,9 @@ type DraftAttachment = Parameters<NonNullable<MessagingProps["onAttach"]>>[1][nu
 type NewMessagePayload = Parameters<NonNullable<MessagingProps["onNewMessageSend"]>>[0];
 type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]>>[0];
 
-const MESSAGE_REFRESH_INTERVAL_MS = 10_000;
+// Match the reference reception cadence; the refresh effect skips hidden pages,
+// pending reads and mutations rather than queueing overlapping requests.
+const MESSAGE_REFRESH_INTERVAL_MS = 2_000;
 const pageIsVisible = () => typeof document === "undefined" || !document.hidden;
 const hasServerId = (id: unknown): id is MessageId =>
   (typeof id === "string" && id.trim().length > 0) ||

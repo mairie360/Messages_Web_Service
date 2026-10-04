@@ -265,13 +265,13 @@ test('business suggestions wait for visibility and do not add periodic backgroun
   view = mount(React.createElement(Page));
   await view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation');
   browser.focus();
-  browser.tickIntervals(10_000);
+  browser.tickIntervals(2_000);
   assert.equal(pending.length, 0);
 
   browser.setHidden(false);
   await view.waitFor(() => view.props('Messaging').businessReferences.length === 2);
   assert.equal(pending.length, 1);
-  browser.tickIntervals(10_000);
+  browser.tickIntervals(2_000);
   assert.equal(pending.length, 1);
 });
 
@@ -659,17 +659,101 @@ test('focus refreshes the real conversation list and active thread without dupli
   assert.match(view.text(), /Nouveau du serveur/);
 });
 
-test('the visible-page interval refreshes conversations from the BFF', async () => {
+test('the two-second visible-page interval matches the reference conversation cadence', async () => {
   await renderLoadedPage();
   const previousListCalls = messageBff.calls('/conversations').length;
   messageBff.on('get', '/conversations', { body: { conversations: [
     conversation(4, 'Équipe communication'), conversation(8, 'Synchronisé'),
   ] } });
 
-  browser.tickIntervals(10_000);
+  browser.tickIntervals(2_000);
   await view.waitFor(() => view.props('Messaging').conversations.some((item) => item.id === 'conversation-8'));
 
   assert.equal(messageBff.calls('/conversations').length, previousListCalls + 1);
+});
+
+test('two-second ticks do not overlap a slow conversation-list refresh', async () => {
+  await renderLoadedPage();
+  const previousListCalls = messageBff.calls('/conversations').length;
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  messageBff.on('get', '/conversations', async () => {
+    await gate;
+    return { body: { conversations: [conversation(4, 'Équipe communication')] } };
+  });
+  try {
+    browser.tickIntervals(2_000);
+    await view.waitFor(() => messageBff.calls('/conversations').length === previousListCalls + 1);
+    browser.tickIntervals(2_000);
+    browser.tickIntervals(2_000);
+    browser.focus();
+    await view.settle();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(messageBff.calls('/conversations').length, previousListCalls + 1);
+  } finally {
+    release();
+  }
+  await view.waitFor(() => view.props('Messaging').conversations.length === 1);
+});
+
+test('two-second ticks do not overlap a slow active-thread refresh', async () => {
+  await renderLoadedPage();
+  const previousListCalls = messageBff.calls('/conversations').length;
+  const previousThreadCalls = messageBff.calls('/conversations/{conversationId}/messages').length;
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  messageBff.on('get', '/conversations/{conversationId}/messages', async () => {
+    await gate;
+    return swappedModel({ body: {
+      conversation: conversation(4, 'Équipe communication'),
+      messages: [message(12, 4, 'Reçu après lecture lente', users.sophie)],
+    } });
+  });
+  try {
+    browser.tickIntervals(2_000);
+    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages').length === previousThreadCalls + 1);
+    browser.tickIntervals(2_000);
+    browser.focus();
+    await view.settle();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(messageBff.calls('/conversations').length, previousListCalls + 1);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, previousThreadCalls + 1);
+  } finally {
+    release();
+  }
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-12'));
+});
+
+test('two-second refresh preserves an unsent composer draft and official unread counts', async () => {
+  await renderLoadedPage();
+  await view.fire((props, text, tag) => tag === 'input' && props.placeholder === 'Tapez votre message...',
+    'onChange', { target: { value: 'Brouillon conservé pendant la réception' } });
+  messageBff.on('get', '/conversations', { body: { conversations: [
+    conversation(4, 'Équipe communication', { unreadCount: 3 }),
+  ] } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication', { unreadCount: 3 }),
+    messages: [message(13, 4, 'Message reçu automatiquement', users.sophie)],
+  } }));
+  browser.tickIntervals(2_000);
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-13'));
+  assert.equal(view.hostElements((props, text, tag) => tag === 'input' &&
+    props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé pendant la réception');
+  assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'POST').length, 0);
+});
+
+test('two-second polling is inactive after the page unmounts', async () => {
+  await renderLoadedPage();
+  view.unmount();
+  const previousCalls = messageBff.requests.length;
+  browser.tickIntervals(2_000);
+  browser.focus();
+  browser.setHidden(true);
+  browser.setHidden(false);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(messageBff.requests.length, previousCalls);
 });
 
 test('refresh keeps the BFF unread count without calling the non-persistent read route', async () => {
@@ -689,6 +773,9 @@ test('a hidden tab does not refresh messages, then refreshes when shown', async 
   const previousListCalls = messageBff.calls('/conversations').length;
   browser.setHidden(true);
   browser.focus();
+  browser.tickIntervals(2_000);
+  await view.settle();
+  await new Promise(resolve => setImmediate(resolve));
   assert.equal(messageBff.calls('/conversations').length, previousListCalls);
 
   messageBff.on('get', '/conversations', { body: { conversations: [
@@ -839,7 +926,7 @@ test('a deletion refusal permits one guarded retry and preserves data while pend
     assert.match(view.text(), /Bonjour à tous/);
     const reads = messageBff.calls('/conversations').length;
     browser.focus();
-    browser.tickIntervals(10_000);
+    browser.tickIntervals(2_000);
     assert.equal(messageBff.calls('/conversations').length, reads, 'no refresh races a pending delete');
   } finally {
     release();
