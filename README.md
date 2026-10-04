@@ -53,7 +53,8 @@ Failed reads keep known messages, and revision guards reject stale replies.
 Only published conversation/message reads are used. Server unread counts stay
 authoritative: this does not enable or simulate persistent read acknowledgement,
 which remains blocked under MAIR-269. The fallback-thread complement PR #210 is
-independent. No API/BFF, client, proxy, contract, dependency or environment change.
+composed with this candidate; recovery, focus, sizing, packaging and UI-pin PRs
+are included too. No API/BFF, client, proxy, contract or environment change.
 
 Tracking: [MAIR-212](https://mairie-360.atlassian.net/browse/MAIR-212) and
 [Messages #144](https://github.com/mairie360/Messages_Web_Service/issues/144).
@@ -122,3 +123,16 @@ Le pin exact et l'intégrité du package publié sont alignés sur Elearning san
 le rétrograder. Les tests de release vérifient le manifeste, le lockfile et le
 vrai package installé. Une validation isolée ne remplace pas la CI verte,
 l'intégration des sept consommateurs et la recette de la copie locale livrée.
+
+## Composed frontend acceptance
+
+Existing PRs206/208/209/210/211/213 are composed into the cadence candidate214.
+Cleanup keeps bootstrap lifecycle generation and selection invalidation; the
+focus observer stays on the persistent module root while Messaging is withheld
+during initial loading. Cross-flow HTTP-backed page tests cover refused bootstrap
+then first-thread arrival at two seconds, and deletion/selection pending that
+blocks poll ticks before immediate fallback and resumed official reception.
+No acknowledgement, new business protocol or reference fixture ships. Historical
+isolated proofs are not a new composed visual or deployment certification.
+Only successful applicable actual-head CI allows integration; issues and Jira
+remain open until their own remaining criteria and exact main/local validation.
