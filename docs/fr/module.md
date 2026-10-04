@@ -51,6 +51,19 @@ rédaction accessibles, sans simuler notification, identité ou donnée métier.
 - Liste de conversations, messages actifs et recherche de contacts, avec rafraîchissement lorsque l’onglet est visible.
 - Envoi direct, réponse dans une conversation, création de groupe et suppression.
 
+Le bootstrap en attente ou refusé n'est pas une liste vide. Les écritures ne sont
+disponibles qu'après confirmation ; Réessayer est explicite et single-flight,
+conservant le lien profond autorisé et les contacts du bootstrap si leur lecture
+est refusée. Les dialogues Nouveau message/Créer un groupe ouverts après reprise
+gardent focus initial, boucles Tab/Maj+Tab, Fermer/Échap autorisés et retour au bouton.
+
+Une suppression/disparition confirmée lit immédiatement le fil de remplacement,
+y compris la première arrivée dans une liste vide. La réception visible tourne
+toutes les deux secondes sans chevaucher lecture, sélection ou mutation en attente.
+Les compteurs reçus restent officiels ; une réponse ancienne ne remplace pas une
+sélection/écriture récente. Les refus conservent les données connues et permettent
+la reprise, sans succès simulé.
+
 La création de groupe conserve le nom, la description optionnelle et les membres
 jusqu’à confirmation du service. Pendant l’attente, les champs et contrôles de
 fermeture sont désactivés pour empêcher les doublons. Un refus conserve les saisies
@@ -63,7 +76,7 @@ est ajoutée à la liste.
 
 1. Charger `/messaging/bootstrap` et sélectionner une conversation.
 2. Rechercher un contact ou une référence métier, puis envoyer un message.
-3. Consulter les messages renvoyés par le BFF ; la liste et le fil actif se synchronisent à la reprise de l’onglet et toutes les dix secondes lorsqu’il reste visible.
+3. Consulter les messages renvoyés par le BFF ; la liste et le fil actif se synchronisent à la reprise de l’onglet et toutes les deux secondes lorsqu’il reste visible.
 
 ## Place dans Mairie360
 
@@ -77,7 +90,13 @@ Conversations et messages passent par Message API. Les contacts proviennent dire
 
 ## Périmètre et limites
 
-L’upload de pièces jointes fabrique actuellement des métadonnées et ne fournit pas un stockage binaire durable. Le marquage lu renvoie un compteur nul sans écrire dans Message API : le front ne l’utilise pas pour acquitter les messages et conserve les compteurs fournis par le BFF. Les groupes de conversation passent par l’API, tandis que certaines données de profil restent locales au processus.
+Le contrat installé0.4.0 et les fixtures isolées ne prouvent ni stockage binaire
+durable, ni acquittement persistant, ni droits déployés. L'acquittement amont actuel
+est refusé ; le front ne l'appelle pas et n'invente pas de compteur nul. Download/
+liens métier (#176), acquittement (#149/#144) et isolation destinataire du brouillon
+(lib-components #407) restent des acceptations distinctes ouvertes. Les tests du
+candidat local ne prouvent pas CI applicable verte, intégration main, copie exacte
+locale rafraîchie, RGAA toutes routes ou image complète.
 
 ## Pour développer ou exploiter ce module
 

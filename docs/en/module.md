@@ -47,6 +47,18 @@ controls; they do not add simulated notifications, identity or business data.
 - Conversation list, active messages and contact search, with refresh while the tab is visible.
 - Direct messages, conversation replies, group creation and deletion.
 
+Initial pending or refused bootstrap is not an empty conversation list. Write
+controls become available only after confirmation; an explicit, single-flight
+Retry preserves an allowed deep link and bootstrap contacts when the contacts
+read is refused. New message/group dialogs opened after recovery keep initial
+focus, Tab/Shift+Tab containment, enabled Close/Escape and return to the opener.
+
+A confirmed deletion or disappearance immediately reads the replacement thread,
+including the first arrival in an empty list. Visible reception runs every two
+seconds, skipping pending reads, selection and mutations. Confirmed unread counts
+stay authoritative; stale replies cannot overwrite newer selections or writes.
+Refused reads retain known data and expose recovery, not simulated success.
+
 Deletion keeps the known conversation and messages until the published response
 confirms `deleted: true`. If an ID is returned, it must match the requested
 conversation. A missing/invalid acknowledgement or refusal displays an error
@@ -66,7 +78,7 @@ an error; only the server-created conversation is added to the list.
 
 1. Load `/messaging/bootstrap` and select a conversation.
 2. Find a contact or business reference, then send a message.
-3. Inspect messages returned by the BFF; the list and active thread sync when the tab resumes and every ten seconds while it stays visible.
+3. Inspect messages returned by the BFF; the list and active thread sync when the tab resumes and every two seconds while it stays visible.
 
 ## Role within Mairie360
 
@@ -80,7 +92,13 @@ Conversations and messages use Message API. Contacts are read directly from the 
 
 ## Scope and limitations
 
-Attachment upload currently creates metadata and does not provide durable binary storage. Mark-as-read returns a zero counter without writing to Message API: the frontend does not use it to acknowledge messages and keeps the counts supplied by the BFF. Conversation groups use the API, while some profile data remains local to the process.
+The installed 0.4.0 contract and isolated fixtures do not prove durable binary
+storage, persistent read acknowledgement or deployed permissions. Current upstream
+read acknowledgement is refused; the frontend does not call it or invent a zero
+counter. Downloads/business links (#176), persistent acknowledgement (#149/#144)
+and composer-recipient draft isolation (lib-components #407) remain separate open
+acceptance. Local candidate tests do not prove green applicable CI, integration
+into main, exact refreshed local delivery, full-route RGAA or a complete image.
 
 ## Developing or operating this module
 

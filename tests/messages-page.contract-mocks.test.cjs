@@ -616,8 +616,14 @@ test('bootstrap effect cleanup and replay ignores the older response after the r
   browser.setHidden(true);
   const originalEffect = React.useEffect;
   let bootstrapEffect;
+  let bootstrapDependencies;
   t.mock.method(React, 'useEffect', (effect, deps) => {
-    bootstrapEffect ??= effect; // Page registers its bootstrap effect before rendering children.
+    // The focus controller now registers before bootstrap; identify the actual
+    // load callback dependency instead of assuming an effect's source position.
+    if (!bootstrapEffect && deps?.length === 1 && typeof deps[0] === 'function') {
+      bootstrapEffect = effect;
+      bootstrapDependencies = deps;
+    }
     return originalEffect(effect, deps);
   });
   const releases = [];
@@ -628,7 +634,8 @@ test('bootstrap effect cleanup and replay ignores the older response after the r
   view = mount(React.createElement(Page));
   await view.waitFor(() => releases.length === 1);
   // Replay only this effect lifecycle; this is not a full browser StrictMode test.
-  const bootstrapSlot = view.find('Page')[0].slots.find(slot => slot?.effect);
+  const bootstrapSlot = view.find('Page')[0].slots.find(slot => slot?.effect && slot.deps === bootstrapDependencies);
+  assert.equal(typeof bootstrapSlot?.cleanup, 'function');
   bootstrapSlot.cleanup();
   const cleanup = bootstrapEffect();
   try {
@@ -1174,6 +1181,101 @@ const fallbackThread = () => swappedModel({ body: {
   messages: [message(20, 5, 'Historique officiel du fil suivant', users.sophie)],
 } });
 
+test('composed bootstrap recovery starts two-second reception and immediately reads a newly arrived first thread', async (t) => {
+  browser.setHidden(true);
+  messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('UNAVAILABLE', 'Lecture initiale refusée'), outOfContract: true });
+  view = mount(React.createElement(Page));
+  await view.waitFor(html => html.includes('Lecture initiale refusée'));
+  assert.equal(view.find('Messaging').length, 0);
+  const recovered = { ...bootstrap(), conversations: [], messages: [], activeConversationId: '' };
+  messageBff.on('get', '/messaging/bootstrap', { body: recovered });
+  messageBff.on('get', '/contacts', { status: 401, body: apiError('UNAUTHORIZED', 'Contacts refusés') });
+  await view.click('Réessayer');
+  await view.waitFor(() => view.find('Messaging').length > 0);
+  assert.deepEqual(view.props('Messaging').conversations, []);
+  assert.deepEqual(view.props('Messaging').contacts.map(item => item.name), ['Sophie Leroy', 'Thomas Bernard']);
+  assert.doesNotMatch(view.text(), /Lecture initiale refusée|Messagerie indisponible/);
+  messageBff.on('get', '/conversations', { body: { conversations: [] } });
+  const original = messageClient.getConversations;
+  let read;
+  t.mock.method(messageClient, 'getConversations', () => { read = original(); return read; });
+  browser.setHidden(false);
+  await read;
+  await view.settle();
+  const listsBeforeArrival = messageBff.calls('/conversations').length;
+  messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
+  browser.tickIntervals(2000);
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
+  assert.equal(messageBff.calls('/conversations').length, listsBeforeArrival + 1);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 1);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
+  assert.match(view.text(), /Historique officiel du fil suivant/);
+  assert.equal(messageBff.calls('/messaging/bootstrap').length, 2);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+});
+
+test('composed recovery skips cadence ticks through pending deletion and fallback before resuming official reads', async () => {
+  browser.setHidden(true);
+  messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('UNAVAILABLE', 'Lecture initiale refusée'), outOfContract: true });
+  view = mount(React.createElement(Page));
+  await view.waitFor(html => html.includes('Lecture initiale refusée'));
+  messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+  await view.click('Réessayer');
+  await view.waitFor(() => view.find('Messaging').length > 0);
+  let releaseDelete;
+  let releaseThread;
+  const deleteGate = new Promise(resolve => { releaseDelete = resolve; });
+  const threadGate = new Promise(resolve => { releaseThread = resolve; });
+  let deletion;
+  messageBff.on('delete', '/conversations/{conversationId}', async () => {
+    await deleteGate;
+    return { body: { deleted: true, conversationId: 'conversation-4' } };
+  });
+  messageBff.on('get', '/conversations/{conversationId}/messages', async () => {
+    await threadGate;
+    return fallbackThread();
+  });
+  try {
+    await view.act(() => { deletion = view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')); });
+    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}', 'DELETE').length === 1);
+    browser.setHidden(false);
+    browser.tickIntervals(2000);
+    browser.tickIntervals(2000);
+    assert.equal(messageBff.calls('/conversations').length, 0);
+    assert.match(view.text(), /Bonjour à tous|Suppression de la conversation en cours/);
+    releaseDelete();
+    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages').length === 1);
+    browser.tickIntervals(2000);
+    browser.focus();
+    assert.equal(messageBff.calls('/conversations').length, 0);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 1);
+    releaseThread();
+    await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
+    assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+    assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+    assert.doesNotMatch(view.text(), /Bonjour à tous|Suppression de la conversation en cours/);
+    messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
+    messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+      ...fallbackThread().body, messages: [message(22, 5, 'Réception après reprise composée', users.sophie)],
+    } }));
+    browser.tickIntervals(2000);
+    await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-22'));
+    assert.equal(messageBff.calls('/conversations').length, 1);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 2);
+    assert.equal(messageBff.calls('/conversations/{conversationId}', 'DELETE').length, 1);
+    assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+  } finally {
+    releaseDelete();
+    releaseThread();
+    await deletion;
+    await view.settle();
+  }
+});
+
 async function renderFallbackPage(body = bootstrap()) {
   // This helper observes bootstrap before polling; the existing helper expects zero unread.
   body.conversations[0].unreadCount = 0;
@@ -1206,12 +1308,12 @@ for (const label of ['disappeared active thread', 'new first conversation']) {
     }
     messageBff.on('get', '/messaging/bootstrap', { body });
     view = mount(React.createElement(Page));
-    await view.waitFor(() => view.props('Header').user.name !== 'Chargement…' && view.props('Messaging').emptyStateLabel === 'Aucune conversation');
+    await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Header').user.name !== 'Chargement…' && view.props('Messaging').emptyStateLabel === 'Aucune conversation');
     messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
     messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
     browser.setHidden(false);
     await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
-    assert.equal(messageBff.calls('/conversations').length, 1, 'same refresh, not another ten-second interval');
+    assert.equal(messageBff.calls('/conversations').length, 1, 'same refresh, not another two-second interval');
     assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 1);
     assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
     assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
