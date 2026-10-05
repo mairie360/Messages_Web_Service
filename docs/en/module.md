@@ -74,6 +74,11 @@ clears the rejected cookie through the existing local logout; an opaque redirect
 reloads without inventing a destination. Refusals 403/503 do not log out. This
 does not replay a send or promise durable draft recovery after authentication.
 
+Opening a `?conversation=` deep link uses the same session recovery before
+mounting an unrelated bootstrap thread. A visible, current 401 or opaque redirect
+recovers immediately; hidden or disposed responses cannot navigate. A 403/503
+keeps the actual bootstrap and reports the inaccessible target without logging out.
+
 Deletion keeps the known conversation and messages until the published response
 confirms `deleted: true`. If an ID is returned, it must match the requested
 conversation. A missing/invalid acknowledgement or refusal displays an error
