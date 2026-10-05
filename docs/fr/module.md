@@ -64,6 +64,15 @@ Les compteurs reçus restent officiels ; une réponse ancienne ne remplace pas u
 sélection/écriture récente. Les refus conservent les données connues et permettent
 la reprise, sans succès simulé.
 
+Un fil jamais chargé n'est pas considéré vide pendant l'attente ou un refus de
+lecture. Son nom figure dans le statut de chargement/indisponibilité ; la rédaction
+est désactivée jusqu'à une réponse réussie avec le bon identifiant. Une réponse
+vide confirmée garde le libellé habituel et permet d'écrire. Les historiques connus
+et brouillons restent montés lors d'un échec de rafraîchissement, sans prétendre
+isoler les brouillons par fil ni les conserver après navigation. Un ancien callback
+ne peut envoyer vers une sélection passée ou non confirmée. Réessayer sélectionne
+le fil ou attend une lecture autorisée, sans rejouer d'écriture.
+
 La sélection d'un fil après expiration de session lance immédiatement la
 navigation existante de la page protégée, sans attendre le polling. Un vrai 401
 efface le cookie refusé via la déconnexion locale existante ; une redirection

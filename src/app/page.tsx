@@ -65,6 +65,8 @@ export default function Page() {
   const [conversations, setConversations] = useState<MessagingConversation[]>([]);
   const [contacts, setContacts] = useState<MessagingConversation[]>([]);
   const [messages, setMessages] = useState<MessagingMessage[]>([]);
+  const [confirmedConversationIds, setConfirmedConversationIds] = useState(() => new Set<string>());
+  const [pendingSelection, setPendingSelection] = useState<MessagingContactId | null>(null);
   const [businessReferences, setBusinessReferences] =
     useState<MessagingBusinessReference[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +85,18 @@ export default function Page() {
   // Draft descriptors contain local object URLs, never BFF attachment IDs.
   // Weak keys allow removed files to be released without an explicit removal callback.
   const attachmentFilesRef = useRef(new WeakMap<DraftAttachment, File>());
+
+  const selectedConversation = conversations.find((conversation) => idsMatch(conversation.id, activeConversationId));
+  const hasConfirmedThread = confirmedConversationIds.has(String(activeConversationId));
+  const selectionPending = pendingSelection !== null && idsMatch(pendingSelection, activeConversationId);
+  const selectedName = selectedConversation?.name ?? "la conversation";
+  const threadPlaceholder = selectionPending
+    ? `Chargement des messages de ${selectedName}…`
+    : `Les messages de ${selectedName} sont indisponibles. Sélectionnez ce fil pour réessayer.`;
+
+  const confirmThread = useCallback((id: MessagingContactId) => {
+    setConfirmedConversationIds((current) => current.has(String(id)) ? current : new Set([...current, String(id)]));
+  }, []);
 
   // Keep BFF state intact; only the shared component receives display labels.
   const displayedConversations = useMemo(() => presentConversationTimestamps(conversations), [conversations]);
@@ -147,6 +161,10 @@ export default function Page() {
       setContacts(toMessagingContacts(bootstrap.contacts));
       setConversations(initialConversations);
       setMessages(initialMessages);
+      setConfirmedConversationIds(new Set([
+        ...(selectedId === "" ? [] : [String(selectedId)]),
+        ...initialMessages.flatMap((message) => message.conversationId === undefined ? [] : [String(message.conversationId)]),
+      ]));
       activeConversationRef.current = selectedId;
       setActiveConversationId(selectedId);
       setShowConversationList(selectedId === "");
@@ -276,6 +294,7 @@ export default function Page() {
 
         setConversations(list.conversations);
         if (thread) {
+          confirmThread(nextId);
           setMessages((current) =>
             replaceConversationMessages(current, nextId, thread.messages),
           );
@@ -313,12 +332,13 @@ export default function Page() {
       window.removeEventListener("focus", triggerRefresh);
       document.removeEventListener("visibilitychange", triggerRefresh);
     };
-  }, [currentUser, recoverSessionNavigation]);
+  }, [currentUser, recoverSessionNavigation, confirmThread]);
 
   const beginMutation = () => {
     revisionRef.current += 1;
     mutationCountRef.current += 1;
     selectionLoadingRef.current = null;
+    setPendingSelection(null);
   };
 
   const endMutation = (preserveSelection = false) => {
@@ -345,6 +365,7 @@ export default function Page() {
     const revision = ++revisionRef.current;
     activeConversationRef.current = conversationId;
     selectionLoadingRef.current = revision;
+    setPendingSelection(conversationId);
     setActiveConversationId(conversationId);
     setError(null);
     const isCurrent = () => bootstrapLifecycleRef.current.mounted &&
@@ -361,6 +382,7 @@ export default function Page() {
       setConversations((currentConversations) =>
         upsertConversation(currentConversations, response.conversation),
       );
+      confirmThread(response.conversation.id);
       setMessages((currentMessages) =>
         replaceConversationMessages(
           currentMessages,
@@ -380,11 +402,19 @@ export default function Page() {
           : "Les messages de cette conversation sont indisponibles.",
       );
     } finally {
-      if (selectionLoadingRef.current === revision) selectionLoadingRef.current = null;
+      if (selectionLoadingRef.current === revision) {
+        selectionLoadingRef.current = null;
+        setPendingSelection(null);
+      }
     }
   };
 
   const handleSendMessage = async (payload: SendMessagePayload) => {
+    // A captured callback must not send to the previous or unconfirmed thread,
+    // even before React renders the disabled composer. Known current histories
+    // remain usable while a refresh is pending; mutation invalidates that read.
+    if (!idsMatch(activeConversationRef.current, payload.conversationId) ||
+        !confirmedConversationIds.has(String(payload.conversationId))) return false;
     const draftAttachments = payload.attachments ?? [];
     if (!payload.conversationId || (payload.content.trim().length === 0 && draftAttachments.length === 0)) {
       return false;
@@ -468,6 +498,7 @@ export default function Page() {
         appendMessage(currentMessages, response.message),
       );
       setActiveConversationId(response.conversation.id);
+      confirmThread(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
       setShowConversationList(false);
       return true;
@@ -494,6 +525,7 @@ export default function Page() {
         upsertConversation(currentConversations, response.conversation),
       );
       setActiveConversationId(response.conversation.id);
+      confirmThread(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
       setShowConversationList(false);
       return true;
@@ -605,6 +637,9 @@ export default function Page() {
                 {syncError}
               </p>
             )}
+            {selectionPending && (
+              <p role="status" className="messages-operation-status">{threadPlaceholder}</p>
+            )}
 
             {activeConversationId && (
               <MobileConversationSwitch
@@ -622,15 +657,16 @@ export default function Page() {
                 messages={displayedMessages}
                 mentionOptions={mentionOptions}
                 businessReferences={businessReferences}
-                activeConversationId={activeConversationId}
+                activeConversationId={hasConfirmedThread ? activeConversationId : ""}
                 currentUserId={toMessagingUserId(currentUser?.id)}
-                emptyStateLabel="Aucune conversation"
+                emptyStateLabel={activeConversationId === "" || hasConfirmedThread ? "Aucune conversation" : threadPlaceholder}
+                aria-busy={selectionPending}
                 onConversationSelect={(conversation) =>
                   void loadConversationMessages(conversation.id)
                 }
                 onNewMessageClick={() => void loadContacts()}
                 onCreateGroupClick={() => void loadContacts()}
-                onSendMessage={handleSendMessage}
+                onSendMessage={hasConfirmedThread ? handleSendMessage : undefined}
                 onAttach={(files, attachments) => {
                   attachments.forEach((attachment, index) => {
                     if (files[index]) attachmentFilesRef.current.set(attachment, files[index]);
@@ -638,7 +674,7 @@ export default function Page() {
                 }}
                 onNewMessageSend={handleNewMessageSend}
                 onCreateGroup={handleCreateGroup}
-                onConversationDelete={deletingConversation ? undefined : handleConversationDelete}
+                onConversationDelete={deletingConversation || !hasConfirmedThread ? undefined : handleConversationDelete}
                 className="messages-module"
               />
             </div>
