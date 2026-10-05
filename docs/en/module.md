@@ -59,6 +59,15 @@ seconds, skipping pending reads, selection and mutations. Confirmed unread count
 stay authoritative; stale replies cannot overwrite newer selections or writes.
 Refused reads retain known data and expose recovery, not simulated success.
 
+An unseen thread is not treated as empty while its messages are loading or refused.
+The requested conversation is named in the pending/unavailable status, with its
+composer disabled until a matching successful read. Confirmed empty responses
+retain the ordinary empty-message label and enable writing. Already known history
+and unsent drafts remain mounted through refresh failures; this does not isolate
+per-conversation drafts or persist them across navigation. A captured callback
+cannot send to an older or unconfirmed selection. Retry uses the existing thread
+selection or the next allowed refresh, without replaying a write.
+
 Selecting a thread after session expiry starts the existing protected-page
 navigation immediately, without waiting for reception polling. A genuine 401
 clears the rejected cookie through the existing local logout; an opaque redirect

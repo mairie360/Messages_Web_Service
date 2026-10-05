@@ -87,6 +87,16 @@ hidden-page refusals and unmounted responses do not initiate navigation. No toke
 is decoded or stored by this code. Bootstrap/mutation recovery is not widened;
 durable drafts and server revocation remain unproven.
 
+The page tracks confirmed thread IDs separately from the requested selection:
+bootstrap's selected ID and supplied message histories, successful matching
+thread reads, and confirmed newly created conversations. Unseen pending/refused
+threads use the existing controlled empty selection and `emptyStateLabel` instead
+of the library's hard-coded empty-message result; `Messaging`/its composer remain
+mounted, with writing disabled for unconfirmed histories. Known histories retain
+their messages through failed reads. Pending state has `role="status"` and
+`aria-busy`; stale callbacks cannot send to a former/unconfirmed thread. No DOM
+patch, component key reset, fake message, changed package or endpoint is added.
+
 Business suggestions load independently through `messageClient.getBusinessReferences()` on mount and on focus/visibility changes while the page is visible. A per-effect in-flight guard coalesces simultaneous events; no additional polling interval is created. Successful responses replace the list, including an empty list. Transient failures keep the last successful suggestions, while HTTP 401/403 clears them. Unmount removes both listeners and ignores pending responses. `tests/messages-page.contract-mocks.test.cjs` covers this lifecycle through the real frontend client and proxy with contract-driven mocks; this does not add persistence for sent references, attachments or read acknowledgements.
 
 The generic proxy reads the versioned OpenAPI contract to allow paths and methods. It preserves query parameters, binary bodies, statuses and useful headers, filters transport headers, disables caching and does not automatically follow redirects. Its timeout is 15 seconds.

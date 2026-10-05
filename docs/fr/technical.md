@@ -90,6 +90,16 @@ après démontage ne déclenchent pas de navigation. Ce code ne décode ni ne st
 de jeton. La reprise du bootstrap et des mutations n'est pas généralisée ;
 brouillons durables et révocation serveur restent non prouvés.
 
+La page distingue les identifiants de fils confirmés de la sélection demandée :
+fil choisi et historiques fournis par bootstrap, lectures réussies avec le bon
+identifiant et conversations nouvellement créées confirmées. Un fil inconnu en
+attente/refus utilise la sélection contrôlée vide et `emptyStateLabel` existants,
+pas le résultat vide codé par la bibliothèque. `Messaging` et sa rédaction restent
+montés, sans écriture sur un historique non confirmé ; les messages connus restent
+visibles en cas de refus. L'attente expose `role="status"` et `aria-busy` ; un ancien
+callback ne peut envoyer vers un fil passé/non confirmé. Aucun patch DOM, reset de
+clé/composant, faux message, paquet ou endpoint modifié.
+
 La suppression conserve le fil et ses messages jusqu’à une réponse conforme
 `deleted: true` ; l’identifiant facultatif, lorsqu’il est renvoyé, doit correspondre
 au fil demandé (identifiants numériques et chaînes équivalentes acceptés). Un

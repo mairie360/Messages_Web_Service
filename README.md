@@ -6,7 +6,35 @@ Fournir l’interface de messagerie instantanée avec conversations, contacts et
 
 ## Documentation
 
-### Explicit selection session recovery — MAIR-409 / #215
+### Unconfirmed thread reads — MAIR-212 / #144
+
+An unseen selected thread is now distinct from a confirmed empty history. Its
+existing read shows named loading or unavailable/retry text instead of the shared
+empty-message label. The mounted composer retains its unsent draft but remains
+disabled until a matching response confirms that thread. Known histories stay
+visible and usable after a refused refresh. Captured send callbacks cannot target
+a previous or unconfirmed thread. This does not fix per-conversation draft
+isolation (shared-library #407), durable drafts or persistent read acknowledgement.
+
+Fresh237Node/10suites pass without skipped/cancelled tests, with unchanged60%
+coverage gates (91.82%lines/94.26%branches/96.45%functions). Types, published0.4.0
+contract, lint0errors/one inherited warning and production build pass. Native
+1280×720 verifies unseen pending -> confirmed empty, then503 refusal -> existing
+selection retry -> official history, with retained draft and appropriate composer
+state. Page identity/nonblank/no overlay/console[] and screenshots were checked.
+Ledger77GET/zero upstream writes/HTTP-DTO violations[] uses disposable loopback
+fixtures and the existing published thread-operation/model exception, not a
+strict deployed-contract, live-authentication or mobile certification.
+
+Only page/tests/README/module/technical EN-FR changed in this complement; no
+API/BFF, client/proxy/auth/contract/library/dependency/security/workflow/pin change
+or shipped demo data. Temporary one-worker build config was restored. Runner and
+child stopped, ports5640–5642 free, both QA tabs closed. The existing issue144 and
+PR214 remain open: new exact-head CI and integration are required, and persistent
+acknowledgement is still blocked separately. Earlier heads below are historical,
+not results for this complement.
+
+### Historical explicit selection session recovery — MAIR-409 / #215
 
 Explicit thread selection shares the protected-page navigation guard with polling.
 It handles current visible 401/opaque redirects immediately, without waiting for

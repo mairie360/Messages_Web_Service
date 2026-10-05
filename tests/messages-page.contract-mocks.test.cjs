@@ -81,6 +81,80 @@ const frenchTime = (value) => new Intl.DateTimeFormat('fr-FR', {
   day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
 }).format(new Date(value));
 
+for (const status of [403, 503]) {
+  test(`an unseen refused thread ${status} is unavailable, never a confirmed empty result`, async () => {
+    await renderLoadedPage();
+    await view.settle();
+    messageBff.on('get', '/conversations/{conversationId}/messages', {
+      status, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true,
+    });
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => /Lecture refusée/.test(view.text()));
+    assert.doesNotMatch(view.text(), /Aucun message dans cette conversation|Aucune conversation/);
+    assert.match(view.text(), /messages de Sophie Leroy sont indisponibles/);
+    assert.equal(view.props('Messaging').onSendMessage, undefined);
+    assert.equal(view.find('MessagingComposer').length, 1);
+    assert.equal(view.props('MessagingComposer').disabled, true);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+    messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+      conversation: conversation(5, 'Sophie Leroy'), messages: [],
+    } }));
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5');
+    assert.match(view.text(), /Aucun message dans cette conversation/);
+    assert.equal(typeof view.props('Messaging').onSendMessage, 'function');
+    assert.equal(view.props('MessagingComposer').disabled, false);
+    assert.doesNotMatch(view.text(), /Lecture refusée|messages de Sophie Leroy sont indisponibles/);
+  });
+}
+
+test('a pending unseen selection keeps the composer instance and ignores obsolete completion', async (t) => {
+  await renderLoadedPage();
+  await view.settle();
+  const original = messageClient.getConversationMessages;
+  let release;
+  t.mock.method(messageClient, 'getConversationMessages', (id) => id === 'conversation-5'
+    ? new Promise(resolve => { release = resolve; }) : original(id));
+  const composerCount = view.find('MessagingComposer').length;
+  const previouslyEnabledSend = view.props('Messaging').onSendMessage;
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', {target:{value:'Brouillon conservé'}});
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+  try {
+    assert.equal(typeof release, 'function');
+    assert.match(view.text(), /Chargement des messages de Sophie Leroy/);
+    assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+    assert.equal(view.props('MessagingComposer').disabled, true);
+    assert.equal(view.find('MessagingComposer').length, composerCount);
+    assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
+    assert.equal(await previouslyEnabledSend({conversationId:'conversation-4',content:'Ne pas envoyer pendant sélection'}), false);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication')));
+    await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-4');
+    await view.waitFor(() => view.props('MessagingComposer').disabled === false);
+  } finally {
+    release?.({ conversation: conversation(5, 'Sophie Leroy'), messages: [] });
+  }
+  await view.settle();
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.doesNotMatch(view.text(), /Chargement des messages de Sophie Leroy|Aucun message dans cette conversation/);
+  assert.equal(view.props('MessagingComposer').disabled, false);
+});
+
+test('a refused already confirmed thread preserves known messages and its draft', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', {target:{value:'Brouillon conservé'}});
+  messageBff.on('get', '/conversations/{conversationId}/messages', {
+    status: 503, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true,
+  });
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication')));
+  await view.waitFor(() => /Lecture refusée/.test(view.text()));
+  assert.match(view.text(), /Bonjour à tous/);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+  assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
+});
+
 for (const cause of ['redirect', '401']) {
   test(`explicit thread selection handles ${cause} before any polling tick`, async (t) => {
     await renderLoadedPage();
@@ -1231,7 +1305,9 @@ test('a stale refresh cannot restore a deleted conversation', async () => {
   release();
   await view.waitFor(() => responded && view.props('Messaging').conversations.length === 1);
   assert.deepEqual(view.props('Messaging').conversations.map((item) => item.id), ['conversation-5']);
-  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.equal(view.props('Messaging').activeConversationId, '');
+  assert.equal(view.props('MessagingComposer').disabled, true);
+  assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
 });
 
 for (const [label, reply] of [
@@ -1361,7 +1437,8 @@ test('a newly selected thread may finish loading after another conversation is d
   try {
     await view.waitFor(() => messageBff.calls('/conversations/{conversationId}', 'DELETE').length === 1);
     await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
-    await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5');
+    await view.waitFor(() => /Chargement des messages de Sophie Leroy/.test(view.text()));
+    assert.equal(view.props('Messaging').activeConversationId, '');
     releaseDelete();
     await pendingDelete;
   } finally {
@@ -1613,9 +1690,10 @@ for (const outcome of ['success', 'refusal']) {
 }
 
 for (const action of ['send', 'delete']) {
-  test(`a fallback read cannot overwrite a newer confirmed ${action} in that thread`, async () => {
+  test(`a fallback read of known history cannot overwrite a newer confirmed ${action} in that thread`, async () => {
     browser.setHidden(true);
     const body = bootstrap();
+    body.messages.push(message(19, 5, 'Historique déjà confirmé', users.sophie));
     body.conversations.push(conversation(6, 'Troisième fil'));
     await renderFallbackPage(body);
     let release;
@@ -1659,7 +1737,9 @@ test('a mismatched fallback refresh reports the failure without restoring the va
   // Default thread response is for the vanished conversation-4.
   browser.setHidden(false);
   await view.waitFor(html => html.includes('Sélectionnez-la de nouveau pour réessayer'));
-  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.equal(view.props('Messaging').activeConversationId, '');
+  assert.equal(view.props('MessagingComposer').disabled, true);
+  assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
   assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
   assert.doesNotMatch(view.text(), /Bonjour à tous/);
 });
