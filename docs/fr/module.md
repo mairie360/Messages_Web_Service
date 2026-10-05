@@ -64,6 +64,12 @@ Les compteurs reçus restent officiels ; une réponse ancienne ne remplace pas u
 sélection/écriture récente. Les refus conservent les données connues et permettent
 la reprise, sans succès simulé.
 
+La sélection d'un fil après expiration de session lance immédiatement la
+navigation existante de la page protégée, sans attendre le polling. Un vrai 401
+efface le cookie refusé via la déconnexion locale existante ; une redirection
+opaque recharge sans inventer de destination. Les refus 403/503 ne déconnectent
+pas. Aucun envoi n'est rejoué ni aucun brouillon durable après connexion promis.
+
 La création de groupe conserve le nom, la description optionnelle et les membres
 jusqu’à confirmation du service. Pendant l’attente, les champs et contrôles de
 fermeture sont désactivés pour empêcher les doublons. Un refus conserve les saisies

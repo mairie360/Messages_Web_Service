@@ -77,6 +77,7 @@ export default function Page() {
   const revisionRef = useRef(0);
   const mutationCountRef = useRef(0);
   const selectionLoadingRef = useRef<number | null>(null);
+  const navigationStartedRef = useRef(false);
   const deletionPendingRef = useRef(false);
   const bootstrapLifecycleRef = useRef({ mounted: false, generation: 0, pending: false });
   // Draft descriptors contain local object URLs, never BFF attachment IDs.
@@ -90,6 +91,22 @@ export default function Page() {
     () => presentMessageAuthors(presentMessageTimestamps(messages), toMessagingUserId(currentUser?.id), mentionOptions, businessReferences),
     [messages, currentUser?.id, mentionOptions, businessReferences],
   );
+
+  const recoverSessionNavigation = useCallback(async (failure: unknown) => {
+    if (!requiresPageNavigation(failure)) return false;
+    if (navigationStartedRef.current) return true;
+    navigationStartedRef.current = true;
+    if (failure instanceof BffRequestError) {
+      // Clear a rejected cookie through the existing local session flow.
+      // Its finally block reloads even if the cleanup transport fails.
+      await logoutAndReload().catch(() => undefined);
+    } else {
+      // Opaque redirects expose no trustworthy destination. The protected page
+      // and unchanged middleware own Login navigation and its return path.
+      window.location.reload();
+    }
+    return true;
+  }, []);
 
   const loadBootstrap = useCallback(async () => {
     const lifecycle = bootstrapLifecycleRef.current;
@@ -221,10 +238,9 @@ export default function Page() {
     if (!currentUser) return;
     let disposed = false;
     let inFlight = false;
-    let navigationStarted = false;
 
     const refresh = async () => {
-      if (disposed || navigationStarted || inFlight || !pageIsVisible() || mutationCountRef.current > 0 ||
+      if (disposed || navigationStartedRef.current || inFlight || !pageIsVisible() || mutationCountRef.current > 0 ||
           selectionLoadingRef.current !== null) return;
       inFlight = true;
       const revision = revisionRef.current;
@@ -278,21 +294,7 @@ export default function Page() {
           : null);
       } catch (refreshError) {
         if (!disposed && revisionRef.current === revision && pageIsVisible()) {
-          if (requiresPageNavigation(refreshError)) {
-            navigationStarted = true;
-            // A rejected but not yet expired cookie must be cleared through the
-            // existing frontend session flow, or reloading could loop on a 401.
-            if (refreshError instanceof BffRequestError) {
-              // This helper reloads in its finally block even when transport
-              // fails. Do not leave an unhandled polling rejection afterward.
-              await logoutAndReload().catch(() => undefined);
-            } else {
-              // The protected page owns the Login destination and return path.
-              // An opaque redirect does not expose a trustworthy target/status.
-              window.location.reload();
-            }
-            return;
-          }
+          if (requiresPageNavigation(refreshError) && await recoverSessionNavigation(refreshError)) return;
           setSyncError("La synchronisation des conversations est momentanément indisponible.");
         }
       } finally {
@@ -311,7 +313,7 @@ export default function Page() {
       window.removeEventListener("focus", triggerRefresh);
       document.removeEventListener("visibilitychange", triggerRefresh);
     };
-  }, [currentUser]);
+  }, [currentUser, recoverSessionNavigation]);
 
   const beginMutation = () => {
     revisionRef.current += 1;
@@ -339,16 +341,19 @@ export default function Page() {
   };
 
   const loadConversationMessages = async (conversationId: MessagingContactId) => {
+    if (navigationStartedRef.current || !bootstrapLifecycleRef.current.mounted) return;
     const revision = ++revisionRef.current;
     activeConversationRef.current = conversationId;
     selectionLoadingRef.current = revision;
     setActiveConversationId(conversationId);
     setError(null);
+    const isCurrent = () => bootstrapLifecycleRef.current.mounted &&
+      selectionLoadingRef.current === revision &&
+      idsMatch(activeConversationRef.current, conversationId);
 
     try {
       const response = await messageClient.getConversationMessages(conversationId);
-      if (selectionLoadingRef.current !== revision ||
-          !idsMatch(activeConversationRef.current, conversationId)) return;
+      if (!isCurrent()) return;
       if (!idsMatch(response.conversation.id, conversationId)) {
         throw new Error("Les messages reçus ne correspondent pas à la conversation sélectionnée. Réessayez.");
       }
@@ -366,7 +371,10 @@ export default function Page() {
       setShowConversationList(false);
       setSyncError(null);
     } catch (loadError) {
-      if (selectionLoadingRef.current === revision) setError(
+      if (!isCurrent()) return;
+      if (pageIsVisible() && requiresPageNavigation(loadError) &&
+          await recoverSessionNavigation(loadError)) return;
+      setError(
         loadError instanceof Error
           ? loadError.message
           : "Les messages de cette conversation sont indisponibles.",

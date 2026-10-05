@@ -6,6 +6,28 @@ Fournir l’interface de messagerie instantanée avec conversations, contacts et
 
 ## Documentation
 
+### Explicit selection session recovery — MAIR-409 / #215
+
+Explicit thread selection shares the protected-page navigation guard with polling.
+It handles current visible 401/opaque redirects immediately, without waiting for
+the next reception tick, and ignores obsolete/unmounted responses. Duplicate
+reads stop while local logout is pending; no write is replayed. EN/FR technical
+docs describe the unchanged session helper, middleware and limited scope.
+
+Fresh233Node/10suites pass with60% gates unchanged
+(91.71%lines/93.98%branches/96.34%functions), plus types, published0.4.0 contract,
+lint0errors/one inherited warning and production build. Native1280×720 selection
+401 and opaque redirect reach the labelled QA Login landing with the original
+page/query;503 stays in Messages with an error, without logout. Ledger52GET,
+zero upstream writes, one local logout204/cookie clear, HTTP/DTO violations[]
+under the existing thread-operation/model exception. Browser console[] and no
+framework overlay. QA-only fixtures never ship; this is not deployed Login,
+mobile, persistent drafts or proof that a refused thread is truly empty. The
+shared component still displays its empty-message label for the refused unseen
+thread, a separate remaining presentation gap. Servers stopped,5640–5642free.
+PR214/issue215 remain open pending applicable CI and integration; no API/BFF,
+auth/client/proxy/contract/dependency/security/workflow/deployment changes.
+
 ### Polling session recovery candidate — MAIR-409 / #215
 
 Synchronization reads detect manual opaque redirects without inspecting their
