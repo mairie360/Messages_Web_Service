@@ -15,7 +15,7 @@ const { apiError, bootstrap, businessReferences, contact, conversation, currentU
 const { FrontNetwork } = require('./support/front-network.cjs');
 const Page = requireSrc('app/page.tsx').default;
 const { messageClient } = requireSrc('clients/messageClient.ts');
-const { BffNavigationRequiredError } = requireSrc('clients/messageClient.ts');
+const { BffNavigationRequiredError, BffRequestError } = requireSrc('clients/messageClient.ts');
 
 const messageBff = messageBffMock();
 const network = new FrontNetwork([messageBff]);
@@ -80,6 +80,99 @@ async function renderLoadedPage(body = bootstrap()) {
 const frenchTime = (value) => new Intl.DateTimeFormat('fr-FR', {
   day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
 }).format(new Date(value));
+
+for (const cause of ['redirect', '401']) {
+  test(`explicit thread selection handles ${cause} before any polling tick`, async (t) => {
+    await renderLoadedPage();
+    await view.settle();
+    if (cause === 'redirect') {
+      t.mock.method(messageClient, 'getConversationMessages', async () => { throw new BffNavigationRequiredError(); });
+    } else {
+      messageBff.on('get', '/conversations/{conversationId}/messages', {
+        status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true,
+      });
+    }
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => browser.window.location.reloads === 1);
+    assert.equal(browser.window.location.reloads, 1);
+    assert.deepEqual(network.browserCalls.filter(call => call.path === '/api/auth/logout'),
+      cause === '401' ? [{ method: 'POST', path: '/api/auth/logout' }] : []);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+    browser.tickIntervals(2000);
+    browser.focus();
+    await view.settle();
+    assert.equal(browser.window.location.reloads, 1);
+  });
+}
+
+for (const status of [403, 503]) {
+  test(`explicit thread selection ${status} remains an actionable refusal, not logout`, async () => {
+    await renderLoadedPage();
+    await view.settle();
+    messageBff.on('get', '/conversations/{conversationId}/messages', {
+      status, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true,
+    });
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => /Lecture refusée/.test(view.text()));
+    assert.match(view.text(), /Lecture refusée/);
+    assert.equal(browser.window.location.reloads, 0);
+    assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+  });
+}
+
+for (const invalidate of ['hidden', 'selection', 'unmount']) {
+  test(`explicit thread selection ${invalidate} prevents obsolete session navigation`, async (t) => {
+    await renderLoadedPage();
+    await view.settle();
+    const originalRead = messageClient.getConversationMessages;
+    let rejectRead;
+    t.mock.method(messageClient, 'getConversationMessages', (id) => id === conversation(5, 'Sophie Leroy').id
+      ? new Promise((resolve, reject) => { rejectRead = reject; }) : originalRead(id));
+    view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy'));
+    await view.settle();
+    assert.equal(typeof rejectRead, 'function');
+    if (invalidate === 'hidden') browser.setHidden(true);
+    if (invalidate === 'selection') {
+      await view.act(() => view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication')));
+    }
+    if (invalidate === 'unmount') { view.unmount(); view = undefined; }
+    rejectRead(new BffRequestError('Session expirée', 401));
+    await new Promise(resolve => setImmediate(resolve));
+    if (view) await view.settle();
+    assert.equal(browser.window.location.reloads, 0);
+    assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+  });
+}
+
+test('explicit selection and polling share one pending session cleanup without replay', async (t) => {
+  await renderLoadedPage();
+  await view.settle();
+  t.mock.method(messageClient, 'getConversationMessages', async () => { throw new BffRequestError('Session expirée', 401); });
+  const originalFetch = global.fetch;
+  let rejectLogout;
+  let logoutCalls = 0;
+  t.mock.method(global, 'fetch', (input, init) => {
+    if (input === '/api/auth/logout') {
+      logoutCalls++;
+      return new Promise((resolve, reject) => { rejectLogout = reject; });
+    }
+    return originalFetch(input, init);
+  });
+  view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy'));
+  // The handler starts logout in a microtask; no timer/polling trigger is used.
+  try {
+    await view.waitFor(() => logoutCalls === 1);
+    view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication'));
+    browser.tickIntervals(2000);
+    browser.focus();
+    await view.settle();
+    assert.equal(logoutCalls, 1);
+  } finally {
+    rejectLogout?.(new TypeError('Failed to fetch'));
+  }
+  await view.waitFor(() => browser.window.location.reloads === 1);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+});
 
 for (const cause of ['redirect', '401']) {
   for (const source of ['list', 'selected thread', 'replacement thread']) {

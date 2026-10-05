@@ -59,6 +59,12 @@ seconds, skipping pending reads, selection and mutations. Confirmed unread count
 stay authoritative; stale replies cannot overwrite newer selections or writes.
 Refused reads retain known data and expose recovery, not simulated success.
 
+Selecting a thread after session expiry starts the existing protected-page
+navigation immediately, without waiting for reception polling. A genuine 401
+clears the rejected cookie through the existing local logout; an opaque redirect
+reloads without inventing a destination. Refusals 403/503 do not log out. This
+does not replay a send or promise durable draft recovery after authentication.
+
 Deletion keeps the known conversation and messages until the published response
 confirms `deleted: true`. If an ID is returned, it must match the requested
 conversation. A missing/invalid acknowledgement or refusal displays an error

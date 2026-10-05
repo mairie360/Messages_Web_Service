@@ -78,15 +78,17 @@ La page utilise le client de messagerie pour charger le bootstrap puis les messa
 
 Pour les lectures de synchronisation uniquement, `redirect: "manual"` expose une
 redirection comme `opaqueredirect` ; le client lève `BffNavigationRequiredError`
-sans lire Location, statut ni corps. Une réponse de polling courante et visible
+sans lire Location, statut ni corps. Une réponse de polling ou de sélection explicite courante et visible
 recharge la page protégée ; le middleware inchangé décide de Login et du retour.
 Un vrai401 appelle plutôt une seule fois `logoutAndReload()` existant pour effacer
 le cookie refusé qui semble encore valide, via la route locale existante ; son
 rechargement finally est conservé même si le transport échoue.403/503/panne réseau
-ne déconnectent pas. Un garde par effet empêche les autres pollings. Ce code ne
-décode ni ne stocke de jeton. Cette tranche polling ne généralise pas la reprise
-du bootstrap, de la sélection ou des mutations ; brouillons durables et révocation
-serveur restent non prouvés.
+ne déconnectent pas. Un garde partagé par page empêche les autres pollings et
+lectures de fil, y compris une sélection répétée pendant la déconnexion locale.
+Une sélection obsolète, un refus reçu lorsque la page est masquée ou une réponse
+après démontage ne déclenchent pas de navigation. Ce code ne décode ni ne stocke
+de jeton. La reprise du bootstrap et des mutations n'est pas généralisée ;
+brouillons durables et révocation serveur restent non prouvés.
 
 La suppression conserve le fil et ses messages jusqu’à une réponse conforme
 `deleted: true` ; l’identifiant facultatif, lorsqu’il est renvoyé, doit correspondre
