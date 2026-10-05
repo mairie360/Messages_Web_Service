@@ -37,12 +37,47 @@ visible at a time and preserves the unsent draft when switching panes.
 
 The message panel uses the reference's full available width without a desktop
 maximum-width cap. Outer spacing is 20px from 768px upward and 10px below that
-breakpoint; the panel keeps the reference two-layer card shadow. These frontend
+breakpoint; the panel keeps the reference two-layer card shadow. The stack does
+not clip that outer shadow; viewport and message-content clipping remain in
+their own containers. From 1024px the conversation column is 300px, as in the
+reference. Below that width the full-height pane switch is retained. These frontend
 styles preserve bounded scrolling, pane switching and always reachable composer
 controls; they do not add simulated notifications, identity or business data.
 
 - Conversation list, active messages and contact search, with refresh while the tab is visible.
 - Direct messages, conversation replies, group creation and deletion.
+
+Initial pending or refused bootstrap is not an empty conversation list. Write
+controls become available only after confirmation; an explicit, single-flight
+Retry preserves an allowed deep link and bootstrap contacts when the contacts
+read is refused. New message/group dialogs opened after recovery keep initial
+focus, Tab/Shift+Tab containment, enabled Close/Escape and return to the opener.
+
+A confirmed deletion or disappearance immediately reads the replacement thread,
+including the first arrival in an empty list. Visible reception runs every two
+seconds, skipping pending reads, selection and mutations. Confirmed unread counts
+stay authoritative; stale replies cannot overwrite newer selections or writes.
+Refused reads retain known data and expose recovery, not simulated success.
+
+An unseen thread is not treated as empty while its messages are loading or refused.
+The requested conversation is named in the pending/unavailable status, with its
+composer disabled until a matching successful read. Confirmed empty responses
+retain the ordinary empty-message label and enable writing. Already known history
+and unsent drafts remain mounted through refresh failures; this does not isolate
+per-conversation drafts or persist them across navigation. A captured callback
+cannot send to an older or unconfirmed selection. Retry uses the existing thread
+selection or the next allowed refresh, without replaying a write.
+
+Selecting a thread after session expiry starts the existing protected-page
+navigation immediately, without waiting for reception polling. A genuine 401
+clears the rejected cookie through the existing local logout; an opaque redirect
+reloads without inventing a destination. Refusals 403/503 do not log out. This
+does not replay a send or promise durable draft recovery after authentication.
+
+Opening a `?conversation=` deep link uses the same session recovery before
+mounting an unrelated bootstrap thread. A visible, current 401 or opaque redirect
+recovers immediately; hidden or disposed responses cannot navigate. A 403/503
+keeps the actual bootstrap and reports the inaccessible target without logging out.
 
 Deletion keeps the known conversation and messages until the published response
 confirms `deleted: true`. If an ID is returned, it must match the requested
@@ -61,9 +96,26 @@ an error; only the server-created conversation is added to the list.
 
 ## Typical workflow
 
+### Polling session recovery — MAIR-409 / issue #215
+
+Synchronization reads use manual redirects. An opaque browser redirect reopens
+the same protected page; the existing guard determines Login and the return path.
+A 401 uses the existing frontend logout-and-reload flow once, avoiding repeated
+polls with a rejected but apparently unexpired cookie. A 403, network failure or
+503 keeps known messages and the draft, allowing later reads to recover. Obsolete
+or hidden responses do not start navigation. No API/BFF, middleware, proxy or
+authentication route is changed; server-side revocation is not provided by this
+consumer fix. Unsent drafts are not durable across a full page navigation.
+
+The candidate has native desktop before/after evidence with the unchanged guard
+and logout handler, a disposable cookie and a labelled QA Login landing. The
+deployed Login/authentication flow is not certified. The attempted 390×844
+override remained actually 1280×720, so this session slice has no mobile proof.
+Integration and applicable green CI remain required before issue #215 is closed.
+
 1. Load `/messaging/bootstrap` and select a conversation.
 2. Find a contact or business reference, then send a message.
-3. Inspect messages returned by the BFF; the list and active thread sync when the tab resumes and every ten seconds while it stays visible.
+3. Inspect messages returned by the BFF; the list and active thread sync when the tab resumes and every two seconds while it stays visible.
 
 ## Role within Mairie360
 
@@ -77,7 +129,31 @@ Conversations and messages use Message API. Contacts are read directly from the 
 
 ## Scope and limitations
 
-Attachment upload currently creates metadata and does not provide durable binary storage. Mark-as-read returns a zero counter without writing to Message API: the frontend does not use it to acknowledge messages and keeps the counts supplied by the BFF. Conversation groups use the API, while some profile data remains local to the process.
+The Messages consumer restores the preserved reference sidebar shadow and 44px
+minimum navigation-button height using scoped CSS, without copying navigation
+or changing the published AppShell. Inside the mobile drawer, the sidebar stays
+below its published Close button instead of inheriting the desktop stacking level.
+The mobile full-height list/thread switch
+intentionally adds a 48px control row instead of restoring the old stacked list.
+Reference-source QA uses the available Next16/UI runtime, not a certification of
+the original installation. Fake version, identity and notification data are not
+restored. Header-shadow layering and global shell parity remain separate checks.
+
+The composed consumer has genuine390×844 native evidence for keyboard bootstrap
+recovery, pane switching, both creation-dialog focus lifecycles, mobile navigation,
+two-second non-overlapping reception, confirmed disappearance/read recovery and
+confirmed empty data. The recipe makes GET requests only; write flows are not
+certified by it. Recipient draft isolation remains the separate library #407
+defect, reproduced without sending. See README for exact sessions and bounds;
+this candidate-only verification is not a new paired old-source or deployed test.
+
+The installed 0.4.0 contract and isolated fixtures do not prove durable binary
+storage, persistent read acknowledgement or deployed permissions. Current upstream
+read acknowledgement is refused; the frontend does not call it or invent a zero
+counter. Downloads/business links (#176), persistent acknowledgement (#149/#144)
+and composer-recipient draft isolation (lib-components #407) remain separate open
+acceptance. Local candidate tests do not prove green applicable CI, integration
+into main, exact refreshed local delivery, full-route RGAA or a complete image.
 
 ## Developing or operating this module
 
