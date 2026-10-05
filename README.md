@@ -6,6 +6,30 @@ Fournir l’interface de messagerie instantanée avec conversations, contacts et
 
 ## Documentation
 
+### Polling session recovery candidate — MAIR-409 / #215
+
+Synchronization reads detect manual opaque redirects without inspecting their
+target. The current protected page is reloaded so the existing gate owns Login
+and the return query. A genuine401 first uses the existing local logout flow
+once;403,503 and transport failures preserve known state and recover on reads.
+No API/BFF, proxy, middleware, auth route, contract, dependency or policy change.
+
+Fresh225Node tests/10suites pass with unchanged60% gates
+(91.32%lines/94.34%branches/96.30%functions). Types, published0.4.0 contract,
+lint0errors/one inherited warning and production webpack build pass. Single-worker,
+768MiB/cache-off build settings were temporary and restored byte-identically.
+Native1280×720 reproduces the trap on main03c3940, then confirms candidate
+expiration and401 navigation, correct page/query return, and403/503 draft/read
+recovery. Ledger:163GET to disposable contract fixtures, zero upstream writes,
+one existing local logout204/cookie clear; HTTP/DTO violations[] under the existing
+explicit thread-operation/model exception.304asset cache replies are not auth
+redirects. Login is a labelled QA landing, not real/deployed authentication.
+Mobile override stayed actually1280×720 and is not accepted as mobile proof.
+Unsent drafts are not persisted across navigation; server revocation, attachments,
+global RGAA and other MAIR409 audit topics remain separate. Issue215 and PR214
+remain open until actual integration and applicable green CI. No deployment,
+main/current refresh or demo data publication; owned QA servers are stopped.
+
 | Language / Langue | Module | Technical / Technique |
 | --- | --- | --- |
 | English | [Module overview](docs/en/module.md) | [Technical documentation](docs/en/technical.md) |

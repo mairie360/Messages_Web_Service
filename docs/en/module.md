@@ -76,6 +76,23 @@ an error; only the server-created conversation is added to the list.
 
 ## Typical workflow
 
+### Polling session recovery — MAIR-409 / issue #215
+
+Synchronization reads use manual redirects. An opaque browser redirect reopens
+the same protected page; the existing guard determines Login and the return path.
+A 401 uses the existing frontend logout-and-reload flow once, avoiding repeated
+polls with a rejected but apparently unexpired cookie. A 403, network failure or
+503 keeps known messages and the draft, allowing later reads to recover. Obsolete
+or hidden responses do not start navigation. No API/BFF, middleware, proxy or
+authentication route is changed; server-side revocation is not provided by this
+consumer fix. Unsent drafts are not durable across a full page navigation.
+
+The candidate has native desktop before/after evidence with the unchanged guard
+and logout handler, a disposable cookie and a labelled QA Login landing. The
+deployed Login/authentication flow is not certified. The attempted 390×844
+override remained actually 1280×720, so this session slice has no mobile proof.
+Integration and applicable green CI remain required before issue #215 is closed.
+
 1. Load `/messaging/bootstrap` and select a conversation.
 2. Find a contact or business reference, then send a message.
 3. Inspect messages returned by the BFF; the list and active thread sync when the tab resumes and every two seconds while it stays visible.

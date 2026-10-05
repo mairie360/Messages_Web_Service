@@ -74,7 +74,19 @@ flowchart LR
   Next --> BFF["BFF_Message"]
 ```
 
-La page utilise le client de messagerie pour charger le bootstrap puis les messages et contacts à la demande. Elle transforme les réponses pour le composant partagé `Messaging`. Après le bootstrap, elle relit `/conversations` et le fil actif toutes les dix secondes lorsque l’onglet est visible, ainsi qu’à la reprise du focus. Les réponses arrivées après une sélection ou une mutation sont ignorées pour ne pas écraser l’état récent ; un échec de synchronisation conserve le dernier fil connu et affiche une alerte. La route explicite `/business-references` relaie la réponse de BFF Message.
+La page utilise le client de messagerie pour charger le bootstrap puis les messages et contacts à la demande. Elle transforme les réponses pour le composant partagé `Messaging`. Après le bootstrap, elle relit `/conversations` et le fil actif toutes les deux secondes lorsque l’onglet est visible, ainsi qu’à la reprise du focus. Les réponses arrivées après une sélection ou une mutation sont ignorées pour ne pas écraser l’état récent ; un échec temporaire de synchronisation conserve le dernier fil connu et affiche une alerte. La route explicite `/business-references` relaie la réponse de BFF Message.
+
+Pour les lectures de synchronisation uniquement, `redirect: "manual"` expose une
+redirection comme `opaqueredirect` ; le client lève `BffNavigationRequiredError`
+sans lire Location, statut ni corps. Une réponse de polling courante et visible
+recharge la page protégée ; le middleware inchangé décide de Login et du retour.
+Un vrai401 appelle plutôt une seule fois `logoutAndReload()` existant pour effacer
+le cookie refusé qui semble encore valide, via la route locale existante ; son
+rechargement finally est conservé même si le transport échoue.403/503/panne réseau
+ne déconnectent pas. Un garde par effet empêche les autres pollings. Ce code ne
+décode ni ne stocke de jeton. Cette tranche polling ne généralise pas la reprise
+du bootstrap, de la sélection ou des mutations ; brouillons durables et révocation
+serveur restent non prouvés.
 
 La suppression conserve le fil et ses messages jusqu’à une réponse conforme
 `deleted: true` ; l’identifiant facultatif, lorsqu’il est renvoyé, doit correspondre

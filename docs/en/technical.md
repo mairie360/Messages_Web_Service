@@ -72,7 +72,18 @@ flowchart LR
   Next --> BFF["BFF_Message"]
 ```
 
-The page uses the messaging client to load bootstrap, then messages and contacts on demand. It maps responses for the shared `Messaging` component. After bootstrap, it fetches `/conversations` and the active thread every ten seconds while the tab is visible, and when focus resumes. Responses arriving after a selection or mutation are ignored so they cannot overwrite newer state; a sync failure preserves the last known thread and shows an alert. The explicit `/business-references` route forwards the BFF Message response.
+The page uses the messaging client to load bootstrap, then messages and contacts on demand. It maps responses for the shared `Messaging` component. After bootstrap, it fetches `/conversations` and the active thread every two seconds while the tab is visible, and when focus resumes. Responses arriving after a selection or mutation are ignored so they cannot overwrite newer state; a temporary sync failure preserves the last known thread and shows an alert. The explicit `/business-references` route forwards the BFF Message response.
+
+For synchronization reads only, `redirect: "manual"` exposes browser redirects as
+`opaqueredirect`; the client raises `BffNavigationRequiredError` without reading
+Location, status or body. A current visible polling response reloads the protected
+page, leaving the Login target and return path to the unchanged middleware. A
+genuine401 calls the existing `logoutAndReload()` once instead, clearing the
+apparently unexpired rejected cookie through the existing local route; its finally
+reload is preserved even if transport fails.403/503/network failures do not log
+out. A per-effect navigation guard suppresses further polling. No token is decoded
+or stored by this code. Selection/bootstrap/mutation recovery is not widened by
+this polling-only slice; durable drafts and server revocation remain unproven.
 
 Business suggestions load independently through `messageClient.getBusinessReferences()` on mount and on focus/visibility changes while the page is visible. A per-effect in-flight guard coalesces simultaneous events; no additional polling interval is created. Successful responses replace the list, including an empty list. Transient failures keep the last successful suggestions, while HTTP 401/403 clears them. Unmount removes both listeners and ignores pending responses. `tests/messages-page.contract-mocks.test.cjs` covers this lifecycle through the real frontend client and proxy with contract-driven mocks; this does not add persistence for sent references, attachments or read acknowledgements.
 

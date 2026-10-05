@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import { Messaging } from "@mairie360/lib-components";
-import { BffRequestError, messageClient, type CurrentUserDto, type MessageId } from "@/clients/messageClient";
+import { BffNavigationRequiredError, BffRequestError, messageClient, type CurrentUserDto, type MessageId } from "@/clients/messageClient";
 import {
   appendMessage,
   getPayloadIds,
@@ -22,6 +22,7 @@ import { prepareMessagingScrollRegions } from "./_components/messaging-scroll-re
 import { manageMessagingModalFocus } from "./_components/messaging-modal-focus";
 import { presentConversationTimestamps, presentMessageTimestamps } from "@/lib/message-timestamps";
 import { buildMessageMentionOptions, presentMessageAuthors } from "@/lib/message-authors";
+import { logoutAndReload } from "@/lib/auth-session";
 
 type MessagingProps = ComponentProps<typeof Messaging>;
 type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
@@ -33,6 +34,8 @@ type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]
 // pending reads and mutations rather than queueing overlapping requests.
 const MESSAGE_REFRESH_INTERVAL_MS = 2_000;
 const pageIsVisible = () => typeof document === "undefined" || !document.hidden;
+const requiresPageNavigation = (error: unknown) => error instanceof BffNavigationRequiredError ||
+  (error instanceof BffRequestError && error.status === 401);
 const hasServerId = (id: unknown): id is MessageId =>
   (typeof id === "string" && id.trim().length > 0) ||
   (typeof id === "number" && Number.isFinite(id));
@@ -223,9 +226,10 @@ export default function Page() {
     if (!currentUser) return;
     let disposed = false;
     let inFlight = false;
+    let navigationStarted = false;
 
     const refresh = async () => {
-      if (disposed || inFlight || !pageIsVisible() || mutationCountRef.current > 0 ||
+      if (disposed || navigationStarted || inFlight || !pageIsVisible() || mutationCountRef.current > 0 ||
           selectionLoadingRef.current !== null) return;
       inFlight = true;
       const revision = revisionRef.current;
@@ -245,6 +249,9 @@ export default function Page() {
               throw new Error("Les messages reçus ne correspondent pas à la conversation sélectionnée.");
             }
           } catch (readError) {
+            // Session/navigation failures must also escape a replacement-thread
+            // read; treating them as a transient fallback hides the auth gate.
+            if (requiresPageNavigation(readError)) throw readError;
             // A failed read of a still-existing thread preserves the previous view.
             // A confirmed disappearance must not resurrect it when its replacement fails.
             if (selectedExists) throw readError;
@@ -274,8 +281,23 @@ export default function Page() {
         if (!disposed) setSyncError(fallbackReadFailed
           ? "Les messages de la conversation sélectionnée sont momentanément indisponibles. Sélectionnez-la de nouveau pour réessayer."
           : null);
-      } catch {
+      } catch (refreshError) {
         if (!disposed && revisionRef.current === revision && pageIsVisible()) {
+          if (requiresPageNavigation(refreshError)) {
+            navigationStarted = true;
+            // A rejected but not yet expired cookie must be cleared through the
+            // existing frontend session flow, or reloading could loop on a 401.
+            if (refreshError instanceof BffRequestError) {
+              // This helper reloads in its finally block even when transport
+              // fails. Do not leave an unhandled polling rejection afterward.
+              await logoutAndReload().catch(() => undefined);
+            } else {
+              // The protected page owns the Login destination and return path.
+              // An opaque redirect does not expose a trustworthy target/status.
+              window.location.reload();
+            }
+            return;
+          }
           setSyncError("La synchronisation des conversations est momentanément indisponible.");
         }
       } finally {

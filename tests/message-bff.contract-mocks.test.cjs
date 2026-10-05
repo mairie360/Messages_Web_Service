@@ -141,6 +141,29 @@ describe('messageClient through the Next.js routes against the BFF_Message contr
 });
 
 describe('BFF_Message errors surfaced by messageClient', () => {
+  test('synchronization reads expose opaque redirects without reading or following them', async (t) => {
+    const { BffNavigationRequiredError } = requireSrc('clients/messageClient.ts');
+    const paths = [];
+    t.mock.method(global, 'fetch', async (path, init) => {
+      paths.push(path);
+      assert.equal(init.redirect, 'manual');
+      return {
+        type: 'opaqueredirect',
+        get ok() { throw new Error('Opaque status must not be inspected'); },
+        text() { throw new Error('Opaque body must not be read'); },
+      };
+    });
+    await assert.rejects(messageClient.getConversations(), BffNavigationRequiredError);
+    await assert.rejects(messageClient.getConversationMessages('conversation-4'), BffNavigationRequiredError);
+    assert.deepEqual(paths, ['/conversations', '/conversations/conversation-4/messages']);
+  });
+
+  test('a synchronization transport failure remains a transport failure, not a guessed 401', async (t) => {
+    const failure = new TypeError('Failed to fetch');
+    t.mock.method(global, 'fetch', async () => { throw failure; });
+    await assert.rejects(messageClient.getConversations(), error => error === failure);
+  });
+
   test('documented 401 ApiErrorResponse bodies become a BffRequestError with their message', async () => {
     messageBff.on('get', '/messaging/bootstrap', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée') });
     await assert.rejects(messageClient.getBootstrap(), (error) => error instanceof BffRequestError && error.status === 401 && error.message === 'Session expirée');
