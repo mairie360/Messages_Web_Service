@@ -963,6 +963,66 @@ test('selecting a conversation loads its messages and renders them', async () =>
   assert.doesNotMatch(html, /role="alert"/);
 });
 
+for (const cause of ['redirect', '401']) {
+  test(`initial conversation URL handles ${cause} before mounting an unrelated thread`, async (t) => {
+    browser.window.location.search = '?conversation=conversation-5';
+    messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+    if (cause === 'redirect') {
+      t.mock.method(messageClient, 'getConversationMessages', async () => { throw new BffNavigationRequiredError(); });
+    } else {
+      messageBff.on('get', '/conversations/{conversationId}/messages', {
+        status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true,
+      });
+    }
+    view = mount(React.createElement(Page));
+    await view.waitFor(() => browser.window.location.reloads === 1);
+    assert.equal(view.find('Messaging').length, 0);
+    assert.doesNotMatch(view.text(), /conversation demandée est introuvable ou inaccessible/);
+    assert.deepEqual(network.browserCalls.filter(call => call.path === '/api/auth/logout'),
+      cause === '401' ? [{ method: 'POST', path: '/api/auth/logout' }] : []);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+    browser.tickIntervals(2000);
+    browser.focus();
+    await view.settle();
+    assert.equal(browser.window.location.reloads, 1);
+  });
+}
+
+for (const status of [403, 503]) {
+  test(`initial conversation URL ${status} retains bootstrap without logging out`, async () => {
+    browser.window.location.search = '?conversation=conversation-5';
+    messageBff.on('get', '/conversations/{conversationId}/messages', request =>
+      request.pathParams.conversationId === 'conversation-5'
+        ? { status, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true }
+        : swappedModel({ body: { conversation: conversation(4, 'Équipe communication'), messages: [message(1, 4, 'Bonjour à tous', users.sophie)] } }));
+    await renderLoadedPage();
+    assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+    assert.match(view.text(), /Bonjour à tous/);
+    assert.match(view.text(), /conversation demandée est introuvable ou inaccessible/);
+    assert.equal(browser.window.location.reloads, 0);
+    assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+  });
+}
+
+for (const invalidate of ['hidden', 'unmount']) {
+  test(`initial conversation URL ${invalidate} ignores a late session failure`, async (t) => {
+    browser.window.location.search = '?conversation=conversation-5';
+    messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+    let rejectRead;
+    t.mock.method(messageClient, 'getConversationMessages', () => new Promise((resolve, reject) => { rejectRead = reject; }));
+    view = mount(React.createElement(Page));
+    await view.waitFor(() => typeof rejectRead === 'function');
+    if (invalidate === 'hidden') browser.setHidden(true);
+    else { view.unmount(); view = undefined; }
+    rejectRead(new BffRequestError('Session expirée', 401));
+    await new Promise(resolve => setImmediate(resolve));
+    if (view) await view.settle();
+    assert.equal(browser.window.location.reloads, 0);
+    assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+  });
+}
+
 test('a conversation URL opens the authorized BFF thread without changing the default journey', async () => {
   browser.window.location.search = '?conversation=conversation-5';
   messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({

@@ -73,6 +73,12 @@ isoler les brouillons par fil ni les conserver après navigation. Un ancien call
 ne peut envoyer vers une sélection passée ou non confirmée. Réessayer sélectionne
 le fil ou attend une lecture autorisée, sans rejouer d'écriture.
 
+L'ouverture d'un lien `?conversation=` utilise aussi la reprise de session avant
+d'afficher un fil du bootstrap sans rapport avec la cible. Un 401 ou une redirection
+opaque courants sur une page visible reprennent immédiatement ; une réponse masquée
+ou démontée ne navigue pas. Un 403/503 conserve le bootstrap réel et signale la
+cible inaccessible sans déconnexion.
+
 La sélection d'un fil après expiration de session lance immédiatement la
 navigation existante de la page protégée, sans attendre le polling. Un vrai 401
 efface le cookie refusé via la déconnexion locale existante ; une redirection

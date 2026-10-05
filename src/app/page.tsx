@@ -156,8 +156,12 @@ export default function Page() {
           selectedId = thread.conversation.id;
           initialConversations = upsertConversation(initialConversations, thread.conversation);
           initialMessages = replaceConversationMessages(initialMessages, selectedId, thread.messages);
-        } catch {
+        } catch (threadError) {
           if (!isCurrent()) return;
+          // Opening a deep link is a thread selection too. Do not mount an
+          // unrelated fallback before the existing session guard can recover.
+          if (pageIsVisible() && requiresPageNavigation(threadError) &&
+              await recoverSessionNavigation(threadError)) return;
           setError("La conversation demandée est introuvable ou inaccessible.");
         }
       }
@@ -197,7 +201,7 @@ export default function Page() {
         setLoading(false);
       }
     }
-  }, []);
+  }, [recoverSessionNavigation]);
 
   const retryBootstrap = () => {
     const lifecycle = bootstrapLifecycleRef.current;
