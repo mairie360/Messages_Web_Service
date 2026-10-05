@@ -15,6 +15,7 @@ const { apiError, bootstrap, businessReferences, contact, conversation, currentU
 const { FrontNetwork } = require('./support/front-network.cjs');
 const Page = requireSrc('app/page.tsx').default;
 const { messageClient } = requireSrc('clients/messageClient.ts');
+const { BffNavigationRequiredError } = requireSrc('clients/messageClient.ts');
 
 const messageBff = messageBffMock();
 const network = new FrontNetwork([messageBff]);
@@ -79,6 +80,128 @@ async function renderLoadedPage(body = bootstrap()) {
 const frenchTime = (value) => new Intl.DateTimeFormat('fr-FR', {
   day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
 }).format(new Date(value));
+
+for (const cause of ['redirect', '401']) {
+  for (const source of ['list', 'selected thread', 'replacement thread']) {
+    test(`polling ${cause} on the ${source} starts the existing session navigation exactly once`, async (t) => {
+      await renderLoadedPage();
+      await view.settle();
+      const before = view.props('Messaging');
+      const previousMessages = before.messages;
+      let attempts = 0;
+      if (source === 'replacement thread') {
+        messageBff.on('get', '/conversations', { body: { conversations: [conversation(5, 'Sophie Leroy')] } });
+      }
+      const method = source === 'list' ? 'getConversations' : 'getConversationMessages';
+      if (cause === 'redirect') {
+        t.mock.method(messageClient, method, async () => {
+          attempts++;
+          throw new BffNavigationRequiredError();
+        });
+      } else {
+        const route = source === 'list' ? '/conversations' : '/conversations/{conversationId}/messages';
+        messageBff.on('get', route, () => {
+          attempts++;
+          return { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true };
+        });
+      }
+      browser.tickIntervals(2000);
+      await view.waitFor(() => browser.window.location.reloads === 1);
+      browser.tickIntervals(2000);
+      browser.tickIntervals(2000);
+      browser.focus();
+      await view.settle();
+      assert.equal(browser.window.location.reloads, 1);
+      assert.equal(attempts, 1);
+      assert.deepEqual(view.props('Messaging').messages, previousMessages);
+      assert.equal(view.props('Messaging').activeConversationId, before.activeConversationId);
+      assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+      assert.deepEqual(network.browserCalls.filter(call => call.path === '/api/auth/logout'),
+        cause === '401' ? [{ method: 'POST', path: '/api/auth/logout' }] : []);
+    });
+  }
+}
+
+for (const status of [403, 503]) {
+  test(`a polling ${status} preserves the thread and does not reload or log out`, async () => {
+    await renderLoadedPage();
+    await view.settle();
+    const previousMessages = view.props('Messaging').messages;
+    messageBff.on('get', '/conversations', { status, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true });
+    browser.tickIntervals(2000);
+    await view.waitFor(html => html.includes('La synchronisation des conversations est momentanément indisponible.'));
+    assert.equal(browser.window.location.reloads, 0);
+    assert.deepEqual(view.props('Messaging').messages, previousMessages);
+    messageBff.on('get', '/conversations', { body: { conversations: [conversation(4, 'Équipe communication')] } });
+    browser.tickIntervals(2000);
+    await view.waitFor(html => !html.includes('La synchronisation des conversations est momentanément indisponible.'));
+    assert.equal(browser.window.location.reloads, 0);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+    assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+  });
+}
+
+test('a pending 401 session cleanup is single-flight and a transport failure does not reject the polling task', async (t) => {
+  await renderLoadedPage();
+  await view.settle();
+  messageBff.on('get', '/conversations', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
+  const originalFetch = global.fetch;
+  let rejectLogout;
+  let logoutCalls = 0;
+  t.mock.method(global, 'fetch', (input, init) => {
+    if (input === '/api/auth/logout') {
+      logoutCalls++;
+      assert.equal(init.method, 'POST');
+      return new Promise((resolve, reject) => { rejectLogout = reject; });
+    }
+    return originalFetch(input, init);
+  });
+  browser.tickIntervals(2000);
+  await view.waitFor(() => logoutCalls === 1);
+  browser.tickIntervals(2000);
+  browser.focus();
+  await view.settle();
+  assert.equal(logoutCalls, 1);
+  assert.equal(browser.window.location.reloads, 0);
+  rejectLogout(new TypeError('Failed to fetch'));
+  await view.waitFor(() => browser.window.location.reloads === 1);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+});
+
+test('a generic polling network failure never implies a Login navigation', async (t) => {
+  await renderLoadedPage();
+  await view.settle();
+  t.mock.method(messageClient, 'getConversations', async () => { throw new TypeError('Failed to fetch'); });
+  browser.tickIntervals(2000);
+  await view.waitFor(html => html.includes('La synchronisation des conversations est momentanément indisponible.'));
+  assert.equal(browser.window.location.reloads, 0);
+  assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+  assert.match(view.text(), /Bonjour à tous/);
+});
+
+for (const invalidate of ['hidden', 'selection', 'unmount']) {
+  test(`a ${invalidate} polling response cannot start an obsolete Login navigation`, async (t) => {
+    await renderLoadedPage();
+    await view.settle();
+    let rejectRead;
+    let attempted = false;
+    t.mock.method(messageClient, 'getConversations', () => {
+      attempted = true;
+      return new Promise((resolve, reject) => { rejectRead = reject; });
+    });
+    browser.tickIntervals(2000);
+    await view.waitFor(() => attempted);
+    if (invalidate === 'hidden') browser.setHidden(true);
+    if (invalidate === 'selection') {
+      await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    }
+    if (invalidate === 'unmount') { view.unmount(); view = undefined; }
+    rejectRead(new BffNavigationRequiredError());
+    if (view) await view.settle();
+    else await new Promise(resolve => setImmediate(resolve));
+    assert.equal(browser.window.location.reloads, 0);
+  });
+}
 
 test('bootstrap renders French timestamp labels without modifying message text or source data', async () => {
   browser.setHidden(true); // Inspect bootstrap before the independent visible-tab refresh.

@@ -74,6 +74,24 @@ est ajoutée à la liste.
 
 ## Parcours type
 
+### Reprise de session pendant le polling — MAIR-409 / issue #215
+
+Les lectures de synchronisation ne suivent pas les redirections. Une redirection
+opaque du navigateur rouvre la même page protégée ; le garde existant décide de
+Login et du chemin de retour. Un 401 utilise une seule fois la fin de session et
+le rechargement frontend existants, sans répéter le polling avec un cookie refusé
+qui semble encore valide. Un 403, une panne réseau ou un 503 conservent messages
+connus et brouillon, puis les lectures suivantes peuvent reprendre. Une réponse
+obsolète ou masquée ne déclenche pas de navigation. API/BFF, middleware, proxy et
+route d’authentification sont inchangés ; cette correction consommateur ne fournit
+pas de révocation serveur. Les brouillons ne sont pas durables au rechargement.
+
+Le candidat dispose d’une recette native desktop avant/après avec le garde et la
+route de déconnexion inchangés, un cookie jetable et une destination Login QA
+explicitement isolée. Login/authentification déployés ne sont pas certifiés.
+L’override390×844 est resté réellement1280×720 : cette tranche session n’a pas de
+preuve mobile. Intégration et CI applicable verte restent requises pour clôturer215.
+
 1. Charger `/messaging/bootstrap` et sélectionner une conversation.
 2. Rechercher un contact ou une référence métier, puis envoyer un message.
 3. Consulter les messages renvoyés par le BFF ; la liste et le fil actif se synchronisent à la reprise de l’onglet et toutes les deux secondes lorsqu’il reste visible.
