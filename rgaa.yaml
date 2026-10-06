@@ -104,10 +104,14 @@ states:
       # Not the last message: the list item of the active conversation may repeat that one.
       - wait_for: { text: "Bonjour à tous, la réunion d'équipe est avancée à 14 h." }
   - id: conversation-direct
-    description: The direct conversation, opened from its link (?conversation=<id>)
+    description: The direct conversation, selected in the list
     as: agent
-    route: /?conversation=101
+    route: /
     steps:
+      - wait_for: { role: heading, name: Équipe accueil }
+      # The list item is named after its avatar initials too: "Voir Planning de la semaine" does not
+      # match (and the BFF ids are not the database ids, so ?conversation=<id> cannot be used).
+      - click: { role: button, name: PD Planning de la semaine }
       - wait_for: { role: heading, name: Planning de la semaine }
       - wait_for: { text: "Bonjour, pouvez-vous me transmettre le planning de la semaine ?" }
   - id: search-no-result
