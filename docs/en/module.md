@@ -50,8 +50,9 @@ controls; they do not add simulated notifications, identity or business data.
 Initial pending or refused bootstrap is not an empty conversation list. Write
 controls become available only after confirmation; an explicit, single-flight
 Retry preserves an allowed deep link and bootstrap contacts when the contacts
-read is refused. New message/group dialogs opened after recovery keep initial
-focus, Tab/Shift+Tab containment, enabled Close/Escape and return to the opener.
+read is refused. New message/group controls become available after recovery.
+The dedicated dialog-focus correction (MAIR-318, #212) is postponed with RGAA;
+it is not included in this functional-only composition.
 
 A confirmed deletion or disappearance immediately reads the replacement thread,
 including the first arrival in an empty list. Visible reception runs every two
@@ -139,13 +140,11 @@ Reference-source QA uses the available Next16/UI runtime, not a certification of
 the original installation. Fake version, identity and notification data are not
 restored. Header-shadow layering and global shell parity remain separate checks.
 
-The composed consumer has genuine390×844 native evidence for keyboard bootstrap
-recovery, pane switching, both creation-dialog focus lifecycles, mobile navigation,
-two-second non-overlapping reception, confirmed disappearance/read recovery and
-confirmed empty data. The recipe makes GET requests only; write flows are not
-certified by it. Recipient draft isolation remains the separate library #407
-defect, reproduced without sending. See README for exact sessions and bounds;
-this candidate-only verification is not a new paired old-source or deployed test.
+The 4 October 390×844 native evidence belongs to the historical mixed candidate,
+including its dialog-focus correction; it does not certify this functional-only
+composition. See README for revision-specific checks and limits. Recipient draft
+isolation remains the separate library #407 defect, reproduced without sending.
+GET-only recipes do not certify writes, deployed persistence or authorization.
 
 The installed 0.4.0 contract and isolated fixtures do not prove durable binary
 storage, persistent read acknowledgement or deployed permissions. Current upstream

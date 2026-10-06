@@ -908,8 +908,8 @@ test('bootstrap effect cleanup and replay ignores the older response after the r
   let bootstrapEffect;
   let bootstrapDependencies;
   t.mock.method(React, 'useEffect', (effect, deps) => {
-    // The focus controller now registers before bootstrap; identify the actual
-    // load callback dependency instead of assuming an effect's source position.
+    // Identify the load callback dependency without assuming the bootstrap
+    // effect's source position relative to other effects.
     if (!bootstrapEffect && deps?.length === 1 && typeof deps[0] === 'function') {
       bootstrapEffect = effect;
       bootstrapDependencies = deps;

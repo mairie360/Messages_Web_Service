@@ -54,8 +54,9 @@ rédaction accessibles, sans simuler notification, identité ou donnée métier.
 Le bootstrap en attente ou refusé n'est pas une liste vide. Les écritures ne sont
 disponibles qu'après confirmation ; Réessayer est explicite et single-flight,
 conservant le lien profond autorisé et les contacts du bootstrap si leur lecture
-est refusée. Les dialogues Nouveau message/Créer un groupe ouverts après reprise
-gardent focus initial, boucles Tab/Maj+Tab, Fermer/Échap autorisés et retour au bouton.
+est refusée. Les contrôles Nouveau message/Créer un groupe sont disponibles après
+reprise. La correction dédiée au focus des dialogues (MAIR-318, #212) est reportée
+avec le RGAA ; elle ne fait pas partie de cette composition fonctionnelle seule.
 
 Une suppression/disparition confirmée lit immédiatement le fil de remplacement,
 y compris la première arrivée dans une liste vide. La réception visible tourne
@@ -138,13 +139,12 @@ utilise le runtime Next16/UI disponible : elle ne certifie pas l'installation
 d'origine. Version, identité et notifications fictives ne sont pas réintroduites.
 L'empilement de l'ombre du header et la parité globale du shell restent distincts.
 
-Le consommateur composé dispose d'une recette native en vrai390×844 : reprise
-initiale au clavier, bascule des panneaux, focus des deux dialogues de création,
-navigation mobile, réception2s sans chevauchement, disparition confirmée/reprise
-du fil et liste vide confirmée. La recette n'effectue que des GET : elle ne valide
-pas les écritures. Le défaut distinct407 d'isolation du brouillon par destinataire
-est reproduit sans envoi. Voir le README pour sessions et limites exactes ; cette
-vérification du candidat n'est pas une nouvelle paire avec l'ancien ni un test déployé.
+La recette native390×844 du4octobre appartient au candidat historique mixte,
+y compris sa correction du focus des dialogues ; elle ne certifie pas cette
+composition fonctionnelle seule. Voir le README pour les contrôles et limites
+propres à chaque révision. Le défaut distinct407 d'isolation du brouillon par
+destinataire reste reproduit sans envoi. Une recette GET seule ne valide ni
+écritures, ni persistance ou autorisations déployées.
 
 Le contrat installé0.4.0 et les fixtures isolées ne prouvent ni stockage binaire
 durable, ni acquittement persistant, ni droits déployés. L'acquittement amont actuel

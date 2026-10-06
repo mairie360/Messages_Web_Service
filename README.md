@@ -168,8 +168,10 @@ Failed reads keep known messages, and revision guards reject stale replies.
 Only published conversation/message reads are used. Server unread counts stay
 authoritative: this does not enable or simulate persistent read acknowledgement,
 which remains blocked under MAIR-269. The fallback-thread complement PR #210 is
-composed with this candidate; recovery, focus, sizing, packaging and UI-pin PRs
-are included too. No API/BFF, client, proxy, contract or environment change.
+composed with this candidate; recovery, sizing, packaging and UI-pin PRs are
+included too. The dedicated focus PR #213 is excluded from the functional-only
+composition; MAIR-318/#212 remains postponed with RGAA. No API/BFF, client, proxy,
+contract or environment change.
 
 Tracking: [MAIR-212](https://mairie-360.atlassian.net/browse/MAIR-212) and
 [Messages #144](https://github.com/mairie360/Messages_Web_Service/issues/144).
@@ -241,10 +243,15 @@ l'intégration des sept consommateurs et la recette de la copie locale livrée.
 
 ## Composed frontend acceptance
 
-Existing PRs206/208/209/210/211/213 are composed into the cadence candidate214.
-Cleanup keeps bootstrap lifecycle generation and selection invalidation; the
-focus observer stays on the persistent module root while Messaging is withheld
-during initial loading. Cross-flow HTTP-backed page tests cover refused bootstrap
+The functional-only branch starts at9334d60 and composes the existing packaging,
+bootstrap recovery, sizing, fallback, shared UI pin, cadence and session recovery
+corrections. It deliberately excludes focus commitf0a4ce3 and merge8436bb7:
+MAIR-318/#212 and MAIR-316 remain postponed, and mixed PR214 is kept intact.
+No RGAA check, policy or configuration is disabled or changed. Source comparison
+withf453378 finds only the dedicated focus helper and its page wiring absent;
+other functional sources, the published contract and workflows are unchanged.
+Cleanup keeps bootstrap lifecycle generation and selection invalidation.
+Cross-flow HTTP-backed page tests cover refused bootstrap
 then first-thread arrival at two seconds, and deletion/selection pending that
 blocks poll ticks before immediate fallback and resumed official reception.
 No acknowledgement, new business protocol or reference fixture ships. Historical
@@ -252,7 +259,51 @@ isolated proofs are not a new composed visual or deployment certification.
 Only successful applicable actual-head CI allows integration; issues and Jira
 remain open until their own remaining criteria and exact main/local validation.
 
-### Composed mobile verification — 4 October 2026
+### Functional-only verification — 6 October 2026
+
+The composed functional source passes233 Node tests/10suites with zero failures,
+skips or cancellations and unchanged60% coverage gates. TypeScript, published
+Message0.4.0 snapshot check, lint (zero errors/one inherited warning) and a fresh
+Next16.3.6 production webpack build pass. Dependencies match the mixed candidate's
+manifest/lock and are reused, not a fresh clean install. Local Node24.6 differs
+from CI24.21.0. Temporary one-worker/768MiB build configuration is exactly restored.
+
+Fresh integrated-browser native checks use1280×720 and an independently measured
+390×844 page/document390: refused bootstrap, explicit Retry/pending confirmation,
+official reception, mobile list/thread switching with an unsent draft, confirmed
+disappearance with refused unseen-thread writes disabled, explicit selection and
+successful recovery, then confirmed empty list without a composer. Received unread
+count remains3; no read acknowledgement or synthetic success is introduced.
+The shared recipient-draft defect remains open (#407), not claimed fixed.
+
+The disposable fixture ledger records157GET, zero writes/violations/DTO violations
+under the existing explicit thread-operation/model exception and declared503
+fault replies. Maximum simultaneous list reads is1. Ordinary single-page cycles
+are1995–2002ms; the combined ledger also contains interleaved requests from the
+brief two-page phase and a4001ms selection-pending gap, not a single timer trace.
+Console warn/error is empty before shutdown; screenshots show no framework overlay
+or document overflow. No dialog-focus/RGAA, native send/upload/delete/group submit,
+deployed authentication/authorization/persistence or complete image is certified.
+The earlier viewport override did not apply until mobile reload;1280 captures are
+not counted as mobile proof. Own helper/front and browser tabs are closed.
+Exact-head CI, protected-main integration and local-current validation remain open.
+
+La composition fonctionnelle seule passe233tests/10suites, sans échec ni test
+ignoré, types/contrat publié0.4/lint/build ; seuils et contrôles inchangés. Recette
+fraîche1280×720 et390×844/document390 : refus/reprise, réception, brouillon conservé
+à la bascule, fil suivant refusé puis sélection/reprise et liste vide confirmée.
+157GET sans écriture ni violation dans les exceptions explicites ; compteur3
+non acquitté. La recette ne certifie ni focus/RGAA, ni écritures ou droits et
+persistance déployés. Dépendances réutilisées, Node local24.6/CI24.21, configuration
+temporaire restaurée et processus arrêtés ; CI exacte/main/local-current restent
+à vérifier. L'ancienne version et le candidat mixte restent intacts.
+
+### Historical mixed-candidate mobile verification — 4 October 2026
+
+The following record belongs to the historical mixed candidate, including its
+dedicated focus correction. It is retained for provenance, not claimed as native
+acceptance of the new functional-only branch. Fresh revision-specific checks are
+required before integration; no postponed RGAA acceptance is claimed.
 
 The exact composed source at 0ae9f0c was exercised with the published UI 0.6.10
 in a genuinely measured **390×844** integrated-browser viewport (document390).
