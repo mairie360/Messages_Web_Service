@@ -1,10 +1,14 @@
-# Stack de test de performance ISOLÉE pour le front Messages (Messages_Web_Service).
+# Accessibility (RGAA) test stack of the messages front (MAIR-316 / MAIR-317).
 #
-#   ./performance_test.sh (local: builds the front when IMAGE_REF is empty,
-#                          NODE_AUTH_TOKEN exported for the build)
-#   IMAGE_REF=<image>:dev-<sha> ./performance_test.sh   (CI, MAIR-317: the published image)
+#   ./accessibility_test.sh        (local: builds the front when IMAGE_REF is empty)
 #
-# k6-perf-test fails when a threshold of load-test.js is exceeded.
+# Same stack as docker-compose-security.yml (database + seed, message-api, core-api, bff-message),
+# plus init-accessibility.sql (the conversations the states show), with the front on ${IMAGE_REF}
+# (staging-<sha> in the CI, release-prod job) and, instead of ZAP, the runner of the RGAA engine of
+# mairie360/CICD (cicd-repo/tests/a11y), which plays the states of rgaa.yaml and writes
+# rgaa-report/. Each state is played logged in as a seed user (users of rgaa.yaml), with an
+# accessToken the engine signs with the JWT_SECRET below. Exit codes: 0 ok, 1 state unreachable /
+# undeclared criterion, 2 invalid rgaa.yaml, 3 rate below RGAA_MIN_RATE.
 
 volumes:
   postgres-data:
@@ -21,8 +25,8 @@ x-db-env: &db-env
   DB_HOST: postgres
   DB_PORT: 5432
 
-# JWT_SECRET identique sur toute la chaîne : le cookie accessToken du front est
-# relayé tel quel (Bearer) à BFF Message puis à Message API.
+# Same JWT_SECRET along the chain: the accessToken cookie of the front is relayed as is (Bearer)
+# to BFF Message, then to Message API and Core API.
 x-api-env: &api-env
   <<: *db-env
   HOST: "0.0.0.0"
@@ -33,7 +37,7 @@ x-api-env: &api-env
 services:
   postgres:
     image: ${DB_IMAGE:-ghcr.io/mairie360/database:1.3.0}
-    container_name: message-front-perf-db
+    container_name: message-front-a11y-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
@@ -52,7 +56,7 @@ services:
 
   liquibase:
     image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:1.3.0}
-    container_name: message-front-perf-liquibase
+    container_name: message-front-a11y-liquibase
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,7 +73,7 @@ services:
 
   seeder:
     image: postgres:18-alpine
-    container_name: message-front-perf-seeder
+    container_name: message-front-a11y-seeder
     depends_on:
       liquibase:
         condition: service_completed_successfully
@@ -82,9 +86,26 @@ services:
     networks:
       - backend
 
+  # Data of the states of rgaa.yaml (conversations, messages, the users of the writing and empty
+  # states), on top of init-test.sql; the ZAP / k6 stacks keep init-test.sql only.
+  seeder-a11y:
+    image: postgres:18-alpine
+    container_name: message-front-a11y-seeder-a11y
+    depends_on:
+      seeder:
+        condition: service_completed_successfully
+    volumes:
+      - ./init-accessibility.sql:/init-accessibility.sql:ro
+    environment:
+      PGPASSWORD: password
+    command: >
+      sh -c "psql -v ON_ERROR_STOP=1 -h postgres -U postgres -d mairie_360_database -f /init-accessibility.sql"
+    networks:
+      - backend
+
   redis:
     image: redis:8.4.0-bookworm
-    container_name: message-front-perf-redis
+    container_name: message-front-a11y-redis
     expose:
       - "6379"
     volumes:
@@ -99,7 +120,7 @@ services:
 
   message-api:
     image: ${MESSAGE_API_IMAGE:-ghcr.io/mairie360/message-api:0.7.1}
-    container_name: message-front-perf-message-api
+    container_name: message-front-a11y-message-api
     depends_on:
       liquibase:
         condition: service_completed_successfully
@@ -113,12 +134,11 @@ services:
       - "3003"
     networks:
       - backend
-    # L'image publiée est "distroless" (ni shell ni curl) : la disponibilité est
-    # sondée depuis le conteneur message-api-ready ci-dessous.
+    # The published image is distroless (no shell nor curl): message-api-ready below probes it.
 
   message-api-ready:
     image: curlimages/curl:latest
-    container_name: message-front-perf-message-api-ready
+    container_name: message-front-a11y-message-api-ready
     depends_on:
       message-api:
         condition: service_started
@@ -130,7 +150,7 @@ services:
 
   core-api:
     image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:1.2.0}
-    container_name: message-front-perf-core-api
+    container_name: message-front-a11y-core-api
     depends_on:
       liquibase:
         condition: service_completed_successfully
@@ -144,12 +164,11 @@ services:
       - "3000"
     networks:
       - backend
-    # L'image publiée est "distroless" (ni shell ni curl) : la disponibilité est
-    # sondée depuis le conteneur core-api-ready ci-dessous.
+    # The published image is distroless (no shell nor curl): core-api-ready below probes it.
 
   core-api-ready:
     image: curlimages/curl:latest
-    container_name: message-front-perf-core-api-ready
+    container_name: message-front-a11y-core-api-ready
     depends_on:
       core-api:
         condition: service_started
@@ -161,9 +180,9 @@ services:
 
   bff-message:
     image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:0.4.0}
-    container_name: message-front-perf-bff-message
+    container_name: message-front-a11y-bff-message
     depends_on:
-      seeder:
+      seeder-a11y:
         condition: service_completed_successfully
       message-api-ready:
         condition: service_completed_successfully
@@ -176,7 +195,7 @@ services:
       MESSAGE_API_URL: message-api
       MESSAGE_API_PORT: 3003
       MESSAGE_API_BASE_PATH: http://message-api:3003
-      # L'annuaire des agents (contacts, utilisateur courant) vient de Core API.
+      # The directory of the agents (contacts, current user) comes from Core API.
       CORE_API_URL: core-api
       CORE_API_PORT: 3000
     expose:
@@ -186,7 +205,7 @@ services:
 
   bff-message-ready:
     image: curlimages/curl:latest
-    container_name: message-front-perf-bff-message-ready
+    container_name: message-front-a11y-bff-message-ready
     depends_on:
       bff-message:
         condition: service_started
@@ -197,24 +216,36 @@ services:
       - backend
 
   message-front:
-    # Published image (dev-<sha> in the CI, MAIR-317); the test script builds one locally.
+    # Published image (staging-<sha> in the CI); accessibility_test.sh builds one locally.
     image: ${IMAGE_REF:?IMAGE_REF must name the front image to test}
-    container_name: message-front-perf-front
+    container_name: message-front-a11y-front
     depends_on:
       bff-message-ready:
         condition: service_completed_successfully
+    # Every variable the front reads (src/middleware.ts, src/lib/front-urls.ts, bff-proxy.ts,
+    # access-token-cookie.ts): a missing one turns pages or links into an error page. The other
+    # fronts are not in the stack, their URLs only feed the links of the shell.
     environment:
       HOSTNAME: "0.0.0.0"
       PORT: 5003
-      # The unauthenticated health probe expects a redirect, not a missing-login 503.
-      LOGIN_FRONT_URL: "${LOGIN_FRONT_URL:-http://login-front.invalid/}"
       BFF_MESSAGE_BASE_URL: http://bff-message:4003
+      COOKIE_DOMAIN: message-front
+      LOGIN_FRONT_URL: http://login-front.invalid/
+      DASHBOARD_FRONT_URL: http://dashboard-front.invalid/
+      PROJECT_FRONT_URL: http://project-front.invalid/
+      CALENDAR_FRONT_URL: http://calendar-front.invalid/
+      MESSAGE_FRONT_URL: http://message-front:5003/
+      ELEARNING_FRONT_URL: http://elearning-front.invalid/
+      SETTINGS_FRONT_URL: http://settings-front.invalid/
+      ADMINISTRATION_FRONT_URL: http://administration-front.invalid/
+      EMAIL_FRONT_URL: http://email-front.invalid/
+      FILES_FRONT_URL: http://files-front.invalid/
     expose:
       - "5003"
     networks:
       - backend
-    # curl est installé dans l'image runner. Sans cookie, le middleware répond 307
-    # (redirection Login) : curl -f l'accepte, seul un statut >= 400 échoue.
+    # curl is installed in the runner image. Without a cookie the middleware answers 307 (Login
+    # redirection): curl -f accepts it, only a status >= 400 fails.
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:5003/"]
       interval: 10s
@@ -222,18 +253,25 @@ services:
       retries: 10
       start_period: 30s
 
-  k6-perf-test:
-    image: grafana/k6:latest
-    container_name: message-front-perf-k6
+  a11y:
+    image: ${A11Y_RUNNER_IMAGE:?A11Y_RUNNER_IMAGE comes from cicd-repo/tests/a11y/runner-image}
+    # Run as the caller (accessibility_test.sh exports them), so that rgaa-report/ and
+    # .rgaa-ai-cache/ are not root-owned in the checkout.
+    user: "${RGAA_UID:-0}:${RGAA_GID:-0}"
+    container_name: message-front-a11y-runner
     depends_on:
       message-front:
         condition: service_healthy
-    volumes:
-      - ./load-test.js:/load-test.js:ro
+    command: ["sh", "/engine/run.sh"]
     environment:
-      BASE_URL: http://message-front:5003
-      JWT_SECRET: 'b"secret"'
-      PERF_USER_ID: "2"
-    command: ["run", "/load-test.js"]
+      RGAA_MIN_RATE: ${RGAA_MIN_RATE:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_WORKSPACE_ID: ${ANTHROPIC_WORKSPACE_ID:-}
+      RGAA_AI_MODEL: ${RGAA_AI_MODEL:-}
+    volumes:
+      - ./cicd-repo/tests/a11y:/engine:ro
+      - ./rgaa.yaml:/scope/rgaa.yaml:ro
+      - ./rgaa-report:/report
+      - ./.rgaa-ai-cache:/ai-cache
     networks:
       - backend

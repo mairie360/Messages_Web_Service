@@ -83,7 +83,8 @@ Same pattern as the APIs/BFFs, adapted to a web front. Not part of `npm test`; t
 
 - `./security_test.sh` → `docker-compose-security.yml`: full isolated upstream stack (Postgres + Liquibase + `init-test.sql` seed, Redis, Message API, BFF_Message at the contract package version; published GHCR images, versions overridable via `*_IMAGE` env vars) + this front, then `zap-baseline.py` (spider + passive scan) authenticated with a static `accessToken` cookie. Any WARN/FAIL alert not set to IGNORE in `.zap/rules.tsv` fails the run.
 - `./performance_test.sh` → `docker-compose-performance.yml`: same stack + k6 running `load-test.js` (pages, `/health`, `/me`, `/messaging/bootstrap`, `/conversations`, `/contacts` through the proxy) with a JWT minted from `JWT_SECRET`; thresholds fail the run.
-- Test user is id 2 (seeded in `init-test.sql`); every service shares `JWT_SECRET=b"secret"`. `TARGET_IMAGE` lets the stacks reuse a pre-built front image. These files are excluded from the image by `.dockerignore`.
+- `./accessibility_test.sh` → `docker-compose-accessibility.yml`: same stack plus `init-accessibility.sql` (conversations, messages, users 10-12, run by `seeder-a11y`) + the RGAA runner of `mairie360/CICD` (`cicd-repo/tests/a11y`, cloned at the pinned `cicd_version`), which plays the states of `rgaa.yaml` (JWT signed by the engine for users 2, 11 and 12) and writes `rgaa-report/`. The CI runs it in `release-prod` on `staging-<sha>`.
+- Test user is id 2 (seeded in `init-test.sql`); every service shares `JWT_SECRET=b"secret"`. The front runs on `${IMAGE_REF}` (the CI passes `<image>:dev-<sha>`); the scripts build `message-front:local` when it is empty. These files are excluded from the image by `.dockerignore`.
 
 ## Pull request reviewers
 

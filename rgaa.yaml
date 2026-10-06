@@ -1,0 +1,186 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mairie360/CICD/main/tests/a11y/rgaa.schema.json
+# RGAA 4.1.2 scope of the messages front (MAIR-316), checked by the RGAA job of mairie360/CICD
+# frontend-cicd.yml in release-prod, on the staging-<sha> image (format: CICD README, "RGAA scope").
+version: 1
+target: http://message-front:5003
+
+# Same JWT_SECRET as the services of docker-compose-accessibility.yml: the engine signs an
+# accessToken for the user of the state (as:), the front relays it to bff-message, then to
+# message-api and core-api. Without a session the middleware redirects to Login: no such state.
+session:
+  jwt_secret: b"secret"
+
+# Seed users (init-test.sql, init-accessibility.sql), all with the role User: bff-message 0.4.0
+# gives every user the same role, so no other role changes the page.
+users:
+  # Member of the group "Équipe accueil" and of the direct conversation "Planning de la semaine".
+  agent:
+    id: 2
+    role: user
+  # Only for message-sent, which posts a message in its own conversation "Courrier entrant": the
+  # states run in parallel, the ones played as agent must not see it.
+  writer:
+    id: 11
+    role: user
+  # Only for empty-inbox: no conversation.
+  newcomer:
+    id: 12
+    role: user
+
+criteria:
+  # Images: the logo, the icons of the shell, the sidebar and the composer.
+  - "1.1"
+  - "1.2"
+  - "1.3"
+  # 1.4-1.9: no CAPTCHA, chart, image of text or figure caption.
+  # 2.x: no frame. 4.x: no media. 5.x: no data table.
+  - "3.1"
+  - "3.2"
+  - "3.3"
+  # Links: the navigation of the shell (lib-components AppShell).
+  - "6.1"
+  - "6.2"
+  # Scripts: dialogs, menus, suggestions, the notification banner (role="status") and the error
+  # messages (role="alert").
+  - "7.1"
+  - "7.3"
+  - "7.5"
+  - "8.1"
+  - "8.2"
+  - "8.3"
+  - "8.4"
+  - "8.5"
+  - "8.6"
+  - "8.9"
+  # 8.7, 8.8: no text in another language; 8.10: no right-to-left text.
+  - "9.1"
+  - "9.2"
+  - "9.3"
+  # 9.4: no quotation.
+  - "10.1"
+  - "10.2"
+  - "10.3"
+  - "10.4"
+  - "10.5"
+  - "10.6"
+  - "10.7"
+  - "10.8"
+  - "10.9"
+  - "10.10"
+  - "10.11"
+  - "10.12"
+  # Forms: search, composer, the "Nouveau message" dialog (recipient list) and the "Créer un
+  # groupe" dialog (member checkboxes).
+  - "11.1"
+  - "11.2"
+  - "11.3"
+  - "11.4"
+  - "11.5"
+  - "11.6"
+  - "11.7"
+  - "11.8"
+  - "11.9"
+  - "11.10"
+  - "11.11"
+  - "11.12"
+  - "11.13"
+  # Navigation of the shell, landmarks, skip link, focus order.
+  - "12.6"
+  - "12.7"
+  - "12.8"
+  - "12.9"
+  # 13.1: no time limit (the 10 s refresh changes nothing the user typed); 13.2: no new window;
+  # 13.3-13.8: no document, cryptic or moving content.
+  - "13.9"
+  - "13.11"
+
+states:
+  - id: conversation-group
+    description: Group conversation selected on load (newest), incoming and outgoing messages
+    as: agent
+    route: /
+    steps:
+      - wait_for: { role: heading, name: Équipe accueil }
+      # Not the last message: the list item of the active conversation may repeat that one.
+      - wait_for: { text: "Bonjour à tous, la réunion d'équipe est avancée à 14 h." }
+  - id: conversation-direct
+    description: The other conversation, selected in the list
+    as: agent
+    route: /
+    steps:
+      - wait_for: { role: heading, name: Équipe accueil }
+      - click: { role: button, name: Planning de la semaine }
+      - wait_for: { role: heading, name: Planning de la semaine }
+      - wait_for: { text: "Bonjour, pouvez-vous me transmettre le planning de la semaine ?" }
+  - id: search-no-result
+    description: Conversation search without a match
+    as: agent
+    route: /
+    steps:
+      - wait_for: { role: heading, name: Équipe accueil }
+      - fill: { role: searchbox, name: Rechercher un contact, value: zzz }
+      - wait_for: { text: Aucune conversation trouvée. }
+  - id: new-message-dialog
+    description: '"Nouveau message" dialog open'
+    as: agent
+    route: /
+    steps:
+      - wait_for: { role: heading, name: Équipe accueil }
+      - click: { role: button, name: Nouveau message }
+      - wait_for: { role: dialog }
+      - wait_for: { label: Destinataire }
+  - id: create-group-dialog
+    description: '"Créer un groupe" dialog open, with the member checkboxes'
+    as: agent
+    route: /
+    steps:
+      - wait_for: { role: heading, name: Équipe accueil }
+      - click: { role: button, name: Créer un groupe }
+      - wait_for: { role: dialog }
+      - wait_for: { label: Nom du groupe }
+  - id: more-actions-menu
+    description: Conversation actions menu open (its delete action is immediate, never clicked)
+    as: agent
+    route: /
+    steps:
+      - wait_for: { role: heading, name: Équipe accueil }
+      - click: { role: button, name: Plus d'actions }
+      - wait_for: { role: button, name: Supprimer la conversation }
+  - id: emoji-menu
+    description: Emoji picker of the composer open
+    as: agent
+    route: /
+    steps:
+      - wait_for: { role: heading, name: Équipe accueil }
+      - click: { role: button, name: Ajouter une réaction }
+      - wait_for: { role: button, name: Ajouter 👍 }
+  - id: mention-suggestions
+    description: Mention suggestions of the composer open
+    as: agent
+    route: /
+    steps:
+      - wait_for: { role: heading, name: Équipe accueil }
+      - click: { role: button, name: Mentionner un utilisateur }
+      - wait_for: { role: button, name: "@Camille Martin" }
+  - id: conversation-not-found
+    description: Unknown conversation requested in the URL (error message, role="alert")
+    as: agent
+    route: /?conversation=inconnue
+    steps:
+      - wait_for: { text: La conversation demandée est introuvable ou inaccessible. }
+  - id: empty-inbox
+    description: User without any conversation
+    as: newcomer
+    route: /
+    steps:
+      - wait_for: { text: Aucune conversation trouvée. }
+      - wait_for: { text: Aucune conversation, exact: true }
+  - id: message-sent
+    description: A message sent in the composer, shown in the conversation
+    as: writer
+    route: /
+    steps:
+      - wait_for: { role: heading, name: Courrier entrant }
+      - fill: { role: textbox, name: Tapez votre message, value: "Merci, je m'en occupe." }
+      - click: { role: button, name: Envoyer, exact: true }
+      - wait_for: { text: "Merci, je m'en occupe." }
