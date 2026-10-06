@@ -1,8 +1,8 @@
 # Stack de test de sécurité dynamique (DAST) ISOLÉE pour le front Messages (Messages_Web_Service).
 #
-#   ./security_test.sh            (local, NODE_AUTH_TOKEN exporté pour le build)
-#   docker compose -f docker-compose-security.yml up --build \
-#       --abort-on-container-exit --exit-code-from security-scan   (CI)
+#   ./security_test.sh (local: builds the front when IMAGE_REF is empty,
+#                       NODE_AUTH_TOKEN exported for the build)
+#   IMAGE_REF=<image>:dev-<sha> ./security_test.sh   (CI, MAIR-317: the published image)
 #
 # security-scan (OWASP ZAP baseline) explore l'application Next.js servie par
 # l'image de production (Dockerfile, sortie standalone) avec un cookie de session
@@ -202,14 +202,9 @@ services:
       - backend
 
   message-front:
-    image: ${TARGET_IMAGE:-message-front:security}
+    # Published image (dev-<sha> in the CI, MAIR-317); the test script builds one locally.
+    image: ${IMAGE_REF:?IMAGE_REF must name the front image to test}
     container_name: message-front-sec-front
-    # Image de production (Next.js standalone), identique à celle publiée par la CI.
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        NODE_AUTH_TOKEN: ${NODE_AUTH_TOKEN:-}
     depends_on:
       bff-message-ready:
         condition: service_completed_successfully
