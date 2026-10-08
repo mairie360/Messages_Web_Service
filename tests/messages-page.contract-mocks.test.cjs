@@ -93,8 +93,8 @@ for (const status of [403, 503]) {
     assert.doesNotMatch(view.text(), /Aucun message dans cette conversation|Aucune conversation/);
     assert.match(view.text(), /messages de Sophie Leroy sont indisponibles/);
     assert.equal(view.props('Messaging').onSendMessage, undefined);
-    assert.equal(view.find('MessagingComposer').length, 1);
-    assert.equal(view.props('MessagingComposer').disabled, true);
+    assert.equal(view.find('MessagingComposer').filter(instance => !instance.hidden).length, 1);
+    assert.equal(view.visibleProps('MessagingComposer').disabled, true);
     assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
     messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
       conversation: conversation(5, 'Sophie Leroy'), messages: [],
@@ -103,19 +103,19 @@ for (const status of [403, 503]) {
     await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5');
     assert.match(view.text(), /Aucun message dans cette conversation/);
     assert.equal(typeof view.props('Messaging').onSendMessage, 'function');
-    assert.equal(view.props('MessagingComposer').disabled, false);
+    assert.equal(view.visibleProps('MessagingComposer').disabled, false);
     assert.doesNotMatch(view.text(), /Lecture refusée|messages de Sophie Leroy sont indisponibles/);
   });
 }
 
-test('a pending unseen selection keeps the composer instance and ignores obsolete completion', async (t) => {
+test('a pending unseen selection retains its recipient draft without exposing it to another thread', async (t) => {
   await renderLoadedPage();
   await view.settle();
   const original = messageClient.getConversationMessages;
   let release;
   t.mock.method(messageClient, 'getConversationMessages', (id) => id === 'conversation-5'
     ? new Promise(resolve => { release = resolve; }) : original(id));
-  const composerCount = view.find('MessagingComposer').length;
+  const composerCount = view.find('MessagingComposer').filter(instance => !instance.hidden).length;
   const previouslyEnabledSend = view.props('Messaging').onSendMessage;
   await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', {target:{value:'Brouillon conservé'}});
   await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
@@ -123,21 +123,23 @@ test('a pending unseen selection keeps the composer instance and ignores obsolet
     assert.equal(typeof release, 'function');
     assert.match(view.text(), /Chargement des messages de Sophie Leroy/);
     assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
-    assert.equal(view.props('MessagingComposer').disabled, true);
-    assert.equal(view.find('MessagingComposer').length, composerCount);
-    assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
+    assert.equal(view.visibleProps('MessagingComposer').disabled, true);
+    assert.equal(view.find('MessagingComposer').filter(instance => !instance.hidden).length, composerCount);
+    assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, '');
     assert.equal(await previouslyEnabledSend({conversationId:'conversation-4',content:'Ne pas envoyer pendant sélection'}), false);
     assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
     await view.act(() => view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication')));
     await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-4');
-    await view.waitFor(() => view.props('MessagingComposer').disabled === false);
+    await view.waitFor(() => view.visibleProps('MessagingComposer').disabled === false);
+    assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
   } finally {
     release?.({ conversation: conversation(5, 'Sophie Leroy'), messages: [] });
   }
   await view.settle();
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
   assert.doesNotMatch(view.text(), /Chargement des messages de Sophie Leroy|Aucun message dans cette conversation/);
-  assert.equal(view.props('MessagingComposer').disabled, false);
+  assert.equal(view.visibleProps('MessagingComposer').disabled, false);
+  assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
 });
 
 test('a refused already confirmed thread preserves known messages and its draft', async () => {

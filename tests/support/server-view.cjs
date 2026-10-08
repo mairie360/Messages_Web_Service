@@ -23,6 +23,7 @@ const { renderToStaticMarkup } = require('react-dom/server');
 
 const FRAGMENT = Symbol.for('react.fragment');
 const MEMO = Symbol.for('react.memo');
+const INSTANCE_PATH = Symbol('server-view-instance-path');
 const FORWARD_REF = Symbol.for('react.forward_ref');
 const LAZY = Symbol.for('react.lazy');
 const WRAPPED = Symbol('server-view.wrapped');
@@ -236,6 +237,7 @@ class ServerView {
     this.root = element;
     this.instances = new Map();
     this.wrappers = new Map();
+    this.visibility = new Map();
     this.visited = [];
     this.rootHosts = [];
     this.hostSink = this.rootHosts;
@@ -269,6 +271,13 @@ class ServerView {
   props(name, index = 0) {
     const instance = this.find(name)[index];
     if (!instance) throw new Error(`server-view: no rendered component named ${name} (rendered: ${[...new Set(this.visited.map((i) => i.name))].join(', ')})`);
+    return instance.props;
+  }
+
+  /** Props of the visible instance, while hidden panels remain mounted. */
+  visibleProps(name, index = 0) {
+    const instance = this.find(name).filter(item => !item.hidden)[index];
+    if (!instance) throw new Error(`server-view: no visible component named ${name}`);
     return instance.props;
   }
 
@@ -348,7 +357,7 @@ class ServerView {
    */
   hostElements(match) {
     const test = typeof match === 'function' ? match : (props, text) => (match instanceof RegExp ? match.test(text) : text.includes(match));
-    return this.hosts.filter(({ type, props, text }) => test(props, text, type));
+    return this.hosts.filter(({ type, props, text, hidden }) => !hidden && test(props, text, type));
   }
 
   /** Host elements of the last pass, in render order (cached subtrees keep the elements of their last run). */
@@ -393,27 +402,35 @@ class ServerView {
     this.instances.clear();
   }
 
-  wrap(node, path) {
-    if (Array.isArray(node)) return node.map((child, index) => this.wrap(child, `${path}[${child?.key ?? index}]`));
-    if (!real.isValidElement(node) || node.type?.[WRAPPED]) return node;
+  wrap(node, path, hidden = false) {
+    if (Array.isArray(node)) return node.map((child, index) => this.wrap(child, `${path}[${child?.key ?? index}]`, hidden));
+    if (!real.isValidElement(node)) return node;
+    if (node.type?.[WRAPPED]) {
+      this.visibility.set(node.type[INSTANCE_PATH], hidden);
+      return node;
+    }
     const { type, props, key } = node;
     const component = unwrapType(type);
     if (component) {
       const name = displayName(type.$$typeof === MEMO ? component : type);
-      const instancePath = `${path}/${name}`;
-      return createElement(this.wrapper(instancePath, name, component), this.wrapProps(props, instancePath), key);
+      const keyedPath = key == null ? path : `${path}#${JSON.stringify(String(key))}`;
+      const instancePath = `${keyedPath}/${name}`;
+      this.visibility.set(instancePath, hidden);
+      return createElement(this.wrapper(instancePath, name, component), this.wrapProps(props, instancePath, hidden), key);
     }
     const label = typeof type === 'string' ? type : type === FRAGMENT ? '' : displayName(type);
-    if (typeof type === 'string') this.hostSink.push({ type, props, text: staticText(props.children) });
-    const wrapped = this.wrapProps(props, `${path}/${label}`);
+    const nodeHidden = hidden || props.hidden === true;
+    if (typeof type === 'string') this.hostSink.push({ type, props, text: staticText(props.children), hidden: nodeHidden });
+    const wrapped = this.wrapProps(props, `${path}/${label}`, nodeHidden);
     return wrapped === props ? node : createElement(type, wrapped, key);
   }
 
-  wrapProps(props, path) {
+  wrapProps(props, path, hidden = false) {
     let changed = false;
     const next = {};
     for (const [name, value] of Object.entries(props)) {
-      const wrapped = real.isValidElement(value) || (Array.isArray(value) && value.some(real.isValidElement)) ? this.wrap(value, name === 'children' ? `${path}>` : `${path}.${name}`) : value;
+      const containsElement = item => real.isValidElement(item) || (Array.isArray(item) && item.some(containsElement));
+      const wrapped = containsElement(value) ? this.wrap(value, name === 'children' ? `${path}>` : `${path}.${name}`, hidden) : value;
       if (wrapped !== value) changed = true;
       next[name] = wrapped;
     }
@@ -431,8 +448,11 @@ class ServerView {
         view.instances.set(path, instance);
       }
       view.visited.push(instance);
+      const hidden = view.visibility.get(path) ?? false;
+      const visibilityChanged = instance.hidden !== hidden;
+      instance.hidden = hidden;
       // Same props object as last time and no state change: React would not run the component either.
-      if (instance.output !== undefined && !instance.dirty && props === instance.props) return instance.output;
+      if (instance.output !== undefined && !instance.dirty && props === instance.props && !visibilityChanged) return instance.output;
       instance.props = props;
       instance.dirty = false;
       instance.cursor = 0;
@@ -453,7 +473,7 @@ class ServerView {
           if (!instance.renderPhaseUpdate) break;
           if (attempt >= MAX_RENDER_PHASE_UPDATES) throw new Error(`server-view: ${name} keeps updating its state while rendering`);
         }
-        instance.output = view.wrap(output, path);
+        instance.output = view.wrap(output, path, hidden);
         return instance.output;
       } finally {
         current = previous;
@@ -462,6 +482,7 @@ class ServerView {
     };
     Wrapper.displayName = name;
     Wrapper[WRAPPED] = true;
+    Wrapper[INSTANCE_PATH] = path;
     this.wrappers.set(path, Wrapper);
     return Wrapper;
   }
