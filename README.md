@@ -1,5 +1,14 @@
 # Messages_Web_Service
 
+## Published shared workflow fixes — 8 October 2026
+
+This candidate consumes the real shared UI0.6.11 published from library mainf243318. Its downloaded SHA512 and all compiled files were verified against that main. The release delivers conversation/account draft isolation, faithful author-status display, full type validation and patched template tooling. Only the exact UI pin/root lock entry and release regressions change; all other resolved packages and BFF contracts remain unchanged.
+
+The npm11.15 version chooser rejects the fresh release and warns that the existing internal UI age-exclusion key is unsupported. The lock is therefore updated from the verified registry metadata; the seven-day configuration and its existing exception are retained. A normal locked installation and consumer checks must verify this candidate. This is a documented dependency-selection bypass, not green aggregate CI, main/dev delivery or browser acceptance.
+
+Cette proposition utilise le paquet réellement publié0.6.11 ; empreinte et fichiers vérifiés depuis le registre. La sélection npm avertit que l’exception existante n’est pas reconnue : verrou mis à jour depuis les métadonnées vérifiées, configuration inchangée. L’installation verrouillée, les tests du consommateur, main et la recette navigateur/dev restent des étapes distinctes.
+
+
 ## Runtime maintenance / Maintenance des dépendances — 8 October 2026
 
 Next and eslint-config-next are pinned to `16.3.8`; the existing scoped
