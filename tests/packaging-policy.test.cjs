@@ -90,8 +90,8 @@ test('the exact required legacy status executes both real blocking scanners with
 
 test('the reusable frontend workflow retains blocking defaults and only declared secrets', () => {
   assert.deepEqual(workflow().jobs.CICD, {
-    uses: 'mairie360/CICD/.github/workflows/frontend-cicd.yml@v4.0.2',
-    with: { package_name: 'message-front', node_version: '24.21.0', cicd_version: 'v4.0.2' },
+    uses: 'mairie360/CICD/.github/workflows/frontend-cicd.yml@v4.2.0',
+    with: { package_name: 'message-front', node_version: '24.21.0', cicd_version: 'v4.2.0' },
     secrets: { CODECOV_TOKEN: '${{ secrets.CODECOV_TOKEN }}', N8N_WEBHOOK_SECRET: '${{ secrets.N8N_WEBHOOK_SECRET }}' },
   });
   assert.doesNotMatch(read('.github/workflows/cicd.yml'), /secrets:\s*inherit|continue-on-error:|image_scan_fail_on_findings:|semgrep_fail_on_findings:\s*false/);
