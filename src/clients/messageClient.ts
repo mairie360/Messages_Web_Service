@@ -32,6 +32,14 @@ export class BffRequestError extends Error {
   }
 }
 
+/** A browser-managed redirect needs a page navigation, not a cross-origin data fetch. */
+export class BffNavigationRequiredError extends Error {
+  constructor() {
+    super("La connexion doit être vérifiée en rouvrant la page.");
+    this.name = "BffNavigationRequiredError";
+  }
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   const text = await response.text();
 
@@ -57,6 +65,12 @@ async function bffRequest<T>(
     headers,
     cache: "no-store",
   });
+
+  // Manual browser redirects intentionally hide Location/status/body. Never
+  // invent a 401, inspect an opaque body or navigate to an unverified target.
+  if (response.type === "opaqueredirect") {
+    throw new BffNavigationRequiredError();
+  }
 
   if (!response.ok) {
     const errorBody = await readJson<{ message?: string; error?: { message?: string } }>(
@@ -99,12 +113,13 @@ export const messageClient = {
   },
 
   getConversations() {
-    return bffRequest<GetConversations200>("/conversations");
+    return bffRequest<GetConversations200>("/conversations", { redirect: "manual" });
   },
 
   getConversationMessages(conversationId: MessageId) {
     return bffRequest<GetConversationsConversationIdMessages200>(
       `/conversations/${encodeId(conversationId)}/messages`,
+      { redirect: "manual" },
     );
   },
 

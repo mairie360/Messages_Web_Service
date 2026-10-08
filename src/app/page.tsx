@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import { Messaging } from "@mairie360/lib-components";
-import { BffRequestError, messageClient, type CurrentUserDto, type MessageId } from "@/clients/messageClient";
+import { BffNavigationRequiredError, BffRequestError, messageClient, type CurrentUserDto, type MessageId } from "@/clients/messageClient";
 import {
   appendMessage,
   getPayloadIds,
@@ -21,6 +21,7 @@ import { AppShell } from "./_components/app-shell";
 import { prepareMessagingScrollRegions } from "./_components/messaging-scroll-regions";
 import { presentConversationTimestamps, presentMessageTimestamps } from "@/lib/message-timestamps";
 import { buildMessageMentionOptions, presentMessageAuthors } from "@/lib/message-authors";
+import { logoutAndReload } from "@/lib/auth-session";
 
 type MessagingProps = ComponentProps<typeof Messaging>;
 type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
@@ -28,8 +29,12 @@ type DraftAttachment = Parameters<NonNullable<MessagingProps["onAttach"]>>[1][nu
 type NewMessagePayload = Parameters<NonNullable<MessagingProps["onNewMessageSend"]>>[0];
 type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]>>[0];
 
-const MESSAGE_REFRESH_INTERVAL_MS = 10_000;
+// Match the reference reception cadence; the refresh effect skips hidden pages,
+// pending reads and mutations rather than queueing overlapping requests.
+const MESSAGE_REFRESH_INTERVAL_MS = 2_000;
 const pageIsVisible = () => typeof document === "undefined" || !document.hidden;
+const requiresPageNavigation = (error: unknown) => error instanceof BffNavigationRequiredError ||
+  (error instanceof BffRequestError && error.status === 401);
 const hasServerId = (id: unknown): id is MessageId =>
   (typeof id === "string" && id.trim().length > 0) ||
   (typeof id === "number" && Number.isFinite(id));
@@ -60,9 +65,12 @@ export default function Page() {
   const [conversations, setConversations] = useState<MessagingConversation[]>([]);
   const [contacts, setContacts] = useState<MessagingConversation[]>([]);
   const [messages, setMessages] = useState<MessagingMessage[]>([]);
+  const [confirmedConversationIds, setConfirmedConversationIds] = useState(() => new Set<string>());
+  const [pendingSelection, setPendingSelection] = useState<MessagingContactId | null>(null);
   const [businessReferences, setBusinessReferences] =
     useState<MessagingBusinessReference[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [showConversationList, setShowConversationList] = useState(false);
@@ -71,10 +79,24 @@ export default function Page() {
   const revisionRef = useRef(0);
   const mutationCountRef = useRef(0);
   const selectionLoadingRef = useRef<number | null>(null);
+  const navigationStartedRef = useRef(false);
   const deletionPendingRef = useRef(false);
+  const bootstrapLifecycleRef = useRef({ mounted: false, generation: 0, pending: false });
   // Draft descriptors contain local object URLs, never BFF attachment IDs.
   // Weak keys allow removed files to be released without an explicit removal callback.
   const attachmentFilesRef = useRef(new WeakMap<DraftAttachment, File>());
+
+  const selectedConversation = conversations.find((conversation) => idsMatch(conversation.id, activeConversationId));
+  const hasConfirmedThread = confirmedConversationIds.has(String(activeConversationId));
+  const selectionPending = pendingSelection !== null && idsMatch(pendingSelection, activeConversationId);
+  const selectedName = selectedConversation?.name ?? "la conversation";
+  const threadPlaceholder = selectionPending
+    ? `Chargement des messages de ${selectedName}…`
+    : `Les messages de ${selectedName} sont indisponibles. Sélectionnez ce fil pour réessayer.`;
+
+  const confirmThread = useCallback((id: MessagingContactId) => {
+    setConfirmedConversationIds((current) => current.has(String(id)) ? current : new Set([...current, String(id)]));
+  }, []);
 
   // Keep BFF state intact; only the shared component receives display labels.
   const displayedConversations = useMemo(() => presentConversationTimestamps(conversations), [conversations]);
@@ -84,77 +106,121 @@ export default function Page() {
     [messages, currentUser?.id, mentionOptions, businessReferences],
   );
 
-  useEffect(() => {
-    let isMounted = true;
+  const recoverSessionNavigation = useCallback(async (failure: unknown) => {
+    if (!requiresPageNavigation(failure)) return false;
+    if (navigationStartedRef.current) return true;
+    navigationStartedRef.current = true;
+    if (failure instanceof BffRequestError) {
+      // Clear a rejected cookie through the existing local session flow.
+      // Its finally block reloads even if the cleanup transport fails.
+      await logoutAndReload().catch(() => undefined);
+    } else {
+      // Opaque redirects expose no trustworthy destination. The protected page
+      // and unchanged middleware own Login navigation and its return path.
+      window.location.reload();
+    }
+    return true;
+  }, []);
 
-    async function loadBootstrap() {
-      setLoading(true);
-      setError(null);
+  const loadBootstrap = useCallback(async () => {
+    const lifecycle = bootstrapLifecycleRef.current;
+    // The ref guards repeated commands before React can render the disabled button.
+    if (!lifecycle.mounted || lifecycle.pending) return;
+    lifecycle.pending = true;
+    const generation = ++lifecycle.generation;
+    const isCurrent = () => lifecycle.mounted && lifecycle.generation === generation;
+    try {
+      const bootstrap = await messageClient.getBootstrap();
 
-      try {
-        const bootstrap = await messageClient.getBootstrap();
+      if (!isCurrent()) return;
 
-        if (!isMounted) return;
+      const firstConversationId = bootstrap.conversations[0]?.id ?? "";
+      const requestedConversationId = new URLSearchParams(window.location.search).get("conversation")?.trim();
+      let selectedId = bootstrap.activeConversationId ?? firstConversationId;
+      let initialConversations: MessagingConversation[] = bootstrap.conversations;
+      let initialMessages: MessagingMessage[] = bootstrap.messages;
 
-        const firstConversationId = bootstrap.conversations[0]?.id ?? "";
-        const requestedConversationId = new URLSearchParams(window.location.search).get("conversation")?.trim();
-        let selectedId = bootstrap.activeConversationId ?? firstConversationId;
-        let initialConversations: MessagingConversation[] = bootstrap.conversations;
-        let initialMessages: MessagingMessage[] = bootstrap.messages;
-
-        if (requestedConversationId) {
-          try {
-            // The BFF decides whether this user may access the requested thread.
-            const thread = await messageClient.getConversationMessages(requestedConversationId);
-            if (!isMounted) return;
-            if (!idsMatch(thread.conversation.id, requestedConversationId)) {
-              throw new Error("La conversation demandée est indisponible.");
-            }
-            selectedId = thread.conversation.id;
-            initialConversations = upsertConversation(initialConversations, thread.conversation);
-            initialMessages = replaceConversationMessages(initialMessages, selectedId, thread.messages);
-          } catch {
-            if (!isMounted) return;
-            setError("La conversation demandée est introuvable ou inaccessible.");
-          }
-        }
-
-        setCurrentUser(bootstrap.currentUser);
-        setContacts(toMessagingContacts(bootstrap.contacts));
-        setConversations(initialConversations);
-        setMessages(initialMessages);
-        activeConversationRef.current = selectedId;
-        setActiveConversationId(selectedId);
-        setShowConversationList(selectedId === "");
-
-        // Load contacts independently so the recipient menu does not depend
-        // on the modal opening timing or on the conversation list.
+      if (requestedConversationId) {
         try {
-          const contactsResponse = await messageClient.getContacts();
-          if (isMounted) {
-            setContacts(toMessagingContacts(contactsResponse.contacts));
+          // The BFF decides whether this user may access the requested thread.
+          const thread = await messageClient.getConversationMessages(requestedConversationId);
+          if (!isCurrent()) return;
+          if (!idsMatch(thread.conversation.id, requestedConversationId)) {
+            throw new Error("La conversation demandée est indisponible.");
           }
-        } catch {
-          // Bootstrap contacts remain available as a fallback.
+          selectedId = thread.conversation.id;
+          initialConversations = upsertConversation(initialConversations, thread.conversation);
+          initialMessages = replaceConversationMessages(initialMessages, selectedId, thread.messages);
+        } catch (threadError) {
+          if (!isCurrent()) return;
+          // Opening a deep link is a thread selection too. Do not mount an
+          // unrelated fallback before the existing session guard can recover.
+          if (pageIsVisible() && requiresPageNavigation(threadError) &&
+              await recoverSessionNavigation(threadError)) return;
+          setError("La conversation demandée est introuvable ou inaccessible.");
         }
-      } catch (loadError) {
-        if (!isMounted) return;
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "La messagerie est indisponible.",
-        );
-      } finally {
-        if (isMounted) setLoading(false);
+      }
+
+      setCurrentUser(bootstrap.currentUser);
+      setContacts(toMessagingContacts(bootstrap.contacts));
+      setConversations(initialConversations);
+      setMessages(initialMessages);
+      setConfirmedConversationIds(new Set([
+        ...(selectedId === "" ? [] : [String(selectedId)]),
+        ...initialMessages.flatMap((message) => message.conversationId === undefined ? [] : [String(message.conversationId)]),
+      ]));
+      activeConversationRef.current = selectedId;
+      setActiveConversationId(selectedId);
+      setShowConversationList(selectedId === "");
+
+      // Load contacts independently so the recipient menu does not depend
+      // on the modal opening timing or on the conversation list.
+      try {
+        const contactsResponse = await messageClient.getContacts();
+        if (isCurrent()) {
+          setContacts(toMessagingContacts(contactsResponse.contacts));
+        }
+      } catch {
+        // Bootstrap contacts remain available as a fallback.
+      }
+    } catch (loadError) {
+      if (!isCurrent()) return;
+      setBootstrapError(
+        loadError instanceof Error
+          ? loadError.message
+          : "La messagerie est indisponible.",
+      );
+    } finally {
+      if (isCurrent()) {
+        lifecycle.pending = false;
+        setLoading(false);
       }
     }
+  }, [recoverSessionNavigation]);
 
+  const retryBootstrap = () => {
+    const lifecycle = bootstrapLifecycleRef.current;
+    if (!lifecycle.mounted || lifecycle.pending) return;
+    setLoading(true);
+    setBootstrapError(null);
+    setError(null);
+    void loadBootstrap();
+  };
+
+  useEffect(() => {
+    const lifecycle = bootstrapLifecycleRef.current;
+    lifecycle.mounted = true;
     void loadBootstrap();
 
     return () => {
-      isMounted = false;
+      // The existing client has no AbortSignal parameter. Ignore disposed responses
+      // rather than claiming transport cancellation or changing the client contract.
+      lifecycle.mounted = false;
+      lifecycle.generation += 1;
+      lifecycle.pending = false;
+      selectionLoadingRef.current = null;
     };
-  }, []);
+  }, [loadBootstrap]);
 
   useEffect(() => {
     let disposed = false;
@@ -196,7 +262,7 @@ export default function Page() {
     let inFlight = false;
 
     const refresh = async () => {
-      if (disposed || inFlight || !pageIsVisible() || mutationCountRef.current > 0 ||
+      if (disposed || navigationStartedRef.current || inFlight || !pageIsVisible() || mutationCountRef.current > 0 ||
           selectionLoadingRef.current !== null) return;
       inFlight = true;
       const revision = revisionRef.current;
@@ -206,30 +272,52 @@ export default function Page() {
         const selectedExists = selectedId !== "" && list.conversations.some((conversation: MessagingConversation) =>
           idsMatch(conversation.id, selectedId),
         );
-        const thread = selectedExists
-          ? await messageClient.getConversationMessages(selectedId)
-          : null;
+        const nextId = selectedExists ? selectedId : list.conversations[0]?.id ?? "";
+        let thread: Awaited<ReturnType<typeof messageClient.getConversationMessages>> | null = null;
+        let fallbackReadFailed = false;
+        if (nextId !== "") {
+          try {
+            thread = await messageClient.getConversationMessages(nextId);
+            if (!idsMatch(thread.conversation.id, nextId)) {
+              throw new Error("Les messages reçus ne correspondent pas à la conversation sélectionnée.");
+            }
+          } catch (readError) {
+            // Session/navigation failures must also escape a replacement-thread
+            // read; treating them as a transient fallback hides the auth gate.
+            if (requiresPageNavigation(readError)) throw readError;
+            // A failed read of a still-existing thread preserves the previous view.
+            // A confirmed disappearance must not resurrect it when its replacement fails.
+            if (selectedExists) throw readError;
+            thread = null;
+            fallbackReadFailed = true;
+          }
+        }
         if (disposed || !pageIsVisible() || revisionRef.current !== revision ||
             mutationCountRef.current > 0 || selectionLoadingRef.current !== null ||
             !idsMatch(activeConversationRef.current, selectedId)) return;
 
         setConversations(list.conversations);
         if (thread) {
+          confirmThread(nextId);
           setMessages((current) =>
-            replaceConversationMessages(current, selectedId, thread.messages),
+            replaceConversationMessages(current, nextId, thread.messages),
           );
-        } else if (selectedId !== "" && !selectedExists) {
-          const fallbackId = list.conversations[0]?.id ?? "";
-          activeConversationRef.current = fallbackId;
+        }
+        if (!idsMatch(nextId, selectedId)) {
+          activeConversationRef.current = nextId;
           revisionRef.current += 1;
-          setActiveConversationId(fallbackId);
+          setActiveConversationId(nextId);
           setMessages((current) => current.filter((message) =>
             !idsMatch(message.conversationId, selectedId),
           ));
+          if (nextId === "") setShowConversationList(true);
         }
-        if (!disposed) setSyncError(null);
-      } catch {
+        if (!disposed) setSyncError(fallbackReadFailed
+          ? "Les messages de la conversation sélectionnée sont momentanément indisponibles. Sélectionnez-la de nouveau pour réessayer."
+          : null);
+      } catch (refreshError) {
         if (!disposed && revisionRef.current === revision && pageIsVisible()) {
+          if (requiresPageNavigation(refreshError) && await recoverSessionNavigation(refreshError)) return;
           setSyncError("La synchronisation des conversations est momentanément indisponible.");
         }
       } finally {
@@ -248,12 +336,13 @@ export default function Page() {
       window.removeEventListener("focus", triggerRefresh);
       document.removeEventListener("visibilitychange", triggerRefresh);
     };
-  }, [currentUser]);
+  }, [currentUser, recoverSessionNavigation, confirmThread]);
 
   const beginMutation = () => {
     revisionRef.current += 1;
     mutationCountRef.current += 1;
     selectionLoadingRef.current = null;
+    setPendingSelection(null);
   };
 
   const endMutation = (preserveSelection = false) => {
@@ -276,20 +365,28 @@ export default function Page() {
   };
 
   const loadConversationMessages = async (conversationId: MessagingContactId) => {
+    if (navigationStartedRef.current || !bootstrapLifecycleRef.current.mounted) return;
     const revision = ++revisionRef.current;
     activeConversationRef.current = conversationId;
     selectionLoadingRef.current = revision;
+    setPendingSelection(conversationId);
     setActiveConversationId(conversationId);
     setError(null);
+    const isCurrent = () => bootstrapLifecycleRef.current.mounted &&
+      selectionLoadingRef.current === revision &&
+      idsMatch(activeConversationRef.current, conversationId);
 
     try {
       const response = await messageClient.getConversationMessages(conversationId);
-      if (selectionLoadingRef.current !== revision ||
-          !idsMatch(activeConversationRef.current, conversationId)) return;
+      if (!isCurrent()) return;
+      if (!idsMatch(response.conversation.id, conversationId)) {
+        throw new Error("Les messages reçus ne correspondent pas à la conversation sélectionnée. Réessayez.");
+      }
 
       setConversations((currentConversations) =>
         upsertConversation(currentConversations, response.conversation),
       );
+      confirmThread(response.conversation.id);
       setMessages((currentMessages) =>
         replaceConversationMessages(
           currentMessages,
@@ -298,18 +395,30 @@ export default function Page() {
         ),
       );
       setShowConversationList(false);
+      setSyncError(null);
     } catch (loadError) {
-      if (selectionLoadingRef.current === revision) setError(
+      if (!isCurrent()) return;
+      if (pageIsVisible() && requiresPageNavigation(loadError) &&
+          await recoverSessionNavigation(loadError)) return;
+      setError(
         loadError instanceof Error
           ? loadError.message
           : "Les messages de cette conversation sont indisponibles.",
       );
     } finally {
-      if (selectionLoadingRef.current === revision) selectionLoadingRef.current = null;
+      if (selectionLoadingRef.current === revision) {
+        selectionLoadingRef.current = null;
+        setPendingSelection(null);
+      }
     }
   };
 
   const handleSendMessage = async (payload: SendMessagePayload) => {
+    // A captured callback must not send to the previous or unconfirmed thread,
+    // even before React renders the disabled composer. Known current histories
+    // remain usable while a refresh is pending; mutation invalidates that read.
+    if (!idsMatch(activeConversationRef.current, payload.conversationId) ||
+        !confirmedConversationIds.has(String(payload.conversationId))) return false;
     const draftAttachments = payload.attachments ?? [];
     if (!payload.conversationId || (payload.content.trim().length === 0 && draftAttachments.length === 0)) {
       return false;
@@ -393,6 +502,7 @@ export default function Page() {
         appendMessage(currentMessages, response.message),
       );
       setActiveConversationId(response.conversation.id);
+      confirmThread(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
       setShowConversationList(false);
       return true;
@@ -419,6 +529,7 @@ export default function Page() {
         upsertConversation(currentConversations, response.conversation),
       );
       setActiveConversationId(response.conversation.id);
+      confirmThread(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
       setShowConversationList(false);
       return true;
@@ -459,6 +570,7 @@ export default function Page() {
           activeConversationRef.current = fallbackId;
           setActiveConversationId(fallbackId);
           if (!fallbackId) setShowConversationList(true);
+          else void loadConversationMessages(fallbackId);
         }
         setConversations((currentConversations) => currentConversations.filter(
           (conversation) => !idsMatch(conversation.id, conversationToDelete.id),
@@ -486,60 +598,92 @@ export default function Page() {
   return (
     <AppShell activeItem="messages">
       <div className="messages-module-stack">
-        {deletingConversation && (
-          <p role="status" className="messages-operation-status">
-            Suppression de la conversation en cours…
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="messages-error">
-            {error}
-          </p>
-        )}
-        {syncError && (
-          <p role="alert" className="messages-error">
-            {syncError}
-          </p>
-        )}
+        {loading || !currentUser ? (
+          <section
+            aria-labelledby="messages-bootstrap-title"
+            aria-busy={loading}
+            className="min-h-0 overflow-y-auto rounded-lg bg-white p-6 shadow-sm"
+          >
+            <h1 id="messages-bootstrap-title" className="text-xl font-semibold">
+              {loading ? "Chargement de la messagerie" : "Messagerie indisponible"}
+            </h1>
+            {bootstrapError ? (
+              <p role="alert" className="messages-error">{bootstrapError}</p>
+            ) : null}
+            <p role="status" className="my-4">
+              {loading
+                ? "Les conversations sont en cours de chargement."
+                : "Les conversations n’ont pas pu être chargées. Vous pouvez réessayer."}
+            </p>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={retryBootstrap}
+              className="rounded-md bg-gray-900 px-4 py-2 text-white disabled:cursor-wait disabled:opacity-60"
+            >
+              {loading ? "Chargement en cours…" : "Réessayer"}
+            </button>
+          </section>
+        ) : (
+          <>
+            {deletingConversation && (
+              <p role="status" className="messages-operation-status">
+                Suppression de la conversation en cours…
+              </p>
+            )}
+            {error && (
+              <p role="alert" className="messages-error">
+                {error}
+              </p>
+            )}
+            {syncError && (
+              <p role="alert" className="messages-error">
+                {syncError}
+              </p>
+            )}
+            {selectionPending && (
+              <p role="status" className="messages-operation-status">{threadPlaceholder}</p>
+            )}
 
-        {activeConversationId && (
-          <MobileConversationSwitch
-            showConversationList={showConversationList}
-            onToggle={() => setShowConversationList((current) => !current)}
-          />
+            {activeConversationId && (
+              <MobileConversationSwitch
+                showConversationList={showConversationList}
+                onToggle={() => setShowConversationList((current) => !current)}
+              />
+            )}
+            <div
+              className={`messages-module-frame${showConversationList ? " messages-list-open" : ""}`}
+              ref={prepareMessagingScrollRegions}
+            >
+              <Messaging
+                conversations={displayedConversations}
+                contacts={contacts}
+                messages={displayedMessages}
+                mentionOptions={mentionOptions}
+                businessReferences={businessReferences}
+                activeConversationId={hasConfirmedThread ? activeConversationId : ""}
+                currentUserId={toMessagingUserId(currentUser?.id)}
+                emptyStateLabel={activeConversationId === "" || hasConfirmedThread ? "Aucune conversation" : threadPlaceholder}
+                aria-busy={selectionPending}
+                onConversationSelect={(conversation) =>
+                  void loadConversationMessages(conversation.id)
+                }
+                onNewMessageClick={() => void loadContacts()}
+                onCreateGroupClick={() => void loadContacts()}
+                onSendMessage={hasConfirmedThread ? handleSendMessage : undefined}
+                onAttach={(files, attachments) => {
+                  attachments.forEach((attachment, index) => {
+                    if (files[index]) attachmentFilesRef.current.set(attachment, files[index]);
+                  });
+                }}
+                onNewMessageSend={handleNewMessageSend}
+                onCreateGroup={handleCreateGroup}
+                onConversationDelete={deletingConversation || !hasConfirmedThread ? undefined : handleConversationDelete}
+                className="messages-module"
+              />
+            </div>
+          </>
         )}
-        <div
-          className={`messages-module-frame${showConversationList ? " messages-list-open" : ""}`}
-          ref={prepareMessagingScrollRegions}
-        >
-          <Messaging
-            conversations={displayedConversations}
-            contacts={contacts}
-            messages={displayedMessages}
-            mentionOptions={mentionOptions}
-            businessReferences={businessReferences}
-            activeConversationId={activeConversationId}
-            currentUserId={toMessagingUserId(currentUser?.id)}
-            emptyStateLabel={
-              loading ? "Chargement de la messagerie..." : "Aucune conversation"
-            }
-            onConversationSelect={(conversation) =>
-              void loadConversationMessages(conversation.id)
-            }
-            onNewMessageClick={() => void loadContacts()}
-            onCreateGroupClick={() => void loadContacts()}
-            onSendMessage={handleSendMessage}
-            onAttach={(files, attachments) => {
-              attachments.forEach((attachment, index) => {
-                if (files[index]) attachmentFilesRef.current.set(attachment, files[index]);
-              });
-            }}
-            onNewMessageSend={handleNewMessageSend}
-            onCreateGroup={handleCreateGroup}
-            onConversationDelete={deletingConversation ? undefined : handleConversationDelete}
-            className="messages-module"
-          />
-        </div>
       </div>
     </AppShell>
   );

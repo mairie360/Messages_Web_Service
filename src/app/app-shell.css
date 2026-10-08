@@ -26,6 +26,23 @@ html body {
   min-height: 0;
 }
 
+/* Keep the published navigation, restoring only the reference presentation. */
+.messages-app-root [aria-label="Navigation principale"] {
+  position: relative;
+  z-index: 20;
+  box-shadow: 8px 0 24px rgb(12 28 48 / 28%);
+}
+
+.messages-app-root [aria-label="Navigation principale"] nav button {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+/* The published drawer Close button is z-10; keep it above its sidebar. */
+.messages-app-root [aria-label="Navigation mobile"] [aria-label="Navigation principale"] {
+  z-index: 0;
+}
+
 .messages-app-root > .flex > .flex > header,
 .messages-app-root > .flex > .flex > footer {
   flex-shrink: 0;
@@ -71,7 +88,15 @@ html body {
   flex: 1;
   flex-direction: column;
   gap: 12px;
-  overflow: hidden;
+  /* The module clips its own content; clipping this same-size stack also
+     hides the card's outer shadow. The padded main bounds the viewport. */
+  overflow: visible;
+}
+
+@media (min-width: 1024px) {
+  .messages-module-frame > .messages-module {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
 }
 
 .messages-pane-switch {

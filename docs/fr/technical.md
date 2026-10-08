@@ -74,7 +74,31 @@ flowchart LR
   Next --> BFF["BFF_Message"]
 ```
 
-La page utilise le client de messagerie pour charger le bootstrap puis les messages et contacts à la demande. Elle transforme les réponses pour le composant partagé `Messaging`. Après le bootstrap, elle relit `/conversations` et le fil actif toutes les dix secondes lorsque l’onglet est visible, ainsi qu’à la reprise du focus. Les réponses arrivées après une sélection ou une mutation sont ignorées pour ne pas écraser l’état récent ; un échec de synchronisation conserve le dernier fil connu et affiche une alerte. La route explicite `/business-references` relaie la réponse de BFF Message.
+La page utilise le client de messagerie pour charger le bootstrap puis les messages et contacts à la demande. Elle transforme les réponses pour le composant partagé `Messaging`. Après le bootstrap, elle relit `/conversations` et le fil actif toutes les deux secondes lorsque l’onglet est visible, ainsi qu’à la reprise du focus. Les réponses arrivées après une sélection ou une mutation sont ignorées pour ne pas écraser l’état récent ; un échec temporaire de synchronisation conserve le dernier fil connu et affiche une alerte. La route explicite `/business-references` relaie la réponse de BFF Message.
+
+Pour les lectures de synchronisation uniquement, `redirect: "manual"` expose une
+redirection comme `opaqueredirect` ; le client lève `BffNavigationRequiredError`
+sans lire Location, statut ni corps. Une réponse de polling ou de sélection explicite courante et visible
+recharge la page protégée ; le middleware inchangé décide de Login et du retour.
+Un vrai401 appelle plutôt une seule fois `logoutAndReload()` existant pour effacer
+le cookie refusé qui semble encore valide, via la route locale existante ; son
+rechargement finally est conservé même si le transport échoue.403/503/panne réseau
+ne déconnectent pas. Un garde partagé par page empêche les autres pollings et
+lectures de fil, y compris une sélection répétée pendant la déconnexion locale.
+Une sélection obsolète, un refus reçu lorsque la page est masquée ou une réponse
+après démontage ne déclenchent pas de navigation. Ce code ne décode ni ne stocke
+de jeton. La reprise du bootstrap et des mutations n'est pas généralisée ;
+brouillons durables et révocation serveur restent non prouvés.
+
+La page distingue les identifiants de fils confirmés de la sélection demandée :
+fil choisi et historiques fournis par bootstrap, lectures réussies avec le bon
+identifiant et conversations nouvellement créées confirmées. Un fil inconnu en
+attente/refus utilise la sélection contrôlée vide et `emptyStateLabel` existants,
+pas le résultat vide codé par la bibliothèque. `Messaging` et sa rédaction restent
+montés, sans écriture sur un historique non confirmé ; les messages connus restent
+visibles en cas de refus. L'attente expose `role="status"` et `aria-busy` ; un ancien
+callback ne peut envoyer vers un fil passé/non confirmé. Aucun patch DOM, reset de
+clé/composant, faux message, paquet ou endpoint modifié.
 
 La suppression conserve le fil et ses messages jusqu’à une réponse conforme
 `deleted: true` ; l’identifiant facultatif, lorsqu’il est renvoyé, doit correspondre
