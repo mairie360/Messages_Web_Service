@@ -52,7 +52,7 @@ test('supplied product, year, real version and actionable links remain in sideba
       links: [{ label: 'Documentation', href: 'https://docs.example/' }],
     },
   }, React.createElement('p', null, 'Contenu du module')));
-  assert.match(html, /<aside\b[^]*?<footer\b[^]*?© 2024 Produit fourni[^]*?Version 0\.6\.10[^]*?<a\b[^>]*href="https:\/\/docs\.example\/"[^>]*>Documentation<\/a>[^]*?<\/footer>[^]*?<\/aside>/);
+  assert.match(html, /<aside\b[^]*?<footer\b[^]*?© 2024 Produit fourni[^]*?Version 0\.6\.11[^]*?<a\b[^>]*href="https:\/\/docs\.example\/"[^>]*>Documentation<\/a>[^]*?<\/footer>[^]*?<\/aside>/);
   assert.doesNotMatch(html, /<\/main>\s*<footer\b/);
   assert.doesNotMatch(html, /Utilisateur/);
 });
