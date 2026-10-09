@@ -91,6 +91,14 @@ const clientScenarios = {
     assert.match(call.rawBody.toString('utf8'), /name="files"; filename="agenda\.txt"/);
     assert.match(call.rawBody.toString('utf8'), /agenda/);
   },
+  async acknowledgeVisibleMessages() {
+    const body = { conversationId: 'conversation-4', unreadCount: 2 };
+    messageBff.on('post', '/conversations/{conversationId}/read', { body });
+    assert.deepEqual(await messageClient.acknowledgeVisibleMessages('conversation-4', 'message-1'), body);
+    const [call] = messageBff.calls('/conversations/{conversationId}/read', 'post');
+    assert.deepEqual(call.body, { readUntilMessageId: 'message-1' });
+    assert.equal(call.pathParams.conversationId, 'conversation-4');
+  },
   async sendMessage() {
     const body = { message: message(3, 4, 'Réunion à 14h'), conversation: conversation(4, 'Équipe communication', { lastMessage: 'Réunion à 14h' }) };
     messageBff.on('post', '/conversations/{conversationId}/messages', { status: 201, body });
