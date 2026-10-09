@@ -57,6 +57,34 @@ const handler = () => {
   return view.props('Messaging').onReadVisibleMessages;
 };
 
+test('an empty confirmed thread offers deletion without a meaningless read action', async () => {
+  const body = bootstrap();
+  body.messages = [];
+  bff.on('get', '/messaging/bootstrap', { body });
+  bff.on('get', '/conversations/{conversationId}/messages', { outOfContract: true, body: {
+    conversation: conversation(4, 'Équipe communication'), messages: [],
+  } });
+  view = mount(React.createElement(Page));
+  await view.waitFor(() => view.find('Messaging').length && view.props('Header').user.name !== 'Chargement…' &&
+    view.text().includes('Aucun message dans cette conversation.'));
+  // The first polling pass returns 3 instead of the bootstrap fixture's 2.
+  // Wait for its completion before triggering the next incoming-message pass.
+  await view.waitFor(() => view.props('Messaging').conversations[0].unreadCount === 3);
+  await view.settle();
+  await view.click(props => props['aria-label'] === "Plus d'actions");
+  assert.doesNotMatch(view.text(), /Marquer les messages affichés comme lus/);
+  assert.match(view.text(), /Supprimer la conversation/);
+  assert.equal(reads().length, 0);
+  bff.on('get', '/conversations/{conversationId}/messages', { outOfContract: true, body: {
+    conversation: conversation(4, 'Équipe communication'),
+    messages: [message(2, 4, 'Premier message reçu dans le fil vide', users.sophie)],
+  } });
+  browser.tickIntervals(2000);
+  await view.waitFor(() => view.text().includes('Premier message reçu dans le fil vide'));
+  assert.match(view.text(), /Marquer les messages affichés comme lus/);
+  assert.equal(reads().length, 0, 'new content enables an explicit action without acknowledging automatically');
+});
+
 test('bootstrap, focus and polling never acknowledge or locally clear unread counters', async () => {
   await loaded();
   await view.settle();

@@ -91,6 +91,7 @@ export default function Page() {
 
   const selectedConversation = conversations.find((conversation) => idsMatch(conversation.id, activeConversationId));
   const hasConfirmedThread = confirmedConversationIds.has(String(activeConversationId));
+  const hasConfirmedMessages = messages.some(message => idsMatch(message.conversationId, activeConversationId));
   const selectionPending = pendingSelection !== null && idsMatch(pendingSelection, activeConversationId);
   const selectedName = selectedConversation?.name ?? "la conversation";
   const threadPlaceholder = selectionPending
@@ -726,7 +727,7 @@ export default function Page() {
                 onNewMessageClick={() => void loadContacts()}
                 onCreateGroupClick={() => void loadContacts()}
                 onSendMessage={hasConfirmedThread ? handleSendMessage : undefined}
-                onReadVisibleMessages={hasConfirmedThread && !selectionPending ? handleReadVisibleMessages : undefined}
+                onReadVisibleMessages={hasConfirmedThread && hasConfirmedMessages && !selectionPending ? handleReadVisibleMessages : undefined}
                 onAttach={(files, attachments) => {
                   attachments.forEach((attachment, index) => {
                     if (files[index]) attachmentFilesRef.current.set(attachment, files[index]);
