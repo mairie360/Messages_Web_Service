@@ -78,20 +78,20 @@ test('the exact required legacy status executes both real blocking scanners with
     steps: [
       { name: 'Checkout frontend history', uses: checkout, with: { 'fetch-depth': 0, 'persist-credentials': false } },
       { name: 'Checkout reviewed scanner actions', uses: checkout, with: {
-        repository: 'mairie360/CICD', ref: '539847726d4058a9565c4f682c2d1d8302874b06', path: 'cicd-repo', 'persist-credentials': false,
+        repository: 'mairie360/CICD', ref: 'f5ea4257ac51aa2969f9ddb84730fbebce8f42a7', path: 'cicd-repo', 'persist-credentials': false,
       } },
-      { name: 'Run blocking Semgrep scan', uses: './cicd-repo/actions/semgrep', with: {
+      { name: 'Run blocking Semgrep scan', uses: './cicd-repo/actions/frontend-semgrep-pypi', with: {
         config: 'p/typescript p/react p/owasp-top-ten p/secrets p/dockerfile p/github-actions', fail_on_findings: 'true', artifact_name: 'semgrep-required-check-sarif',
       } },
-      { name: 'Run blocking redacted Gitleaks scan', uses: './cicd-repo/actions/gitleaks', with: { fail_on_findings: 'true' } },
+      { name: 'Run blocking redacted Gitleaks scan', uses: './cicd-repo/actions/frontend-gitleaks', with: { fail_on_findings: 'true' } },
     ],
   });
 });
 
 test('the reusable frontend workflow retains blocking defaults and only declared secrets', () => {
   assert.deepEqual(workflow().jobs.CICD, {
-    uses: 'mairie360/CICD/.github/workflows/frontend-cicd.yml@v4.2.0',
-    with: { package_name: 'message-front', node_version: '24.21.0', cicd_version: 'v4.2.0' },
+    uses: 'mairie360/CICD/.github/workflows/frontend-cicd.yml@f5ea4257ac51aa2969f9ddb84730fbebce8f42a7',
+    with: { package_name: 'message-front', node_version: '24.21.0', cicd_version: 'f5ea4257ac51aa2969f9ddb84730fbebce8f42a7' },
     secrets: { CODECOV_TOKEN: '${{ secrets.CODECOV_TOKEN }}', N8N_WEBHOOK_SECRET: '${{ secrets.N8N_WEBHOOK_SECRET }}' },
   });
   assert.doesNotMatch(read('.github/workflows/cicd.yml'), /secrets:\s*inherit|continue-on-error:|image_scan_fail_on_findings:|semgrep_fail_on_findings:\s*false/);
