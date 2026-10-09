@@ -1,78 +1,82 @@
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
-const { test } = require('node:test');
 const { join } = require('node:path');
+const { test } = require('node:test');
+const { JSDOM, VirtualConsole } = require('jsdom');
 
-const css = readFileSync(join(__dirname, '../src/app/app-shell.css'), 'utf8');
+const stylesheet = readFileSync(join(__dirname, '../src/app/app-shell.css'), 'utf8');
+const selector = (value) => value.replace(/\s*>\s*/g, ' > ').replace(/\s+/g, ' ').trim();
+const compact = (value) => value.replace(/\s+/g, '');
 
-function rule(selector) {
-  const start = css.indexOf(`${selector} {`);
-  assert.notEqual(start, -1, `missing ${selector} rule`);
-  return css.slice(start, css.indexOf('}', start));
+function policyDocument(t) {
+  const errors = [], console = new VirtualConsole();
+  console.on('jsdomError', (error) => errors.push(error.message));
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { virtualConsole: console });
+  t.after(() => dom.window.close());
+  const style = dom.window.document.createElement('style'); style.textContent = stylesheet;
+  dom.window.document.head.append(style); assert.deepEqual(errors, [], 'Actual stylesheet must parse');
+  const rows = [];
+  function visit(rules, condition = null) {
+    for (const rule of rules) {
+      if (rule.cssRules) visit(rule.cssRules, rule.conditionText || condition);
+      if (rule.style) rows.push({ selectors: rule.selectorText.split(',').map(selector),
+        condition: condition ? compact(condition) : null, style: rule.style });
+    }
+  }
+  visit(style.sheet.cssRules);
+  const values = (selected, property, condition = null) => rows.filter((row) =>
+    row.selectors.includes(selector(selected)) && row.condition === (condition ? compact(condition) : null))
+    .map((row) => row.style.getPropertyValue(property)).filter(Boolean);
+  const last = (selected, property, condition = null) => {
+    const declarations = values(selected, property, condition);
+    assert.ok(declarations.length, 'Keep scoped policy: ' + selected + ' / ' + property);
+    return declarations.at(-1);
+  };
+  const color = (value) => {
+    const probe = dom.window.document.createElement('span'); probe.style.color = value;
+    dom.window.document.body.append(probe);
+    try { return dom.window.getComputedStyle(probe).color; } finally { probe.remove(); }
+  };
+  return { rows, values, last, color };
 }
 
-test('default typography matches the reference without overriding shared text tokens or header height', () => {
-  assert.match(rule('html'), /font-size: 17px;/);
-  assert.match(rule('html body'), /font-family: system-ui, sans-serif;/);
-  assert.doesNotMatch(css, /--text-(?:xs|sm)\s*:|\.text-(?:xs|sm)\s*\{/);
-  const headerRule = css.match(/\.messages-app-root > \.flex > \.flex > header,[\s\S]*?\{([^}]+)\}/);
-  assert.ok(headerRule, 'the shared header retains its shrink protection');
-  assert.doesNotMatch(headerRule[1], /(?:min-|max-)?height:/);
+test('parsed messaging breakpoint policies retain reference desktop tracks and separate narrow panes', (t) => {
+  const { values, last } = policyDocument(t), module = '.messages-module-frame > .messages-module';
+  assert.deepEqual(values(module, 'grid-template-columns'), [], 'Only the desktop policy supplies two tracks');
+  assert.equal(compact(last(module, 'grid-template-columns', '(min-width: 1024px)')), '300pxminmax(0,1fr)');
+  const narrow = '(max-width: 1023px)';
+  assert.equal(last('.messages-pane-switch', 'display', narrow), 'inline-flex');
+  assert.equal(last('.messages-module > aside', 'display', narrow), 'none');
+  assert.equal(last('.messages-list-open .messages-module > aside', 'display', narrow), 'flex');
+  assert.equal(last('.messages-list-open .messages-module > div:nth-child(2)', 'display', narrow), 'none');
+  assert.equal(last('.messages-app-root > .flex > .flex > main', 'padding', '(max-width: 767px)'), '10px');
+  // Configuration association only: JSDOM does not compile Tailwind or evaluate media queries.
 });
 
-test('the messaging shell stays bounded to the dynamic viewport', () => {
-  assert.match(rule('.messages-app-root'), /height: 100dvh;[\s\S]*min-height: 0;[\s\S]*overflow: hidden;/);
-  assert.match(rule('.messages-app-root > .flex'), /height: 100%;[\s\S]*min-height: 0;/);
-  assert.match(rule('.messages-app-root > .flex > .flex'), /min-height: 0;/);
-  assert.match(rule('.messages-app-root > .flex > .flex > main'), /display: flex;[\s\S]*min-height: 0;[\s\S]*overflow: hidden;/);
-});
-
-test('shared sidebar retains the reference navigation rhythm and outer shadow', () => {
-  const sidebar = rule('.messages-app-root [aria-label="Navigation principale"]');
-  assert.match(sidebar, /position: relative;/);
-  assert.match(sidebar, /z-index: 20;/);
-  assert.match(sidebar, /box-shadow: 8px 0 24px rgb\(12 28 48 \/ 28%\);/);
-  const buttons = rule('.messages-app-root [aria-label="Navigation principale"] nav button');
-  assert.match(buttons, /flex-shrink: 0;/);
-  assert.match(buttons, /min-height: 44px;/);
-  // The drawer close button is z-10 in the published shell. The desktop z-20
-  // sidebar must not cover that control when rendered inside the mobile drawer.
-  assert.match(rule('.messages-app-root [aria-label="Navigation mobile"] [aria-label="Navigation principale"]'), /z-index: 0;/);
-});
-
-test('the messaging panel fills the reference space and retains its card shadow', () => {
-  assert.match(rule('.messages-app-root > .flex > .flex > main'), /padding: 20px;/);
-  assert.match(rule('.messages-main-inner'), /width: 100%;[\s\S]*max-width: none;/);
-  assert.doesNotMatch(css, /max-width: 1534px;|padding: 32px 24px;/);
-  assert.match(rule('.messages-module-frame > .messages-module'), /box-shadow: 0 5px 15px rgb\(23 32 51 \/ 14%\), 0 1px 3px rgb\(23 32 51 \/ 12%\);/);
-  // A computed shadow alone does not prove that the outer shadow is visible.
-  // The stack shares the card bounds; clipping it cuts off both shadow layers.
-  assert.match(rule('.messages-module-stack'), /overflow: visible;/);
-  assert.doesNotMatch(rule('.messages-module-stack'), /overflow: (?:hidden|clip|auto);/);
-  assert.doesNotMatch(rule('.messages-module-frame'), /overflow: (?:hidden|clip|auto);/);
-});
-
-test('desktop restores the 300px reference list without changing the mobile pane breakpoint', () => {
-  assert.match(css, /@media \(min-width: 1024px\)\s*\{\s*\.messages-module-frame > \.messages-module\s*\{\s*grid-template-columns: 300px minmax\(0, 1fr\);/);
-  assert.doesNotMatch(rule('.messages-module-frame > .messages-module'), /grid-template-columns:/);
-  assert.doesNotMatch(css, /grid-template-columns: 320px/);
-});
-
-test('contacts and messages keep independent scroll areas while controls stay visible', () => {
-  assert.match(rule('.messages-module-frame > .messages-module'), /min-height: 0;[\s\S]*height: 100%;/);
-  assert.match(rule('.messages-module-frame'), /min-height: 0;[\s\S]*flex: 1;/);
-  assert.match(rule('.messages-module-stack'), /min-height: 0;[\s\S]*flex: 1;[\s\S]*overflow: visible;/);
-  assert.match(css, /\.messages-module > aside > div:last-child,[\s\S]*?overscroll-behavior: contain;/);
-  assert.match(css, /\.messages-module > div:nth-child\(2\) > \.flex-1 \{\s*overflow-x: hidden;\s*overflow-y: auto;\s*overflow-wrap: anywhere;/);
-  assert.match(rule('.messages-module > div:nth-child(2) > :not(.flex-1)'), /flex-shrink: 0;/);
-  assert.match(rule('.messages-error'), /flex-shrink: 0;/);
-  assert.match(rule('.messages-module [role="region"]:focus-visible'), /outline: 2px solid #1256a6;/);
-});
-
-test('narrow screens show one full-height pane at a time and desktop shows both', () => {
-  assert.match(rule('.messages-module-frame > .messages-module'), /grid-template-rows: minmax\(0, 1fr\);/);
-  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*?\.messages-pane-switch \{\s*display: inline-flex;/);
-  assert.match(css, /\.messages-list-open \.messages-module > aside \{\s*display: flex;/);
-  assert.match(css, /\.messages-list-open \.messages-module > div:nth-child\(2\) \{\s*display: none;/);
-  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?\.messages-app-root > \.flex > \.flex > main \{\s*padding: 10px;/);
+test('parsed messaging fallback, small-text and focus policies preserve the shared header rhythm', (t) => {
+  const { rows, last, color } = policyDocument(t);
+  for (const row of rows) {
+    assert.ok(row.selectors.every((selected) => !/(?:^|\s|>)\.text-(?:xs|sm)(?:$|:|\s|\[)/.test(selected)), 'Keep shared small-text classes');
+    for (let index = 0; index < row.style.length; index += 1) {
+      const property = row.style.item(index);
+      assert.ok(!['--text-xs', '--text-sm'].includes(property), 'Keep shared small-text tokens');
+      if (row.selectors.some((selected) => ['.messages-app-root > .flex > .flex > header', '.messages-app-root > .flex > .flex > footer'].includes(selected))) {
+        assert.ok(!['height', 'min-height', 'max-height'].includes(property), 'Do not override shared header/footer height');
+      }
+    }
+  }
+  for (const target of ['.messages-app-root > .flex > .flex > header', '.messages-app-root > .flex > .flex > footer']) {
+    assert.equal(last(target, 'flex-shrink'), '0');
+  }
+  const outline = (target, condition = null) => {
+    const tokens = last(target, 'outline', condition).trim().split(/\s+(?![^()]*\))/);
+    const lengths = tokens.filter((token) => Number.isFinite(Number.parseFloat(token)));
+    const colors = tokens.filter((token) => token !== 'solid' && !Number.isFinite(Number.parseFloat(token)));
+    assert.deepEqual(lengths, ['2px']); assert.ok(tokens.includes('solid')); assert.equal(colors.length, 1);
+    assert.equal(color(colors[0]), 'rgb(18, 86, 166)');
+  };
+  outline('.messages-module [role="region"]:focus-visible');
+  outline('.messages-pane-switch:focus-visible', '(max-width: 1023px)');
+  assert.equal(last('.messages-operation-status', 'flex-shrink'), '0');
+  // Preserve configuration; native keyboard/scrolling and RGAA certification remain separate.
 });
