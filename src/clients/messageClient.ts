@@ -13,6 +13,8 @@ import type {
   PostDirectMessagesBody,
   PostGroups201,
   PostGroupsBody,
+  PostConversationsConversationIdRead200,
+  PostConversationsConversationIdReadBody,
 } from "@mairie360/bff-message-openapi/model";
 
 // Types du contrat publié de BFF Message (@mairie360/bff-message-openapi, version épinglée dans package.json).
@@ -121,6 +123,19 @@ export const messageClient = {
       `/conversations/${encodeId(conversationId)}/messages`,
       { redirect: "manual" },
     );
+  },
+
+  async acknowledgeVisibleMessages(conversationId: MessageId, readUntilMessageId: MessageId) {
+    const body: PostConversationsConversationIdReadBody = { readUntilMessageId };
+    const reply = await bffRequest<PostConversationsConversationIdRead200>(
+      `/conversations/${encodeId(conversationId)}/read`,
+      { method: "POST", redirect: "manual", body: JSON.stringify(body) },
+    );
+    if (!reply || String(reply.conversationId) !== String(conversationId) ||
+        !Number.isSafeInteger(reply.unreadCount) || reply.unreadCount < 0) {
+      throw new Error("L’acquittement des messages n’a pas été confirmé.");
+    }
+    return reply;
   },
 
   uploadAttachments(files: File[]) {

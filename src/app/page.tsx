@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import { Messaging } from "@mairie360/lib-components";
 import { BffNavigationRequiredError, BffRequestError, messageClient, type CurrentUserDto, type MessageId } from "@/clients/messageClient";
@@ -82,6 +82,9 @@ export default function Page() {
   const navigationStartedRef = useRef(false);
   const deletionPendingRef = useRef(false);
   const bootstrapLifecycleRef = useRef({ mounted: false, generation: 0, pending: false });
+  const readPendingRef = useRef<symbol | null>(null);
+  const confirmedMessagesRef = useRef(messages);
+  useLayoutEffect(() => { confirmedMessagesRef.current = messages; }, [messages]);
   // Draft descriptors contain local object URLs, never BFF attachment IDs.
   // Weak keys allow removed files to be released without an explicit removal callback.
   const attachmentFilesRef = useRef(new WeakMap<DraftAttachment, File>());
@@ -484,6 +487,58 @@ export default function Page() {
     }
   };
 
+  const handleReadVisibleMessages: NonNullable<MessagingProps["onReadVisibleMessages"]> =
+    async (conversation, lastVisibleMessage) => {
+      const lifecycle = bootstrapLifecycleRef.current;
+      if (!lifecycle.mounted || navigationStartedRef.current || !pageIsVisible() ||
+          readPendingRef.current || mutationCountRef.current > 0 || selectionLoadingRef.current !== null ||
+          !idsMatch(activeConversationRef.current, conversation.id) ||
+          !confirmedConversationIds.has(String(conversation.id))) return;
+      if (!lastVisibleMessage || !hasServerId(lastVisibleMessage.id) ||
+          !idsMatch(lastVisibleMessage.conversationId, conversation.id) ||
+          !confirmedMessagesRef.current.some(message => idsMatch(message.id, lastVisibleMessage.id) &&
+            idsMatch(message.conversationId, conversation.id))) return;
+
+      const request = Symbol("visible-message-read");
+      const generation = lifecycle.generation;
+      readPendingRef.current = request;
+      setError(null);
+      beginMutation();
+      const revision = revisionRef.current;
+      const isCurrent = () => lifecycle.mounted && lifecycle.generation === generation &&
+        readPendingRef.current === request && !navigationStartedRef.current && pageIsVisible() &&
+        revisionRef.current === revision && idsMatch(activeConversationRef.current, conversation.id);
+      try {
+        await messageClient.acknowledgeVisibleMessages(conversation.id, lastVisibleMessage.id);
+        if (!isCurrent()) return;
+        // A successful read reply is not a complete current snapshot: new messages
+        // may have arrived, and the old stable BFF returned a fabricated zero.
+        // Only an authoritative fresh GET can change a displayed counter.
+        const fresh = await messageClient.getConversations();
+        if (!isCurrent()) return;
+        const target = fresh?.conversations?.find(item => idsMatch(item.id, conversation.id));
+        if (!Array.isArray(fresh?.conversations) || !target ||
+            !Number.isSafeInteger(target.unreadCount) || (target.unreadCount ?? -1) < 0) {
+          throw new Error("Le compteur des messages n’a pas pu être confirmé.");
+        }
+        setConversations(current => current.map(item => {
+          const next = fresh.conversations.find(candidate => idsMatch(candidate.id, item.id));
+          return next && Number.isSafeInteger(next.unreadCount) && (next.unreadCount ?? -1) >= 0
+            ? { ...item, unreadCount: next.unreadCount }
+            : item;
+        }));
+      } catch (failure) {
+        if (!isCurrent()) return;
+        if (await recoverSessionNavigation(failure)) return;
+        if (isCurrent()) setError("Les messages affichés n’ont pas pu être marqués comme lus. Le fil et les compteurs sont conservés ; réessayez.");
+      } finally {
+        if (readPendingRef.current === request) {
+          readPendingRef.current = null;
+          endMutation(true);
+        }
+      }
+    };
+
   const handleNewMessageSend = async (payload: NewMessagePayload) => {
     if (payload.message.trim().length === 0) {
       return false;
@@ -671,6 +726,7 @@ export default function Page() {
                 onNewMessageClick={() => void loadContacts()}
                 onCreateGroupClick={() => void loadContacts()}
                 onSendMessage={hasConfirmedThread ? handleSendMessage : undefined}
+                onReadVisibleMessages={hasConfirmedThread && !selectionPending ? handleReadVisibleMessages : undefined}
                 onAttach={(files, attachments) => {
                   attachments.forEach((attachment, index) => {
                     if (files[index]) attachmentFilesRef.current.set(attachment, files[index]);
