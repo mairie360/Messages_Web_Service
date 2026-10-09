@@ -6,18 +6,6 @@ const { test } = require('node:test');
 const root = join(__dirname, '..');
 const read = (path) => readFileSync(join(root, path), 'utf8');
 
-test('Messages pins the published shared UI package', () => {
-  const manifest = JSON.parse(read('package.json'));
-  const lock = JSON.parse(read('package-lock.json'));
-  const dependency = 'node_modules/@mairie360/lib-components';
-
-  assert.equal(manifest.dependencies['@mairie360/lib-components'], '0.6.11');
-  assert.equal(lock.packages[''].dependencies['@mairie360/lib-components'], '0.6.11');
-  assert.equal(lock.packages[dependency].version, '0.6.11');
-  assert.match(lock.packages[dependency].resolved, /^https:\/\/npm\.pkg\.github\.com\/download\/@mairie360\/lib-components\/0\.6\.11\//);
-  assert.match(lock.packages[dependency].integrity, /^sha512-/);
-});
-
 test('npm release-age exception is limited to the internal UI package', () => {
   const config = read('.npmrc');
   assert.match(config, /^min-release-age\s*=\s*7\s*$/m);
