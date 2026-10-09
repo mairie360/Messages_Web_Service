@@ -4,6 +4,8 @@ The existing thread actions menu includes “Marquer les messages affichés comm
 lus” through the published shared UI 0.6.12. The component identifies the last
 message intersecting the visible thread after the menu closes. Hidden threads,
 an absent message and stale selections cannot start the command.
+An empty confirmed thread keeps deletion available and offers the read action
+once a message is received, without acknowledging it automatically.
 
 The frontend calls the existing published Message 0.4.0 operation
 `POST /conversations/{conversationId}/read` with an explicit

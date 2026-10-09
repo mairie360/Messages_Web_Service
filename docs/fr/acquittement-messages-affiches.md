@@ -4,6 +4,8 @@ Le menu d’actions existant du fil propose « Marquer les messages affichés co
 lus » grâce au paquet partagé réellement publié 0.6.12. Après fermeture du menu,
 le composant identifie le dernier message qui intersecte la zone visible du fil.
 Un fil masqué, un message absent ou une sélection périmée ne lancent pas l’action.
+Un fil confirmé vide conserve la suppression ; la commande de lecture apparaît
+quand un message est reçu, sans l’acquitter automatiquement.
 
 Le frontend utilise l’opération publiée Message 0.4.0
 `POST /conversations/{conversationId}/read`, avec `readUntilMessageId` explicite.
