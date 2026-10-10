@@ -1,8 +1,12 @@
 # Messages_Web_Service
 
+## Current shared UI artifact — 10 October 2026
+
+This frontend consumes the published `@mairie360/lib-components@0.6.12` artifact from source commit `6c022cb53da535fd16d4fa80a5cdb943d3791f31`. The selected manifest version, root lock entry, installed package, registry integrity and recorded distribution hashes are checked together by the release tests. Application pins and published BFF contracts are unchanged by this documentation update. Historical 0.6.11 notes below describe the earlier delivery.
+
 ## Published shared workflow fixes — 8 October 2026
 
-This candidate consumes the real shared UI0.6.11 published from library mainf243318. Its downloaded SHA512 and all compiled files were verified against that main. The release delivers conversation/account draft isolation, faithful author-status display, full type validation and patched template tooling. Only the exact UI pin/root lock entry and release regressions change; all other resolved packages and BFF contracts remain unchanged.
+The earlier candidate consumed the real shared UI0.6.11 published from library mainf243318. Its downloaded SHA512 and all compiled files were verified against that main. The release delivers conversation/account draft isolation, faithful author-status display, full type validation and patched template tooling. Only the exact UI pin/root lock entry and release regressions change; all other resolved packages and BFF contracts remain unchanged.
 
 The npm11.15 version chooser rejects the fresh release and warns that the existing internal UI age-exclusion key is unsupported. The lock is therefore updated from the verified registry metadata; the seven-day configuration and its existing exception are retained. A normal locked installation and consumer checks must verify this candidate. This is a documented dependency-selection bypass, not green aggregate CI, main/dev delivery or browser acceptance.
 
