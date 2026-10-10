@@ -57,7 +57,7 @@ function scan(file) {
     if (!BROWSER_REQUESTERS.has(callee) || !node.arguments[0]) return;
     const [target, init] = node.arguments;
     const methodProperty = init && ts.isObjectLiteralExpression(init)
-      ? init.properties.find((property) => ts.isPropertyAssignment(property) && property.name.getText() === 'method')
+      ? init.properties.find((property) => ts.isPropertyAssignment(property) && policy.propertyName(property.name) === 'method')
       : undefined;
     const method = methodProperty && ts.isStringLiteral(methodProperty.initializer) ? methodProperty.initializer.text : 'GET';
     if (ts.isStringLiteral(target) || ts.isNoSubstitutionTemplateLiteral(target)) {
