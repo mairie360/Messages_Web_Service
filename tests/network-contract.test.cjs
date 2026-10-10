@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { describe, test } = require('node:test');
 const ts = require('typescript');
+const policy = require('./support/source-policy.cjs');
 const { ContractMockServer } = require('./support/contract-mock-server.cjs');
 const { messageBffContract } = require('./support/fixtures.cjs');
 const { appRoutes } = require('./support/front-network.cjs');
@@ -120,18 +121,26 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
     const bffEnv = new Set();
     const relays = [];
     for (const file of sourceFiles()) {
-      const text = fs.readFileSync(file, 'utf8');
-      for (const [, name] of text.matchAll(/process\.env\.(\w*BFF\w*)/g)) bffEnv.add(`${relative(file)}: ${name}`);
-      if (/\bforwardToBff\(/.test(text) && relative(file) !== 'lib/bff-proxy.ts') relays.push(relative(file));
+      const ast = policy.parse('src/' + relative(file));
+      for (const name of policy.envNames(ast).filter(name => name?.includes('BFF'))) bffEnv.add(`${relative(file)}: ${name}`);
+      if (policy.calls(ast, 'forwardToBff').length && relative(file) !== 'lib/bff-proxy.ts') relays.push(relative(file));
     }
     assert.deepEqual([...bffEnv].sort(), [
       'lib/bff-proxy.ts: BFF_MESSAGE_BASE_URL', 'lib/bff-proxy.ts: MESSAGE_BFF_URL', 'lib/bff-proxy.ts: NEXT_PUBLIC_BFF_MESSAGE_BASE_URL',
     ]);
     assert.deepEqual(relays, ['app/business-references/route.ts']);
-    assert.match(fs.readFileSync(path.join(SRC, 'app/business-references/route.ts'), 'utf8'), /forwardToBff\(request, configuredBffUrl\(\), '\/business-references'\)/);
+    const forwards = policy.calls(policy.parse('src/app/business-references/route.ts'), 'forwardToBff');
+    assert.equal(forwards.length, 1);
+    assert.ok(policy.parameterReference(forwards[0].arguments[0]));
+    assert.ok(policy.configuredUrl(forwards[0].arguments[1]));
+    assert.ok(policy.ts.isStringLiteralLike(forwards[0].arguments[2]));
+    assert.equal(forwards[0].arguments[2].text, '/business-references');
     // Les routes /api/** sont locales : ni fetch, ni relais vers un BFF.
     for (const { file, route } of appRoutes().filter(({ route: name }) => name.startsWith('/api/'))) {
-      assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /bff-proxy|fetch\(/, route);
+      const ast = policy.parse('src/' + relative(file));
+      assert.equal(policy.imports(ast).some(name => name.includes('bff-proxy')), false, route);
+      assert.equal(policy.calls(ast, 'fetch').length, 0, route);
+      assert.equal(policy.calls(ast, 'forwardToBff').length, 0, route);
     }
   });
 
