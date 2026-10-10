@@ -35,10 +35,10 @@ export function AppShell({ activeItem, children }: AppShellProps) {
     >
       <div className="messages-main-inner">
         {logoutError && <div className="mb-4 shrink-0">
-          <Alert type="error" message={logoutError} closable onClose={() => setLogoutError(null)} />
+          <Alert type="error" message={logoutError} />
           <div className="mt-3 flex flex-wrap gap-3">
             <button type="button" className="min-h-11 rounded-lg border bg-white px-4 py-2 font-semibold text-gray-900" onClick={() => void logout()}>Réessayer</button>
-            <button type="button" className="min-h-11 rounded-lg border bg-white px-4 py-2 font-semibold text-gray-900" onClick={() => navigateToLogin()}>Retour à la connexion</button>
+            <button type="button" className="min-h-11 rounded-lg border bg-white px-4 py-2 font-semibold text-gray-900" onClick={() => navigateToLogin(true)}>Retour à la connexion</button>
           </div>
         </div>}
         {typeof children === "function" ? children(session) : children}

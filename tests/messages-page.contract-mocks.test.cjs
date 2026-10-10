@@ -13,12 +13,15 @@ const React = require('react');
 const { installBrowser } = require('./support/browser.cjs');
 const { apiError, bootstrap, businessReferences, contact, conversation, currentUser, message, messageBffMock, tokenFor, users } = require('./support/fixtures.cjs');
 const { FrontNetwork } = require('./support/front-network.cjs');
+const { ContractMockServer } = require('./support/contract-mock-server.cjs');
+const { OpenApiContract } = require('./support/openapi-contract.cjs');
 const Page = requireSrc('app/page.tsx').default;
 const { messageClient } = requireSrc('clients/messageClient.ts');
 const { BffNavigationRequiredError, BffRequestError } = requireSrc('clients/messageClient.ts');
 
 const messageBff = messageBffMock();
-const network = new FrontNetwork([messageBff]);
+const userBff = new ContractMockServer('BFF_USER', OpenApiContract.load(require('node:path').join(__dirname, 'fixtures/user-session-openapi.json')));
+const network = new FrontNetwork([messageBff, userBff]);
 const browser = installBrowser();
 let view;
 
@@ -32,18 +35,22 @@ const swappedModel = (reply) => ({ ...reply, outOfContract: true });
 
 before(async () => {
   await messageBff.start();
+  await userBff.start();
   delete process.env.MESSAGE_BFF_URL;
   delete process.env.NEXT_PUBLIC_BFF_MESSAGE_BASE_URL;
   process.env.BFF_MESSAGE_BASE_URL = messageBff.url;
+  network.setOwner(userBff);
   network.install();
 });
 after(async () => {
   network.restore();
   browser.restore();
   await messageBff.stop();
+  await userBff.stop();
 });
 beforeEach(() => {
   messageBff.reset();
+  userBff.reset();
   network.reset();
   browser.reset();
   router.reset();
@@ -64,7 +71,7 @@ beforeEach(() => {
 afterEach(() => {
   view?.unmount();
   view = undefined;
-  assert.deepEqual([...messageBff.violations.filter((line) => !KNOWN_CONTRACT_DEFECTS.some((known) => known.test(line))), ...network.violations], []);
+  assert.deepEqual([...messageBff.violations.filter((line) => !KNOWN_CONTRACT_DEFECTS.some((known) => known.test(line))), ...userBff.violations, ...network.violations], []);
 });
 
 const upstream = () => messageBff.requests.map((call) => `${call.method} ${call.url.pathname}`).sort();
@@ -2043,4 +2050,73 @@ test('MAIR-370: a late confirmation for another visited thread preserves the act
     assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
     assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
   } finally { release(); }
+});
+
+async function recoveryCommand(label) {
+  const button = view.hostElements((_props, text, tag) => tag === 'button' && text === label)[0];
+  assert.ok(button, 'Visible recovery command ' + label);
+  await view.act(() => button.props.onClick());
+}
+test('unconfirmed logout stays visible through polling and focus until the user returns to Login', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Brouillon conservé' } });
+  network.cookies.refreshToken = 'disposable-page-unconfirmed-refresh';
+  userBff.on('post', '/auth/logout', { body: { message: 'Unconfirmed', session_revoked: false } });
+  await view.act(() => view.props('Header').onLogout());
+  await view.waitFor(html => html.includes('La fermeture de la session serveur n’a pas pu être confirmée'));
+  assert.deepEqual(network.cookies, {});
+  const calls = network.browserCalls.length;
+  browser.tickIntervals(2000);
+  browser.focus();
+  browser.setHidden(true);
+  browser.setHidden(false);
+  await view.settle();
+  assert.equal(network.browserCalls.length, calls, 'background reads pause instead of displacing the recovery commands');
+  assert.deepEqual(browser.window.location.assigned, []);
+  assert.equal(browser.window.location.reloads, 0);
+  assert.match(view.text(), /La fermeture de la session serveur n’a pas pu être confirmée/);
+  assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
+  await recoveryCommand('Retour à la connexion');
+  assert.equal(new URL(browser.window.location.assigned[0]).searchParams.get('redirect'), browser.window.location.href);
+  assert.equal(userBff.calls('/auth/logout').length, 1);
+});
+test('a failed explicit logout pauses background reads while preserving a successful manual retry', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  network.cookies.refreshToken = 'disposable-page-retry-refresh';
+  network.ownerOverride = () => Response.json({ message: 'Unavailable' }, { status: 503 });
+  await view.act(() => view.props('Header').onLogout());
+  await view.waitFor(html => html.includes('La déconnexion n’a pas abouti'));
+  const calls = network.browserCalls.length;
+  browser.tickIntervals(2000);
+  browser.focus();
+  await view.settle();
+  assert.equal(network.browserCalls.length, calls);
+  assert.deepEqual(browser.window.location.assigned, []);
+  assert.equal(network.cookies.refreshToken, 'disposable-page-retry-refresh');
+  network.ownerOverride = undefined;
+  userBff.on('post', '/auth/logout', { body: { message: 'Closed', session_revoked: true } });
+  await recoveryCommand('Réessayer');
+  await view.waitFor(() => browser.window.location.assigned.length === 1);
+  assert.deepEqual(browser.window.location.assigned, ['https://login.mairie.test/']);
+  assert.deepEqual(network.cookies, {});
+});
+test('an already pending polling401 cannot hide an unconfirmed explicit logout', async (t) => {
+  await renderLoadedPage();
+  await view.settle();
+  let rejectRead;
+  t.mock.method(messageClient, 'getConversations', () => new Promise((_resolve, reject) => { rejectRead = reject; }));
+  browser.tickIntervals(2000);
+  await view.waitFor(() => typeof rejectRead === 'function');
+  network.cookies.refreshToken = 'disposable-page-late-refresh';
+  userBff.on('post', '/auth/logout', { body: { message: 'Unconfirmed', session_revoked: false } });
+  await view.act(() => view.props('Header').onLogout());
+  await view.waitFor(html => html.includes('La fermeture de la session serveur n’a pas pu être confirmée'));
+  rejectRead(new BffRequestError('Session expirée', 401));
+  await view.settle();
+  assert.deepEqual(browser.window.location.assigned, []);
+  assert.equal(browser.window.location.reloads, 0);
+  assert.match(view.text(), /La fermeture de la session serveur n’a pas pu être confirmée/);
+  assert.equal(userBff.calls('/auth/logout').length, 1);
 });
