@@ -21,7 +21,7 @@ import { AppShell } from "./_components/app-shell";
 import { prepareMessagingScrollRegions } from "./_components/messaging-scroll-regions";
 import { presentConversationTimestamps, presentMessageTimestamps } from "@/lib/message-timestamps";
 import { buildMessageMentionOptions, presentMessageAuthors } from "@/lib/message-authors";
-import { navigateToLogin } from "@/lib/logout";
+import { isSessionRecoveryPending, navigateToLogin } from "@/lib/logout";
 
 type MessagingProps = ComponentProps<typeof Messaging>;
 type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
@@ -128,6 +128,7 @@ export default function Page() {
   );
 
   const recoverSessionNavigation = useCallback(async (failure: unknown) => {
+    if (isSessionRecoveryPending()) return false;
     if (!requiresPageNavigation(failure)) return false;
     if (navigationStartedRef.current) return true;
     navigationStartedRef.current = true;
@@ -252,15 +253,15 @@ export default function Page() {
     let inFlight = false;
 
     async function loadBusinessReferences() {
-      if (disposed || inFlight || !pageIsVisible()) return;
+      if (disposed || inFlight || !pageIsVisible() || isSessionRecoveryPending()) return;
       inFlight = true;
       try {
         const response = await messageClient.getBusinessReferences();
 
-        if (!disposed) setBusinessReferences(response.references ?? []);
+        if (!disposed && !isSessionRecoveryPending()) setBusinessReferences(response.references ?? []);
       } catch (loadError) {
         // Keep suggestions through transient failures, but not an explicit access refusal.
-        if (!disposed && loadError instanceof BffRequestError &&
+        if (!disposed && !isSessionRecoveryPending() && loadError instanceof BffRequestError &&
             (loadError.status === 401 || loadError.status === 403)) {
           setBusinessReferences([]);
         }
@@ -287,13 +288,14 @@ export default function Page() {
     let inFlight = false;
 
     const refresh = async () => {
-      if (disposed || navigationStartedRef.current || inFlight || !pageIsVisible() || mutationCountRef.current > 0 ||
+      if (disposed || navigationStartedRef.current || inFlight || !pageIsVisible() || isSessionRecoveryPending() || mutationCountRef.current > 0 ||
           selectionLoadingRef.current !== null) return;
       inFlight = true;
       const revision = revisionRef.current;
       const selectedId = activeConversationRef.current;
       try {
         const list = await messageClient.getConversations();
+        if (isSessionRecoveryPending()) return;
         const selectedExists = selectedId !== "" && list.conversations.some((conversation: MessagingConversation) =>
           idsMatch(conversation.id, selectedId),
         );
@@ -317,7 +319,7 @@ export default function Page() {
             fallbackReadFailed = true;
           }
         }
-        if (disposed || !pageIsVisible() || revisionRef.current !== revision ||
+        if (disposed || !pageIsVisible() || isSessionRecoveryPending() || revisionRef.current !== revision ||
             mutationCountRef.current > 0 || selectionLoadingRef.current !== null ||
             !idsMatch(activeConversationRef.current, selectedId)) return;
 
@@ -341,7 +343,7 @@ export default function Page() {
           ? "Les messages de la conversation sélectionnée sont momentanément indisponibles. Sélectionnez-la de nouveau pour réessayer."
           : null);
       } catch (refreshError) {
-        if (!disposed && revisionRef.current === revision && pageIsVisible()) {
+        if (!disposed && revisionRef.current === revision && pageIsVisible() && !isSessionRecoveryPending()) {
           if (requiresPageNavigation(refreshError) && await recoverSessionNavigation(refreshError)) return;
           setSyncError("La synchronisation des conversations est momentanément indisponible.");
         }

@@ -10,10 +10,16 @@ function clearAuthStorage() {
 
 const navigatingLocations = new WeakSet<Location>();
 const logoutFlights = new WeakMap<Location, Promise<void>>();
+const recoveryLocations = new WeakSet<Location>();
+
+export function isSessionRecoveryPending() {
+  return typeof window !== 'undefined' && recoveryLocations.has(window.location);
+}
 
 /** A rejected renewal returns to Login without revoking or replaying a write. */
-export function navigateToLogin() {
+export function navigateToLogin(explicit = false) {
   if (typeof window === 'undefined') return false;
+  if (!explicit && isSessionRecoveryPending()) return false;
   if (navigatingLocations.has(window.location)) return true;
   const login = parseFrontUrl(frontUrl('LOGIN_FRONT_URL'));
   if (!login) return false;
@@ -32,6 +38,7 @@ export async function logoutAndReload() {
   const location = window.location;
   const running = logoutFlights.get(location);
   if (running) return running;
+  recoveryLocations.add(location);
   const pending = (async () => {
     let response: Response;
     try {
@@ -65,6 +72,7 @@ export async function logoutAndReload() {
     }
     if (!destination) throw new Error('La connexion partagée n’est pas configurée.');
     clearAuthStorage();
+    recoveryLocations.delete(location);
     location.assign(destination.href);
   })();
   logoutFlights.set(location, pending);
