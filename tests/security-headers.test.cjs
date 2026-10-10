@@ -36,7 +36,8 @@ test('missing or expired sessions are redirected to Login without a CSP', () => 
     const response = middleware(pageRequest(token));
     assert.equal(response.status, 307);
     assert.equal(response.headers.get('content-security-policy'), null);
-    assert.match(response.headers.get('set-cookie'), /accessToken=;/);
+    assert.equal(response.headers.get('set-cookie'), null);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
   }
 });
 
