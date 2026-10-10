@@ -62,7 +62,7 @@ async function bffRequest<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(path, {
+  const response = await fetch("/api/bff" + path, {
     ...init,
     headers,
     cache: "no-store",

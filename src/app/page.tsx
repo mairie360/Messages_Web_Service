@@ -21,7 +21,7 @@ import { AppShell } from "./_components/app-shell";
 import { prepareMessagingScrollRegions } from "./_components/messaging-scroll-regions";
 import { presentConversationTimestamps, presentMessageTimestamps } from "@/lib/message-timestamps";
 import { buildMessageMentionOptions, presentMessageAuthors } from "@/lib/message-authors";
-import { logoutAndReload } from "@/lib/auth-session";
+import { navigateToLogin } from "@/lib/logout";
 
 type MessagingProps = ComponentProps<typeof Messaging>;
 type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
@@ -132,12 +132,12 @@ export default function Page() {
     if (navigationStartedRef.current) return true;
     navigationStartedRef.current = true;
     if (failure instanceof BffRequestError) {
-      // Clear a rejected cookie through the existing local session flow.
-      // Its finally block reloads even if the cleanup transport fails.
-      await logoutAndReload().catch(() => undefined);
+      if (!navigateToLogin()) {
+        navigationStartedRef.current = false;
+        return false;
+      }
     } else {
-      // Opaque redirects expose no trustworthy destination. The protected page
-      // and unchanged middleware own Login navigation and its return path.
+      // An opaque redirect exposes no trustworthy destination; the unchanged middleware owns it.
       window.location.reload();
     }
     return true;

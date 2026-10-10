@@ -1,8 +1,6 @@
-import { NextResponse } from 'next/server';
-import { clearAccessTokenCookie } from '@/lib/access-token-cookie';
+import { createSessionLogoutProxy } from '@mairie360/lib-components/next';
 
-// Déconnexion locale : BFF Message étant le seul BFF du front, la session se termine en effaçant le
-// cookie `accessToken`, sans appel réseau. La page rechargée est ensuite redirigée vers Login.
-export function POST() {
-  return clearAccessTokenCookie(new NextResponse(null, { status: 204, headers: { 'Cache-Control': 'no-store' } }));
-}
+export const POST = createSessionLogoutProxy({
+  loginUrl: () => process.env.LOGIN_FRONT_URL?.trim() ?? '',
+  frontUrl: () => process.env.MESSAGE_FRONT_URL?.trim() ?? '',
+});
