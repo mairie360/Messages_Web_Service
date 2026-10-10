@@ -39,6 +39,14 @@ const hasServerId = (id: unknown): id is MessageId =>
   (typeof id === "string" && id.trim().length > 0) ||
   (typeof id === "number" && Number.isFinite(id));
 
+// Compare only the originating local draft. Never log or persist its contents.
+const sendDraftSignature = (payload: SendMessagePayload) => JSON.stringify({
+  content: payload.content,
+  attachments: (payload.attachments ?? []).map(item => [String(item.id), item.url]),
+  mentions: (getPayloadIds(payload.mentions) ?? []).map(String),
+  references: (getPayloadIds(payload.businessLinks) ?? []).map(String),
+});
+
 function MobileConversationSwitch({
   showConversationList,
   onToggle,
@@ -88,6 +96,15 @@ export default function Page() {
   // Draft descriptors contain local object URLs, never BFF attachment IDs.
   // Weak keys allow removed files to be released without an explicit removal callback.
   const attachmentFilesRef = useRef(new WeakMap<DraftAttachment, File>());
+  const pendingSendsRef = useRef(new Map<string, symbol>());
+  const unconfirmedSendsRef = useRef(new Map<string, { messageId: MessageId | null; draft: string }>());
+  const senderIdentity = useMemo(() => ({ id: currentUser?.id }), [currentUser?.id]);
+  const senderIdentityRef = useRef(senderIdentity);
+  useLayoutEffect(() => {
+    senderIdentityRef.current = senderIdentity;
+    pendingSendsRef.current.clear();
+    unconfirmedSendsRef.current.clear();
+  }, [senderIdentity]);
 
   const selectedConversation = conversations.find((conversation) => idsMatch(conversation.id, activeConversationId));
   const hasConfirmedThread = confirmedConversationIds.has(String(activeConversationId));
@@ -213,6 +230,8 @@ export default function Page() {
 
   useEffect(() => {
     const lifecycle = bootstrapLifecycleRef.current;
+    const pendingSends = pendingSendsRef.current;
+    const unconfirmedSends = unconfirmedSendsRef.current;
     lifecycle.mounted = true;
     void loadBootstrap();
 
@@ -223,6 +242,8 @@ export default function Page() {
       lifecycle.generation += 1;
       lifecycle.pending = false;
       selectionLoadingRef.current = null;
+      pendingSends.clear();
+      unconfirmedSends.clear();
     };
   }, [loadBootstrap]);
 
@@ -421,17 +442,60 @@ export default function Page() {
     // A captured callback must not send to the previous or unconfirmed thread,
     // even before React renders the disabled composer. Known current histories
     // remain usable while a refresh is pending; mutation invalidates that read.
-    if (!idsMatch(activeConversationRef.current, payload.conversationId) ||
+    if (navigationStartedRef.current || senderIdentityRef.current !== senderIdentity ||
+        !bootstrapLifecycleRef.current.mounted ||
+        !idsMatch(activeConversationRef.current, payload.conversationId) ||
         !confirmedConversationIds.has(String(payload.conversationId))) return false;
     const draftAttachments = payload.attachments ?? [];
     if (!payload.conversationId || (payload.content.trim().length === 0 && draftAttachments.length === 0)) {
       return false;
     }
 
+    const conversationId = payload.conversationId;
+    const key = String(conversationId);
+    if (pendingSendsRef.current.has(key)) return false;
+    const request = Symbol();
+    pendingSendsRef.current.set(key, request);
+    const isOwned = () => bootstrapLifecycleRef.current.mounted && !navigationStartedRef.current &&
+      senderIdentityRef.current === senderIdentity && pendingSendsRef.current.get(key) === request;
+    const signature = sendDraftSignature(payload);
+
     setError(null);
     beginMutation();
 
     try {
+      const unconfirmed = unconfirmedSendsRef.current.get(key);
+      if (unconfirmed) {
+        // A successful but unrelated/incomplete receipt may already represent a
+        // persisted write. Retry only its read; never repeat that POST implicitly.
+        const fresh = await messageClient.getConversationMessages(payload.conversationId);
+        if (!isOwned()) return false;
+        if (!idsMatch(fresh?.conversation?.id, payload.conversationId) || !Array.isArray(fresh?.messages) ||
+            fresh.messages.some(message => !idsMatch(payload.conversationId, message.conversationId))) {
+          throw new Error("L’envoi reste à confirmer. Vos saisies sont conservées ; réessayez pour vérifier le fil.");
+        }
+        setConversations(current => upsertConversation(current, fresh.conversation));
+        setMessages(current => replaceConversationMessages(current, conversationId, fresh.messages));
+        const confirmed = unconfirmed.messageId !== null && fresh.messages.some(message =>
+          idsMatch(message.id, unconfirmed.messageId ?? undefined) &&
+          idsMatch(payload.conversationId, message.conversationId));
+        if (!confirmed) {
+          throw new Error("L’envoi reste à confirmer. Vos saisies sont conservées ; réessayez pour vérifier le fil.");
+        }
+        unconfirmedSendsRef.current.delete(key);
+        if (signature !== unconfirmed.draft) {
+          if (idsMatch(activeConversationRef.current, payload.conversationId)) {
+            setError("Le message initial est confirmé. Vos nouvelles saisies sont conservées ; vous pouvez les envoyer.");
+          }
+          return false;
+        }
+        draftAttachments.forEach(attachment => {
+          if (attachment.url?.startsWith("blob:")) {
+            try { URL.revokeObjectURL?.(attachment.url); } catch { /* Preview cleanup cannot reject confirmation. */ }
+          }
+        });
+        return true;
+      }
       let attachmentIds: MessageId[] = [];
       if (draftAttachments.length > 0) {
         const files: File[] = [];
@@ -443,6 +507,7 @@ export default function Page() {
           files.push(file);
         }
         const uploaded = await messageClient.uploadAttachments(files);
+        if (!isOwned()) return false;
         if (!Array.isArray(uploaded?.attachments) || uploaded.attachments.length !== draftAttachments.length) {
           throw new Error("Le transfert des pièces jointes n’a pas été confirmé. Aucun message n’a été envoyé.");
         }
@@ -458,6 +523,17 @@ export default function Page() {
         attachmentIds,
         mentionIds: getPayloadIds(payload.mentions),
       });
+
+      if (!isOwned()) return false;
+      if (!hasServerId(response?.message?.id) ||
+          !idsMatch(response?.message?.conversationId, payload.conversationId) ||
+          !idsMatch(response?.conversation?.id, payload.conversationId)) {
+        unconfirmedSendsRef.current.set(key, {
+          messageId: hasServerId(response?.message?.id) ? response.message.id : null,
+          draft: signature,
+        });
+        throw new Error("L’envoi reste à confirmer. Vos saisies sont conservées ; réessayez pour vérifier le fil.");
+      }
 
       setConversations((currentConversations) =>
         upsertConversation(currentConversations, response.conversation),
@@ -477,13 +553,17 @@ export default function Page() {
       });
       return true;
     } catch (sendError) {
-      setError(
+      if (isOwned() && idsMatch(activeConversationRef.current, payload.conversationId) &&
+          pageIsVisible() && unconfirmedSendsRef.current.has(key) &&
+          await recoverSessionNavigation(sendError)) return false;
+      if (isOwned() && idsMatch(activeConversationRef.current, payload.conversationId)) setError(
         sendError instanceof Error
           ? sendError.message
           : "Le message n'a pas pu être envoyé.",
       );
       return false;
     } finally {
+      if (pendingSendsRef.current.get(key) === request) pendingSendsRef.current.delete(key);
       endMutation();
     }
   };
@@ -631,6 +711,8 @@ export default function Page() {
         setConversations((currentConversations) => currentConversations.filter(
           (conversation) => !idsMatch(conversation.id, conversationToDelete.id),
         ));
+        unconfirmedSendsRef.current.delete(String(conversationToDelete.id));
+        pendingSendsRef.current.delete(String(conversationToDelete.id));
         setMessages((currentMessages) =>
           currentMessages.filter(
             (message) => !idsMatch(message.conversationId, conversationToDelete.id),

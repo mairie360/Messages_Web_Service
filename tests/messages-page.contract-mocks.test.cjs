@@ -1805,3 +1805,269 @@ test('a mismatched fallback refresh reports the failure without restoring the va
   assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
   assert.doesNotMatch(view.text(), /Bonjour à tous/);
 });
+
+// MAIR-370: confirm the requested send before releasing its local draft.
+test('MAIR-370: an unrelated successful receipt must not erase the active composer draft', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  const draft = 'Brouillon à conserver avant confirmation';
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: draft } });
+  const initial = view.props('Messaging').conversations;
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({
+    status: 201, body: {
+      conversation: conversation(5, 'Fil étranger renvoyé'),
+      message: message(99, 5, 'Retour étranger'),
+    },
+  }));
+  await view.fire((_props, _text, tag) => tag === 'form', 'onSubmit', { preventDefault() {} });
+  await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages', 'POST').length === 1 &&
+    view.hostElements(props => props.placeholder === 'Tapez votre message...')[0]?.props.disabled === false);
+  assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, draft,
+    'an HTTP201 for another conversation must not confirm or clear this draft');
+  assert.deepEqual(view.props('Messaging').conversations, initial);
+});
+
+const sendPath = '/conversations/{conversationId}/messages';
+const draftInput = () => view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props;
+const submitComposer = () => view.fire((_props, _text, tag) => tag === 'form', 'onSubmit', { preventDefault() {} });
+const unrelatedReceipt = () => swappedModel({ status: 201, body: {
+  conversation: conversation(5, 'Fil étranger'), message: message(99, 5, 'Retour étranger'),
+} });
+
+test('MAIR-370: a retry verifies the original receipt by GET and never posts it again', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Brouillon confirmé après lecture' } });
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  await submitComposer();
+  await view.waitFor(() => draftInput().disabled === false && view.text().includes('L’envoi reste à confirmer'));
+  const confirmed = message(99, 4, 'Brouillon confirmé après lecture');
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication'), messages: [message(1, 4, 'Bonjour à tous', users.sophie), confirmed],
+  } }));
+  await submitComposer();
+  await view.waitFor(() => draftInput().value === '');
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+  assert.equal(view.props('Messaging').messages.filter(item => item.id === confirmed.id).length, 1);
+  assert.doesNotMatch(view.text(), /L’envoi reste à confirmer|Fil étranger/);
+});
+
+test('MAIR-370: a missing receipt ID stays unconfirmed through GET-only retries', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  const send = view.props('Messaging').onSendMessage;
+  const payload = { conversationId: 'conversation-4', content: 'Ne pas republier un résultat inconnu', attachments: [], mentions: [] };
+  messageBff.on('post', sendPath, swappedModel({ status: 201, body: {} }));
+  assert.equal(await view.act(() => send(payload)), false);
+  for (let index = 0; index < 2; index++) assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+  assert.match(view.text(), /L’envoi reste à confirmer/);
+  assert.doesNotMatch(view.text(), /Ne pas republier un résultat inconnu/);
+});
+
+test('MAIR-370: verifying a previous send preserves a changed draft before a new explicit write', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Premier brouillon' } });
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  await submitComposer();
+  await view.waitFor(() => draftInput().disabled === false && view.text().includes('L’envoi reste à confirmer'));
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Nouvelle saisie indépendante' } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication'), messages: [message(99, 4, 'Premier brouillon')],
+  } }));
+  await submitComposer();
+  await view.waitFor(() => draftInput().disabled === false && view.text().includes('Le message initial est confirmé'));
+  assert.equal(draftInput().value, 'Nouvelle saisie indépendante');
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+  messageBff.on('post', sendPath, swappedModel({ status: 201, body: {
+    conversation: conversation(4, 'Équipe communication'), message: message(100, 4, 'Nouvelle saisie indépendante'),
+  } }));
+  await submitComposer();
+  await view.waitFor(() => draftInput().value === '');
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 2);
+  assert.deepEqual(messageBff.calls(sendPath, 'POST').map(call => call.body.content), ['Premier brouillon', 'Nouvelle saisie indépendante']);
+});
+
+test('MAIR-370: unconfirmed attachment sends verify without uploading or posting again', async t => {
+  await renderLoadedPage();
+  await view.settle();
+  const revoke = t.mock.method(URL, 'revokeObjectURL');
+  const attachment = { id: 'draft-file', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:unconfirmed-agenda' };
+  await view.act(() => view.props('Messaging').onAttach([new File(['agenda'], 'agenda.txt', { type: 'text/plain' })], [attachment]));
+  messageBff.on('post', '/attachments', { status: 201, body: { attachments: [{ id: 'stored-42', name: 'agenda.txt', size: 6, type: 'text/plain' }] } });
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  const payload = { conversationId: 'conversation-4', content: 'Document conservé', attachments: [attachment], mentions: [] };
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  assert.equal(revoke.mock.callCount(), 0);
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication'), messages: [message(99, 4, 'Document conservé')],
+  } }));
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), true);
+  assert.equal(messageBff.calls('/attachments', 'POST').length, 1);
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+  assert.equal(revoke.mock.callCount(), 1);
+});
+
+test('MAIR-370: captured synchronous duplicate callbacks send one request', async t => {
+  await renderLoadedPage();
+  await view.settle();
+  const original = messageClient.sendMessage;
+  let release;
+  let received;
+  const gate = new Promise(resolve => { release = resolve; });
+  const ready = new Promise(resolve => { received = resolve; });
+  t.mock.method(messageClient, 'sendMessage', async (...args) => {
+    const result = await original(...args); received(); await gate; return result;
+  });
+  messageBff.on('post', sendPath, swappedModel({ status: 201, body: { conversation: conversation(4, 'Équipe communication'), message: message(99, 4, 'Une seule écriture') } }));
+  const send = view.props('Messaging').onSendMessage;
+  const payload = { conversationId: 'conversation-4', content: 'Une seule écriture', attachments: [], mentions: [] };
+  let first;
+  try {
+    await view.act(() => { first = send(payload); });
+    await ready;
+    assert.equal(await send(payload), false);
+    assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+    release();
+    assert.equal(await first, true);
+  } finally { release(); await first; }
+});
+
+test('MAIR-370: verification session refusal uses the existing navigation without repeating POST', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  const payload = { conversationId: 'conversation-4', content: 'Envoi à vérifier', attachments: [], mentions: [] };
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  messageBff.on('get', '/conversations/{conversationId}/messages', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  assert.equal(browser.window.location.reloads, 1);
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+});
+test('MAIR-370: a mismatched verification preserves the confirmed history and uncertainty', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  const payload = { conversationId: 'conversation-4', content: 'Résultat à vérifier', attachments: [], mentions: [] };
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  const before = view.props('Messaging').messages;
+  messageBff.on('get', sendPath, swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication'), messages: [message(99, 5, 'Message du mauvais fil')],
+  } }));
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  assert.deepEqual(view.props('Messaging').messages, before);
+  messageBff.on('get', sendPath, swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication'), messages: [message(99, 4, payload.content)],
+  } }));
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), true);
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+});
+
+for (const phase of ['upload', 'send']) {
+  test('MAIR-370: a disposed ' + phase + ' completion cannot confirm or start another write', async t => {
+    await renderLoadedPage();
+    await view.settle();
+    const attachment = { id: 'draft-file', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:disposed-agenda' };
+    if (phase === 'upload') {
+      await view.act(() => view.props('Messaging').onAttach([new File(['agenda'], 'agenda.txt', { type: 'text/plain' })], [attachment]));
+      messageBff.on('post', '/attachments', { status: 201, body: { attachments: [{ id: 'stored-42', name: 'agenda.txt', size: 6, type: 'text/plain' }] } });
+    }
+    messageBff.on('post', sendPath, swappedModel({ status: 201, body: {
+      conversation: conversation(4, 'Équipe communication'), message: message(99, 4, 'Ne pas confirmer après démontage'),
+    } }));
+    const method = phase === 'upload' ? 'uploadAttachments' : 'sendMessage';
+    const original = messageClient[method];
+    let release, received;
+    const gate = new Promise(resolve => { release = resolve; });
+    const ready = new Promise(resolve => { received = resolve; });
+    t.mock.method(messageClient, method, async (...args) => {
+      const result = await original(...args); received(); await gate; return result;
+    });
+    const send = view.props('Messaging').onSendMessage;
+    const payload = { conversationId: 'conversation-4', content: 'Ne pas confirmer après démontage', attachments: phase === 'upload' ? [attachment] : [], mentions: [] };
+    let pending;
+    try {
+      await view.act(() => { pending = send(payload); });
+      await ready;
+      view.unmount(); view = undefined;
+      release();
+      assert.equal(await pending, false);
+      assert.equal(await send(payload), false);
+      assert.equal(messageBff.calls(sendPath, 'POST').length, phase === 'upload' ? 0 : 1);
+      assert.equal(browser.window.location.reloads, 0);
+    } finally { release(); await pending; }
+  });
+}
+
+test('MAIR-370: a late verification cannot restore a deleted conversation', async t => {
+  await renderLoadedPage();
+  await view.settle();
+  const payload = { conversationId: 'conversation-4', content: 'Envoi avant suppression', attachments: [], mentions: [] };
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  const original = messageClient.getConversationMessages;
+  let release, received;
+  const gate = new Promise(resolve => { release = resolve; });
+  const ready = new Promise(resolve => { received = resolve; });
+  messageBff.on('get', sendPath, call => swappedModel({ body: {
+    conversation: conversation(call.pathParams.conversationId === 'conversation-4' ? 4 : 5, 'Fil confirmé'),
+    messages: [message(99, call.pathParams.conversationId === 'conversation-4' ? 4 : 5, payload.content)],
+  } }));
+  t.mock.method(messageClient, 'getConversationMessages', async id => {
+    const result = await original(id);
+    if (id === 'conversation-4') { received(); await gate; }
+    return result;
+  });
+  messageBff.on('delete', '/conversations/{conversationId}', call => ({ body: {
+    deleted: true, conversationId: call.pathParams.conversationId,
+  } }));
+  let pending;
+  try {
+    await view.act(() => { pending = view.props('Messaging').onSendMessage(payload); });
+    await ready;
+    await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+    await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5');
+    release();
+    assert.equal(await pending, false);
+    await view.settle();
+    assert.equal(view.props('Messaging').conversations.some(item => item.id === 'conversation-4'), false);
+    assert.equal(view.props('Messaging').messages.some(item => item.conversationId === 'conversation-4'), false);
+    assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+  } finally { release(); await pending; }
+});
+
+test('MAIR-370: a late confirmation for another visited thread preserves the active draft', async t => {
+  await renderLoadedPage();
+  await view.settle();
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Premier fil à confirmer' } });
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  await submitComposer();
+  await view.waitFor(() => draftInput().disabled === false && view.text().includes('L’envoi reste à confirmer'));
+  const original = messageClient.getConversationMessages;
+  let release, received;
+  const gate = new Promise(resolve => { release = resolve; });
+  const ready = new Promise(resolve => { received = resolve; });
+  messageBff.on('get', sendPath, call => swappedModel({ body: {
+    conversation: conversation(call.pathParams.conversationId === 'conversation-4' ? 4 : 5, 'Fil confirmé'),
+    messages: [message(99, call.pathParams.conversationId === 'conversation-4' ? 4 : 5, 'Historique confirmé')],
+  } }));
+  t.mock.method(messageClient, 'getConversationMessages', async id => {
+    const result = await original(id);
+    if (id === 'conversation-4') { received(); await gate; }
+    return result;
+  });
+  try {
+    await submitComposer();
+    await ready;
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5' && draftInput().disabled === false);
+    await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Brouillon indépendant du second fil' } });
+    release();
+    await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-99' && item.conversationId === 'conversation-4'));
+    await view.settle();
+    assert.equal(draftInput().value, 'Brouillon indépendant du second fil');
+    assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+    assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+  } finally { release(); }
+});

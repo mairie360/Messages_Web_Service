@@ -383,3 +383,8 @@ ne valent pas preuve mobile/réussite. L'ancien code conserve sa cadence2s ; pas
 nouvelle comparaison native appariée ni persistance simulée copiée. CI réellement
 verte, intégration main et recette exacte de local-current restent requises avant
 clôture ; aucune API/BFF ou donnée de démonstration publiée.
+## Send confirmation (MAIR-370)
+
+An HTTP success clears the originating composer only when the returned message has a server ID and both returned conversation IDs match the requested thread. An incomplete or unrelated receipt keeps the draft and previews. The next send activation reads the existing thread to verify that same message ID; it never repeats the uncertain POST or attachment upload. If the user has edited the draft, verification keeps the new text and a further explicit activation sends it. Missing IDs remain unconfirmed and require investigation of the service response. No durable draft recovery or deployed-service validation is inferred.
+
+Synchronous duplicate callbacks and responses after disposal or confirmed deletion cannot confirm a draft or restore a deleted thread. Contracts, dependency versions, API/BFF sources and deployment controls are unchanged.

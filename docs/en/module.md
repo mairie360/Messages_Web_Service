@@ -157,3 +157,6 @@ into main, exact refreshed local delivery, full-route RGAA or a complete image.
 ## Developing or operating this module
 
 The [technical guide](technical.md) covers architecture, configuration, routes, session handling, persistence, tests and CI/CD. It describes sources of truth and contract synchronization with associated repositories.
+### Send confirmation — MAIR-370
+
+An incomplete or unrelated successful receipt retains the draft and previews. The next activation reads the thread instead of repeating the send or upload. Only the original server message ID in the requested thread confirms that send. A changed draft remains available and requires another explicit activation to send. A missing receipt ID remains unconfirmed and needs investigation of the service response. Drafts are not durable across reloads.
