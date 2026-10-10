@@ -19,7 +19,7 @@ test('missing or invalid Login configuration returns an uncached unavailable sta
     assert.equal(response.headers.get('location'), null);
     assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.match(response.headers.get('content-type'), /text\/plain/);
-    assert.match(response.headers.get('set-cookie'), /accessToken=;/);
+    assert.equal(response.headers.get('set-cookie'), null);
     assert.match(await response.text(), /Connexion temporairement indisponible/);
   }
 });
@@ -77,4 +77,32 @@ test('invalid Settings destinations return an uncached unavailable state', async
     assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.match(await response.text(), /Paramètres indisponibles/);
   }
+});
+
+
+test('missing or expired access preserves the requested page and leaves renewal to Login POST', () => {
+  process.env.LOGIN_FRONT_URL = 'https://login.mairie.test/';
+  process.env.MESSAGE_FRONT_URL = 'https://messages.mairie.test/';
+  const expired = 'header.' + Buffer.from(JSON.stringify({ exp: 1 })).toString('base64url') + '.signature';
+  for (const cookie of ['', `accessToken=${expired}`, 'refreshToken=opaque-refresh']) {
+    const response = middleware(new NextRequest('http://internal:3000/?filter=active&view=compact', { headers: { cookie } }));
+    const login = new URL(response.headers.get('location'));
+    assert.equal(response.status, 307);
+    assert.equal(login.searchParams.get('redirect'), 'https://messages.mairie.test/?filter=active&view=compact');
+    assert.equal(login.searchParams.get('resumeSession'), '1');
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.equal(response.headers.get('set-cookie'), null);
+    assert.doesNotMatch(login.href, /opaque-refresh|internal:3000/);
+  }
+});
+
+test('a missing public return URL does not request page renewal', () => {
+  process.env.LOGIN_FRONT_URL = 'https://login.mairie.test/';
+  delete process.env.MESSAGE_FRONT_URL;
+  const response = middleware(new NextRequest('http://internal:3000/'));
+  const login = new URL(response.headers.get('location'));
+  assert.equal(login.searchParams.has('resumeSession'), false);
+  assert.equal(login.searchParams.has('redirect'), false);
+  assert.equal(response.headers.get('set-cookie'), null);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
 });
