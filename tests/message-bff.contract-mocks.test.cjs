@@ -163,7 +163,7 @@ describe('BFF_Message errors surfaced by messageClient', () => {
     });
     await assert.rejects(messageClient.getConversations(), BffNavigationRequiredError);
     await assert.rejects(messageClient.getConversationMessages('conversation-4'), BffNavigationRequiredError);
-    assert.deepEqual(paths, ['/conversations', '/conversations/conversation-4/messages']);
+    assert.deepEqual(paths, ['/api/bff/conversations', '/api/bff/conversations/conversation-4/messages']);
   });
 
   test('a synchronization transport failure remains a transport failure, not a guessed 401', async (t) => {
@@ -172,12 +172,12 @@ describe('BFF_Message errors surfaced by messageClient', () => {
     await assert.rejects(messageClient.getConversations(), error => error === failure);
   });
 
-  test('documented 401 ApiErrorResponse bodies become a BffRequestError with their message', async () => {
+  test('a rejected session becomes a controlled BffRequestError without preserving upstream cookie changes', async () => {
     messageBff.on('get', '/messaging/bootstrap', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée') });
-    await assert.rejects(messageClient.getBootstrap(), (error) => error instanceof BffRequestError && error.status === 401 && error.message === 'Session expirée');
+    await assert.rejects(messageClient.getBootstrap(), (error) => error instanceof BffRequestError && error.status === 401 && error.message === 'Votre session a expiré. Veuillez vous reconnecter.');
 
     messageBff.on('post', '/groups', { status: 401, body: apiError('UNAUTHORIZED', 'Authentification requise') });
-    await assert.rejects(messageClient.createGroup({ name: 'Groupe', memberIds: [] }), { message: 'Authentification requise' });
+    await assert.rejects(messageClient.createGroup({ name: 'Groupe', memberIds: [] }), { message: 'Votre session a expiré. Veuillez vous reconnecter.' });
   });
 
   test('an undocumented non-JSON failure uses a readable fallback', async () => {

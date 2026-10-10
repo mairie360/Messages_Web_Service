@@ -57,7 +57,7 @@ describe('fetchAuthSession maps the BFF Message current user', () => {
         error: null,
       },
     });
-    assert.deepEqual(network.browserCalls, [{ method: 'GET', path: '/me' }]);
+    assert.deepEqual(network.browserCalls, [{ method: 'GET', path: '/api/bff/me' }]);
     assert.deepEqual(upstream(), ['GET /me']);
     assert.equal(messageBff.requests[0].headers.authorization, `Bearer ${agentToken}`);
   });
@@ -96,14 +96,16 @@ describe('useAuthSession', () => {
     assert.deepEqual([hooks.state.loading, hooks.state.error, hooks.state.user.name], [false, 'Les informations du profil sont indisponibles.', 'Chargement…']);
   });
 
-  test('clears the session cookie locally and reloads when BFF Message rejects the session', async () => {
+  test('returns to configured Login without logout when BFF Message rejects the session', async () => {
     messageBff.on('get', '/me', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée') });
 
     const { hooks } = renderHook();
 
-    await waitFor(() => browser.window.location.reloads === 1);
+    await waitFor(() => browser.window.location.assigned.length === 1);
     assert.equal(hooks.updates, 0);
-    assert.deepEqual(network.browserCalls, [{ method: 'GET', path: '/me' }, { method: 'POST', path: '/api/auth/logout' }]);
+    assert.deepEqual(network.browserCalls, [{ method: 'GET', path: '/api/bff/me' }]);
+    assert.equal(browser.window.location.reloads, 0);
+    assert.equal(new URL(browser.window.location.assigned[0]).searchParams.get('redirect'), browser.window.location.href);
     assert.deepEqual(upstream(), ['GET /me'], 'la déconnexion ne sollicite aucun BFF');
   });
 
@@ -119,27 +121,22 @@ describe('useAuthSession', () => {
   });
 });
 
-describe('local logout', () => {
-  test('POST /api/auth/logout expires the accessToken cookie on COOKIE_DOMAIN without any network call', async () => {
-    process.env.COOKIE_DOMAIN = ' .mairie360.fr ';
-
+describe('explicit shared logout', () => {
+  test('a logout without JSON content is refused without a network call or cookie expiry', async () => {
     const response = await fetch('/api/auth/logout', { method: 'POST' });
-
-    assert.equal(response.status, 204);
-    assert.equal(response.headers.get('cache-control'), 'no-store');
-    assert.match(response.headers.get('set-cookie'), /^accessToken=; Path=\/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Domain=\.mairie360\.fr/);
+    assert.equal(response.status, 415);
+    assert.equal(response.headers.get('set-cookie'), null);
+    assert.equal(network.cookies.accessToken, agentToken);
     assert.deepEqual(network.serverCalls, []);
   });
 
-  test('logoutAndReload reloads even when the logout route fails', async () => {
+  test('logout transport failure remains visible and never reloads', async () => {
     const saved = global.fetch;
     global.fetch = async () => { throw new TypeError('fetch failed'); };
-    try {
-      await assert.rejects(logoutAndReload(), TypeError);
-    } finally {
-      global.fetch = saved;
-    }
-    assert.equal(browser.window.location.reloads, 1);
+    try { await assert.rejects(logoutAndReload(), /La déconnexion n’a pas abouti/); }
+    finally { global.fetch = saved; }
+    assert.equal(browser.window.location.reloads, 0);
+    assert.deepEqual(browser.window.location.assigned, []);
   });
 });
 

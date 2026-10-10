@@ -169,15 +169,15 @@ for (const cause of ['redirect', '401']) {
       });
     }
     await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
-    await view.waitFor(() => browser.window.location.reloads === 1);
-    assert.equal(browser.window.location.reloads, 1);
+    await view.waitFor(() => browser.window.location.reloads + browser.window.location.assigned.length === 1);
+    assert.equal(browser.window.location.reloads + browser.window.location.assigned.length, 1);
     assert.deepEqual(network.browserCalls.filter(call => call.path === '/api/auth/logout'),
-      cause === '401' ? [{ method: 'POST', path: '/api/auth/logout' }] : []);
+      []);
     assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
     browser.tickIntervals(2000);
     browser.focus();
     await view.settle();
-    assert.equal(browser.window.location.reloads, 1);
+    assert.equal(browser.window.location.reloads + browser.window.location.assigned.length, 1);
   });
 }
 
@@ -220,33 +220,18 @@ for (const invalidate of ['hidden', 'selection', 'unmount']) {
   });
 }
 
-test('explicit selection and polling share one pending session cleanup without replay', async (t) => {
+test('explicit selection and polling share one Login navigation without replay', async (t) => {
   await renderLoadedPage();
   await view.settle();
   t.mock.method(messageClient, 'getConversationMessages', async () => { throw new BffRequestError('Session expirée', 401); });
-  const originalFetch = global.fetch;
-  let rejectLogout;
-  let logoutCalls = 0;
-  t.mock.method(global, 'fetch', (input, init) => {
-    if (input === '/api/auth/logout') {
-      logoutCalls++;
-      return new Promise((resolve, reject) => { rejectLogout = reject; });
-    }
-    return originalFetch(input, init);
-  });
-  view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy'));
-  // The handler starts logout in a microtask; no timer/polling trigger is used.
-  try {
-    await view.waitFor(() => logoutCalls === 1);
-    view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication'));
-    browser.tickIntervals(2000);
-    browser.focus();
-    await view.settle();
-    assert.equal(logoutCalls, 1);
-  } finally {
-    rejectLogout?.(new TypeError('Failed to fetch'));
-  }
-  await view.waitFor(() => browser.window.location.reloads === 1);
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+  await view.waitFor(() => browser.window.location.assigned.length === 1);
+  browser.tickIntervals(2000);
+  browser.focus();
+  await view.settle();
+  assert.equal(browser.window.location.assigned.length, 1);
+  assert.equal(browser.window.location.reloads, 0);
+  assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
   assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
 });
 
@@ -275,18 +260,18 @@ for (const cause of ['redirect', '401']) {
         });
       }
       browser.tickIntervals(2000);
-      await view.waitFor(() => browser.window.location.reloads === 1);
+      await view.waitFor(() => browser.window.location.reloads + browser.window.location.assigned.length === 1);
       browser.tickIntervals(2000);
       browser.tickIntervals(2000);
       browser.focus();
       await view.settle();
-      assert.equal(browser.window.location.reloads, 1);
+      assert.equal(browser.window.location.reloads + browser.window.location.assigned.length, 1);
       assert.equal(attempts, 1);
       assert.deepEqual(view.props('Messaging').messages, previousMessages);
       assert.equal(view.props('Messaging').activeConversationId, before.activeConversationId);
       assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
       assert.deepEqual(network.browserCalls.filter(call => call.path === '/api/auth/logout'),
-        cause === '401' ? [{ method: 'POST', path: '/api/auth/logout' }] : []);
+        []);
     });
   }
 }
@@ -310,30 +295,18 @@ for (const status of [403, 503]) {
   });
 }
 
-test('a pending 401 session cleanup is single-flight and a transport failure does not reject the polling task', async (t) => {
+test('a 401 Login navigation is single-flight and a transport failure does not reject the polling task', async (t) => {
   await renderLoadedPage();
   await view.settle();
   messageBff.on('get', '/conversations', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
-  const originalFetch = global.fetch;
-  let rejectLogout;
-  let logoutCalls = 0;
-  t.mock.method(global, 'fetch', (input, init) => {
-    if (input === '/api/auth/logout') {
-      logoutCalls++;
-      assert.equal(init.method, 'POST');
-      return new Promise((resolve, reject) => { rejectLogout = reject; });
-    }
-    return originalFetch(input, init);
-  });
   browser.tickIntervals(2000);
-  await view.waitFor(() => logoutCalls === 1);
+  await view.waitFor(() => browser.window.location.assigned.length === 1);
   browser.tickIntervals(2000);
   browser.focus();
   await view.settle();
-  assert.equal(logoutCalls, 1);
+  assert.equal(browser.window.location.assigned.length, 1);
   assert.equal(browser.window.location.reloads, 0);
-  rejectLogout(new TypeError('Failed to fetch'));
-  await view.waitFor(() => browser.window.location.reloads === 1);
+  assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
   assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
 });
 
@@ -496,7 +469,7 @@ test('failed or unregistered file uploads never send a message with a local atta
     conversationId: 'conversation-4', content: 'Sans fichier enregistré', attachments: [attachment], mentions: [],
   }));
   assert.equal(refusedUploadResult, false);
-  await view.waitFor((html) => html.includes('Envoi du fichier refusé'));
+  await view.waitFor((html) => html.includes('Votre session a expiré. Veuillez vous reconnecter.'));
   assert.equal(messageBff.calls('/attachments', 'post').length, 1);
   assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'post').length, 0);
   assert.equal(revokePreview.mock.callCount(), 0);
@@ -977,16 +950,16 @@ for (const cause of ['redirect', '401']) {
       });
     }
     view = mount(React.createElement(Page));
-    await view.waitFor(() => browser.window.location.reloads === 1);
+    await view.waitFor(() => browser.window.location.reloads + browser.window.location.assigned.length === 1);
     assert.equal(view.find('Messaging').length, 0);
     assert.doesNotMatch(view.text(), /conversation demandée est introuvable ou inaccessible/);
     assert.deepEqual(network.browserCalls.filter(call => call.path === '/api/auth/logout'),
-      cause === '401' ? [{ method: 'POST', path: '/api/auth/logout' }] : []);
+      []);
     assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
     browser.tickIntervals(2000);
     browser.focus();
     await view.settle();
-    assert.equal(browser.window.location.reloads, 1);
+    assert.equal(browser.window.location.reloads + browser.window.location.assigned.length, 1);
   });
 }
 
@@ -1942,7 +1915,7 @@ test('MAIR-370: verification session refusal uses the existing navigation withou
   assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
   messageBff.on('get', '/conversations/{conversationId}/messages', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
   assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
-  assert.equal(browser.window.location.reloads, 1);
+  assert.equal(browser.window.location.reloads + browser.window.location.assigned.length, 1);
   assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
 });
 test('MAIR-370: a mismatched verification preserves the confirmed history and uncertainty', async () => {

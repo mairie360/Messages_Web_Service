@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { navigateToLogin } from "./logout";
+export { logoutAndReload } from "./logout";
 import { BffRequestError, messageClient, type CurrentUserDto } from "../clients/messageClient";
 
 export type AppRole = "Admin" | "Responsable" | "Maire" | "User" | "Guest";
@@ -114,7 +116,7 @@ export function useAuthSession() {
       if (!active) return;
 
       if (result.status === "unauthorized") {
-        await logoutAndReload();
+        if (!navigateToLogin()) setSession((current) => ({ ...current, loading: false, error: "Les informations du profil sont indisponibles." }));
         return;
       }
 
@@ -134,16 +136,4 @@ export function useAuthSession() {
   }, []);
 
   return session;
-}
-
-/** Efface le cookie de session (route locale, sans BFF) puis recharge : le middleware redirige vers Login. */
-export async function logoutAndReload() {
-  try {
-    await fetch("/api/auth/logout", {
-      method: "POST",
-      cache: "no-store",
-    });
-  } finally {
-    window.location.reload();
-  }
 }

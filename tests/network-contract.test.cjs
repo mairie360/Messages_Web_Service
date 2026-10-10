@@ -26,9 +26,8 @@ const visit = (node, callback) => { callback(node); ts.forEachChild(node, (child
 
 /** Fichiers autorisés à appeler `fetch`, et l'identifiant non littéral qu'ils peuvent lui passer. */
 const FETCH_CALLERS = {
-  'clients/messageClient.ts': { side: 'browser', dynamicArgument: 'path' },
-  'lib/auth-session.ts': { side: 'browser' },
-  'lib/bff-proxy.ts': { side: 'server', dynamicArgument: 'target' },
+  'clients/messageClient.ts': { side: 'browser', dynamicArgument: '"/api/bff" + path' },
+  'lib/logout.ts': { side: 'browser' },
 };
 /** Fonctions navigateur dont le 1er argument est un chemin same-origin. */
 const BROWSER_REQUESTERS = new Set(['fetch', 'bffRequest']);
@@ -138,7 +137,17 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
     // Les routes /api/** sont locales : ni fetch, ni relais vers un BFF.
     for (const { file, route } of appRoutes().filter(({ route: name }) => name.startsWith('/api/'))) {
       const ast = policy.parse('src/' + relative(file));
-      assert.equal(policy.imports(ast).some(name => name.includes('bff-proxy')), false, route);
+      if (route === '/api/bff/[...path]') {
+        assert.deepEqual(policy.imports(ast), ['../../../../lib/bff-proxy'], route);
+        const handlers = requireSrc(path.relative(SRC, file));
+        for (const method of ['GET','HEAD','POST','PUT','PATCH','DELETE']) assert.equal(handlers[method], requireSrc('lib/bff-proxy.ts').proxyBffRequest);
+      } else {
+        assert.equal(policy.imports(ast).some(name => name.includes('bff-proxy')), false, route);
+        if (route === '/api/auth/logout') {
+          assert.deepEqual(policy.imports(ast), ['@mairie360/lib-components/next']);
+          assert.equal(policy.calls(ast, 'createSessionLogoutProxy').length, 1);
+        }
+      }
       assert.equal(policy.calls(ast, 'fetch').length, 0, route);
       assert.equal(policy.calls(ast, 'forwardToBff').length, 0, route);
     }

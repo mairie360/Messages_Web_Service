@@ -67,9 +67,22 @@ class FrontNetwork {
     this.violations = [];
     this.cookies = {};
     this.originalFetch = undefined;
+    this.ownerOrigin = 'https://login.mairie.test';
+    this.ownerCalls = [];
+    this.ownerOverride = undefined;
+  }
+
+  setOwner(userBff) {
+    this.userBff = userBff;
+    const { createSessionRefreshHandler, createSessionLogoutHandler } = require('@mairie360/lib-components/next');
+    const config = { userBffUrl: () => userBff.url, cookieOptions: () => ({ secure: false }), allowedOrigins: () => [FRONT_ORIGIN] };
+    this.ownerHandlers = { '/api/auth/refresh': createSessionRefreshHandler(config), '/api/auth/logout': createSessionLogoutHandler(config) };
   }
 
   install() {
+    this.savedFrontUrls = { MESSAGE_FRONT_URL: process.env.MESSAGE_FRONT_URL, LOGIN_FRONT_URL: process.env.LOGIN_FRONT_URL };
+    process.env.MESSAGE_FRONT_URL = FRONT_ORIGIN;
+    process.env.LOGIN_FRONT_URL = this.ownerOrigin;
     this.originalFetch = global.fetch;
     const realFetch = this.originalFetch;
     global.fetch = async (input, init = {}) => {
@@ -77,6 +90,12 @@ class FrontNetwork {
       const url = new URL(request ? request.url : String(input), FRONT_ORIGIN);
       if (url.origin === FRONT_ORIGIN) return this.dispatch(url, init, request);
 
+      if (url.origin === this.ownerOrigin && this.ownerHandlers) {
+        const handler = this.ownerHandlers[url.pathname];
+        if (!handler) throw new Error('Undeclared Login owner operation');
+        this.ownerCalls.push({ method: init.method ?? 'GET', path: url.pathname });
+        return this.ownerOverride ? this.ownerOverride(url, init) : handler(new NextRequest(url, init));
+      }
       const upstream = this.upstreams.find((mock) => mock.url && url.origin === new URL(mock.url).origin);
       if (!upstream) {
         this.violations.push(`appel réseau hors contrat vers ${url.origin}${url.pathname}`);
@@ -91,9 +110,15 @@ class FrontNetwork {
   restore() {
     if (this.originalFetch) global.fetch = this.originalFetch;
     this.originalFetch = undefined;
+    for (const [key, value] of Object.entries(this.savedFrontUrls ?? {})) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
   }
 
   reset() {
+    if (this.userBff) require('@mairie360/lib-components/next').forgetUserSession(this.userBff.url, this.cookies.refreshToken);
+    this.ownerCalls.length = 0;
+    this.ownerOverride = undefined;
     this.browserCalls.length = 0;
     this.serverCalls.length = 0;
     this.violations.length = 0;
@@ -131,6 +156,8 @@ class FrontNetwork {
     }
 
     const headers = new Headers(init.headers ?? request?.headers);
+    if (!headers.has('origin')) headers.set('origin', FRONT_ORIGIN);
+    if (!headers.has('sec-fetch-site')) headers.set('sec-fetch-site', 'same-origin');
     const cookie = Object.entries(this.cookies).map(([name, value]) => `${name}=${encodeURIComponent(value)}`).join('; ');
     if (cookie) headers.set('cookie', cookie);
     const nextRequest = new NextRequest(url, {
@@ -140,6 +167,12 @@ class FrontNetwork {
       ...(init.signal ? { signal: init.signal } : {}),
     });
     const response = await handler(nextRequest, { params: Promise.resolve(route.params) });
+    for (const cookie of response.headers.getSetCookie()) {
+      const [pair, ...attributes] = cookie.split(';');
+      const [name, ...value] = pair.split('=');
+      if (attributes.some(part => /^\s*max-age=0\s*$/i.test(part))) delete this.cookies[name.trim()];
+      else this.cookies[name.trim()] = decodeURIComponent(value.join('='));
+    }
     // Comme le fetch du navigateur : un signal annulé pendant l'appel rejette avec AbortError.
     abortIfNeeded();
     return response;
