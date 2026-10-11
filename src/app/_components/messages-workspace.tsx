@@ -51,6 +51,7 @@ export function MessagesWorkspace({
   hasConfirmedMessages,
   handleReadVisibleMessages,
   handleAttach,
+  handleAttachmentDownload,
   handleNewMessageSend,
   handleCreateGroup,
   handleConversationDelete,
@@ -133,6 +134,7 @@ export function MessagesWorkspace({
                 onCreateGroupClick={() => void loadContacts()}
                 onSendMessage={hasConfirmedThread ? handleSendMessage : undefined}
                 onReadVisibleMessages={hasConfirmedThread && hasConfirmedMessages && !selectionPending ? handleReadVisibleMessages : undefined}
+                onAttachmentDownload={handleAttachmentDownload}
                 onAttach={handleAttach}
                 onNewMessageSend={handleNewMessageSend}
                 onCreateGroup={handleCreateGroup}

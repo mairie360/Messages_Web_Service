@@ -45,7 +45,12 @@ const sendDraftSignature = (payload: SendMessagePayload) => JSON.stringify({
   references: (getPayloadIds(payload.businessLinks) ?? []).map(String),
 });
 
-export function useMessagingController() {
+import { pendingAttachmentPort, receiveAttachment } from "@/lib/attachment-features";
+import type { AttachmentFeaturePort } from "@/lib/attachment-features";
+
+export function useMessagingController({ attachmentPort = pendingAttachmentPort }: { attachmentPort?: AttachmentFeaturePort } = {}) {
+  const downloadRef = useRef<AbortController | null>(null);
+  useEffect(() => () => downloadRef.current?.abort(), []);
   const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
   const [activeConversationId, setActiveConversationId] =
     useState<MessagingContactId>("");
@@ -84,6 +89,8 @@ export function useMessagingController() {
     pendingSendsRef.current.clear();
     unconfirmedSendsRef.current.clear();
   }, [senderIdentity]);
+
+  useEffect(() => { downloadRef.current?.abort(); }, [activeConversationId, currentUser?.id]);
 
   const selectedConversation = conversations.find((conversation) => idsMatch(conversation.id, activeConversationId));
   const hasConfirmedThread = confirmedConversationIds.has(String(activeConversationId));
@@ -720,7 +727,21 @@ export function useMessagingController() {
     });
   };
 
+  const handleAttachmentDownload: NonNullable<MessagingProps['onAttachmentDownload']> = async (attachment,message) => {
+    if (!idsMatch(activeConversationRef.current, message.conversationId) || !confirmedMessagesRef.current.some(item => idsMatch(item.id,message.id))) throw new Error('Sélectionnez à nouveau la conversation avant de télécharger ce fichier.');
+    downloadRef.current?.abort(); const controller = new AbortController(); downloadRef.current = controller;
+    const owner = senderIdentityRef.current;
+    try {
+      const file = await receiveAttachment(attachmentPort,String(attachment.id),String(message.conversationId),controller.signal);
+      if (controller.signal.aborted || senderIdentityRef.current !== owner || !idsMatch(activeConversationRef.current,message.conversationId)) throw new Error('Le téléchargement a été annulé après le changement de conversation.');
+      const url = URL.createObjectURL(file.blob); const link = document.createElement('a');
+      link.href = url; link.download = file.fileName; document.body.append(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url),1000);
+    } finally { if (downloadRef.current === controller) downloadRef.current = null; }
+  };
+
   return {
+    handleAttachmentDownload: attachmentPort.download ? handleAttachmentDownload : undefined,
     loading,
     currentUser,
     bootstrapError,
