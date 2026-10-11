@@ -54,7 +54,9 @@ export async function logoutAndReload() {
     try { receipt = await response.json(); } catch {
       throw new Error('La déconnexion n’a pas pu être confirmée. Veuillez réessayer.');
     }
-    if (typeof receipt !== 'object' || receipt === null || !('session_revoked' in receipt) || typeof receipt.session_revoked !== 'boolean') {
+    if (typeof receipt !== 'object' || receipt === null ||
+        !('session_revoked' in receipt) || typeof receipt.session_revoked !== 'boolean' ||
+        !('message' in receipt) || typeof receipt.message !== 'string') {
       throw new Error('La déconnexion n’a pas pu être confirmée. Veuillez réessayer.');
     }
     if (!receipt.session_revoked) {
