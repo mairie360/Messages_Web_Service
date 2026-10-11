@@ -132,6 +132,22 @@ test('unconfirmed explicit revocation expires local cookies but keeps the failur
   assert.deepEqual(network.cookies, {});
 });
 
+test('an incomplete logout owner receipt keeps the shell and unrelated browser data until explicit recovery', async (t) => {
+  await renderShell();
+  const values = new Map([['mairie360.auth.jwt', 'legacy'], ['unrelated.preference', 'keep']]);
+  browser.window.localStorage = { removeItem: key => values.delete(key) };
+  t.after(() => { delete browser.window.localStorage; });
+  network.ownerOverride = () => Response.json({ session_revoked: true });
+  await view.act(() => view.props('Header').onLogout());
+  await view.waitFor(html => html.includes('La déconnexion n’a pas pu être confirmée'));
+  assert.deepEqual(browser.window.location.assigned, []);
+  assert.equal(values.get('unrelated.preference'), 'keep');
+  assert.equal(values.get('mairie360.auth.jwt'), 'legacy');
+  assert.equal(network.cookies.refreshToken, refresh);
+  assert.equal(network.ownerCalls.length, 1);
+  assert.match(view.html, /role="alert"/);
+});
+
 
 async function renderShell() {
   business.on('get', '/me', { body: currentUser() });
