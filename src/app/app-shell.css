@@ -124,6 +124,13 @@ html body {
   min-width: 0;
 }
 
+.messages-module > div:nth-child(2) > div:first-child h3 {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .messages-module > div:nth-child(2) > .flex-1 {
   overflow-x: hidden;
   overflow-y: auto;
