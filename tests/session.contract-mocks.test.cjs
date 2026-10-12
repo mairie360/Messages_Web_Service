@@ -63,7 +63,7 @@ describe('fetchAuthSession maps the BFF Message current user', () => {
   });
 
   test('401 is reported as unauthorized and other failures as unavailable', async () => {
-    messageBff.on('get', '/me', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée') });
+    messageBff.on('get', '/me', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
     assert.deepEqual(await fetchAuthSession(), { status: 'unauthorized' });
 
     messageBff.on('get', '/me', { status: 500, raw: 'Erreur', contentType: 'text/plain', outOfContract: true });
@@ -97,7 +97,7 @@ describe('useAuthSession', () => {
   });
 
   test('returns to configured Login without logout when BFF Message rejects the session', async () => {
-    messageBff.on('get', '/me', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée') });
+    messageBff.on('get', '/me', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
 
     const { hooks } = renderHook();
 

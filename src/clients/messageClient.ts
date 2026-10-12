@@ -8,7 +8,7 @@ import type {
   GetMessagingBootstrap200,
   PostConversationsConversationIdMessages201,
   PostConversationsConversationIdMessagesBody,
-  PostAttachments201,
+  UploadAttachmentResponse,
   PostDirectMessages201,
   PostDirectMessagesBody,
   PostGroups201,
@@ -141,7 +141,8 @@ export const messageClient = {
   uploadAttachments(files: File[]) {
     const body = new FormData();
     files.forEach((file) => body.append("files", file, file.name));
-    return bffRequest<PostAttachments201>("/attachments", {
+    // The dev package no longer names the 201 of POST /attachments: UploadAttachmentResponse is its published model.
+    return bffRequest<UploadAttachmentResponse>("/attachments", {
       method: "POST",
       body,
     });
