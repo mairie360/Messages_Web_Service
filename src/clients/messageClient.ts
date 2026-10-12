@@ -22,15 +22,36 @@ import type {
 
 export type MessageId = string | number;
 
+export type { UploadAttachmentResponse };
+
 export type CurrentUserDto = GetMe200["currentUser"];
 
 export type ContactDto = GetContacts200["contacts"][number];
 
-/** Erreur HTTP renvoyée par le BFF, avec son statut. */
+export type BffErrorDetail = { path?: string; message: string };
+
+/**
+ * HTTP refusal of the BFF: `message` is its `error.message` (French fallback otherwise), with the status and the
+ * `error.code` / `error.details[]` of the shared ErrorResponse envelope, so a form can explain the refused fields
+ * (MAIR-512).
+ */
 export class BffRequestError extends Error {
-  constructor(message: string, readonly status: number) {
+  readonly code: string | undefined;
+  readonly details: readonly BffErrorDetail[];
+
+  constructor(message: string, readonly status: number, body?: unknown) {
     super(message);
     this.name = "BffRequestError";
+    const error = (body as { error?: { code?: unknown; details?: unknown } } | null | undefined)?.error;
+    this.code = typeof error?.code === "string" ? error.code : undefined;
+    this.details = Array.isArray(error?.details)
+      ? error.details.flatMap((detail: unknown) => {
+        const item = detail as { path?: unknown; message?: unknown } | null;
+        return typeof item?.message === "string"
+          ? [{ path: typeof item.path === "string" ? item.path : undefined, message: item.message }]
+          : [];
+      })
+      : [];
   }
 }
 
@@ -75,7 +96,7 @@ async function bffRequest<T>(
   }
 
   if (!response.ok) {
-    const errorBody = await readJson<{ message?: string; error?: { message?: string } }>(
+    const errorBody = await readJson<{ message?: string; error?: { message?: string; code?: string; details?: unknown } }>(
       response,
     ).catch(() => null);
     const serviceMessage = [errorBody?.error?.message, errorBody?.message].find(
@@ -87,7 +108,7 @@ async function bffRequest<T>(
         : "La demande n’a pas pu aboutir."
     );
 
-    throw new BffRequestError(message, response.status);
+    throw new BffRequestError(message, response.status, errorBody);
   }
 
   return readJson<T>(response);

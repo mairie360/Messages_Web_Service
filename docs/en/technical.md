@@ -107,7 +107,7 @@ The following sources and limitations describe the associated BFF, which determi
 
 Conversations and messages use Message API. Contacts are read directly from the SQL `users` table, including the current user (token `sub` identifier). Business references are aggregated from BFF Project and BFF Calendar. Local profile edits, attachment metadata and the read acknowledgement do not provide complete persistence.
 
-Attachment upload currently creates metadata and does not provide durable binary storage. Mark-as-read returns a zero counter without writing to Message API; the page therefore does not call that route or locally clear unread counts. Conversation groups use the API, while some profile data remains local to the process.
+Attachments are not available yet (MAIR-512): the BFF answers 503 to `POST /attachments` and refuses any non-empty `attachmentIds`. The page therefore uses the default `pendingAttachmentPort` (`src/lib/attachment-features.ts`), which has no `upload` capability: the shared composer still shows "Joindre un fichier" (its button does not depend on `onAttach`), but the files are not registered and a draft carrying attachments is refused locally in French, without any network call. `messageAttachmentPort` keeps the upload path (`messageClient.uploadAttachments`) ready for the day the BFF stores files. Only user ids (`user-<n>` or integer, the BFF rule) are sent in `mentionIds`: group mention options stay highlighted but are not transmitted. A BFF 400 on a send, a direct message or a group creation is translated per refused field from `error.details[]` (`src/lib/bff-error-messages.ts`); other refusals keep the BFF message. Mark-as-read returns a zero counter without writing to Message API; the page therefore does not call that route or locally clear unread counts. Conversation groups use the API, while some profile data remains local to the process.
 
 The group callback returns the actual `messageClient.createGroup()` promise and a
 boolean confirmation: `true` after the returned conversation is integrated, or
@@ -175,7 +175,7 @@ These data paths are exposed at the same origin through the proxy; Next.js pages
 
 | Method | Path | Declared body | Declared statuses |
 | --- | --- | --- | --- |
-| POST | `/attachments` | multipart/form-data | 401, 2XX |
+| POST | `/attachments` | multipart/form-data | 401, 2XX (always 503 today: not called by the page) |
 | GET | `/business-references` | — | 2XX |
 | GET | `/check_apis` | — | 2XX |
 | GET | `/contacts` | — | 401, 2XX |

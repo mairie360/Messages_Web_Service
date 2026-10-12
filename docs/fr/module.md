@@ -94,6 +94,17 @@ est ajoutée à la liste.
 - Dates des conversations et des messages affichées en français (jour/mois et heure:minute), dans le fuseau du navigateur. Les valeurs absentes ou non reconnues sont conservées sans date inventée ; le contenu des messages reste intact.
 - Chargement des références projets, tâches et événements, avec actualisation des suggestions au retour dans l’onglet visible. Une panne temporaire conserve la dernière liste reçue ; un refus d’accès la vide.
 
+Les pièces jointes ne sont pas encore disponibles (MAIR-512) : le BFF répond 503 à
+l’upload et refuse tout identifiant de pièce jointe. Le composer partagé affiche
+toujours « Joindre un fichier », mais un brouillon contenant des fichiers est refusé
+localement en français avant tout appel réseau ; le même texte sans ses fichiers
+s’envoie normalement. Les mentions proposent les contacts et les conversations de
+groupe ; seules les mentions d’utilisateurs sont transmises au BFF, les mentions de
+groupe restent mises en évidence dans le texte. Un refus du BFF à l’envoi, au
+message direct ou à la création de groupe est expliqué en français champ par champ
+(balises `<` `>`, longueur, destinataire ou membre inconnu) ; les autres refus
+gardent le message du BFF.
+
 ## Parcours type
 
 ### Reprise de session pendant le polling — MAIR-409 / issue #215

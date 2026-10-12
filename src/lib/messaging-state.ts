@@ -87,6 +87,21 @@ export function getPayloadIds(items?: Array<{ id: MessageId }>) {
   return items?.map((item) => item.id);
 }
 
+// Same rule as BFF_Message `inputId('user')`: a positive integer or a `user-<n>` public id.
+const USER_ID = /^(?:user-)?[1-9]\d*$/;
+
+export function isUserId(id: MessageId) {
+  return USER_ID.test(String(id));
+}
+
+/**
+ * Ids sent as `mentionIds`: users only. The composer also offers group conversations (`conversation-<n>`) as
+ * mention options; they stay highlighted in the text but are not transmitted, the BFF would refuse them (MAIR-512).
+ */
+export function toMentionIds(mentions?: Array<{ id: MessageId }>): MessageId[] {
+  return (getPayloadIds(mentions) ?? []).filter(isUserId);
+}
+
 export function toMessagingContacts(
   contacts: ContactDto[] | undefined,
 ): MessagingConversation[] {

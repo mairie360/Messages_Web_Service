@@ -16,6 +16,11 @@ const { FrontNetwork } = require('./support/front-network.cjs');
 const { ContractMockServer } = require('./support/contract-mock-server.cjs');
 const { OpenApiContract } = require('./support/openapi-contract.cjs');
 const Page = requireSrc('app/page.tsx').default;
+const { MessagesWorkspace } = requireSrc('app/_components/messages-workspace.tsx');
+const { useMessagingController } = requireSrc('app/_components/use-messaging-controller.ts');
+const { ATTACHMENTS_UNAVAILABLE_MESSAGE, messageAttachmentPort } = requireSrc('lib/attachment-features.ts');
+// The page once BFF_Message stores attachments (MAIR-512): the same workspace with the upload-capable port.
+function PageWithUploads() { return React.createElement(MessagesWorkspace, useMessagingController({ attachmentPort: messageAttachmentPort })); }
 const { messageClient } = requireSrc('clients/messageClient.ts');
 const { BffNavigationRequiredError, BffRequestError } = requireSrc('clients/messageClient.ts');
 
@@ -76,9 +81,9 @@ afterEach(() => {
 
 const upstream = () => messageBff.requests.map((call) => `${call.method} ${call.url.pathname}`).sort();
 
-async function renderLoadedPage(body = bootstrap()) {
+async function renderLoadedPage(body = bootstrap(), Component = Page) {
   messageBff.on('get', '/messaging/bootstrap', { body });
-  view = mount(React.createElement(Page));
+  view = mount(React.createElement(Component));
   return view.waitFor(() => view.find('Messaging').length > 0 && view.props('Messaging').emptyStateLabel === 'Aucune conversation' &&
     view.props('Header').user.name !== 'Chargement…' &&
     view.props('Messaging').conversations[0]?.unreadCount === 0);
@@ -428,8 +433,100 @@ test('send keeps user-authored date text and request payload intact, then format
   assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
 });
 
-test('selected files are uploaded before their server IDs are attached to a message', async (t) => {
+// MAIR-512 (the mocked 400 bodies below are contract-valid: the refusal is the BFF's own validation, mocked).
+// BFF_Message answers 503 to POST /attachments and refuses a non-empty attachmentIds, so the
+// page has no upload capability: files are not registered and a draft carrying them is refused locally.
+test('the page offers no onAttach and refuses a draft with attachments before any network call', async () => {
   await renderLoadedPage();
+  assert.equal(view.props('Messaging').onAttach, undefined);
+  assert.equal(typeof view.props('Messaging').onSendMessage, 'function');
+  const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:refused-agenda' };
+
+  const result = await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content: 'Voici le document', attachments: [attachment], mentions: [],
+  }));
+  assert.equal(result, false);
+  const html = await view.waitFor((current) => current.includes('role="alert"'));
+  assert.match(html, new RegExp(`<p role="alert" class="messages-error">${ATTACHMENTS_UNAVAILABLE_MESSAGE}</p>`));
+  assert.equal(ATTACHMENTS_UNAVAILABLE_MESSAGE, 'Les pièces jointes ne sont pas encore disponibles. Retirez-les du brouillon pour envoyer votre message.');
+  assert.deepEqual(messageBff.requests.filter((call) => call.method === 'POST'), []);
+  assert.match(html, /Bonjour à tous/);
+
+  // The same draft without its files is sent normally.
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({ status: 201, body: {
+    message: message(3, 4, 'Voici le document'), conversation: conversation(4, 'Équipe communication', { lastMessage: 'Voici le document' }),
+  } }));
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content: 'Voici le document', attachments: [], mentions: [],
+  })), true);
+  await view.waitFor((current) => !current.includes('role="alert"'));
+  assert.deepEqual(messageBff.requests.filter((call) => call.method === 'POST').map((call) => call.template), ['/conversations/{conversationId}/messages']);
+});
+
+test('group mention options are highlighted but only user ids are sent as mentionIds', async () => {
+  await renderLoadedPage();
+  const options = view.props('Messaging').mentionOptions;
+  const group = options.find((option) => option.kind === 'group');
+  const sophie = options.find((option) => String(option.id) === `user-${users.sophie.id}`);
+  assert.ok(group && String(group.id).startsWith('conversation-'), 'a group conversation is offered as a mention');
+  assert.ok(sophie);
+  const content = `@${sophie.name} @${group.name} réunion à 14h`;
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({ status: 201, body: {
+    message: message(3, 4, content), conversation: conversation(4, 'Équipe communication', { lastMessage: content }),
+  } }));
+
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content, attachments: [], mentions: [sophie, group, { id: 'user-0', name: 'Nobody' }],
+  })), true);
+  await view.waitFor((current) => current.includes('réunion à 14h'));
+
+  const [call] = messageBff.calls('/conversations/{conversationId}/messages', 'POST');
+  assert.deepEqual(call.body, { content, attachmentIds: [], mentionIds: [`user-${users.sophie.id}`] });
+});
+
+for (const [label, operation, send, reply, expected] of [
+  ['send content with markup and too long', 'send', { conversationId: 'conversation-4', content: 'Bonjour', attachments: [], mentions: [] },
+    ['post', '/conversations/{conversationId}/messages', [
+      { path: 'body.content', message: 'Must not contain < or >' },
+      { path: 'body.content', message: 'String must contain at most 5000 character(s)' },
+      { path: 'body.mentionIds.0', message: 'Expected a user identifier' },
+      { path: 'body.attachmentIds', message: 'Attachments are not supported yet' },
+    ]],
+    'Le message ne doit pas contenir les caractères < ou >. Le message dépasse 5 000 caractères. Une mention ne correspond à aucun utilisateur connu. Retirez-la avant d’envoyer. Les pièces jointes ne sont pas encore disponibles. Retirez-les du brouillon pour envoyer votre message.'],
+  ['direct message refused fields', 'direct', { recipientId: 'user-9', message: 'Salut' },
+    ['post', '/direct-messages', [
+      { path: 'body.message', message: 'String must contain at least 1 character(s)' },
+      { path: 'body.recipientId', message: 'Expected a user identifier' },
+    ]],
+    'Le message est vide ou contient des caractères non autorisés. Le destinataire ne correspond à aucun utilisateur connu.'],
+  ['group refused fields', 'group', { name: 'Commission voirie', description: 'x', memberIds: ['user-3'] },
+    ['post', '/groups', [
+      { path: 'body.name', message: 'Must not contain < or >' },
+      { path: 'body.description', message: 'Too big: expected string to have <=500 characters' },
+      { path: 'body.memberIds.0', message: 'Expected a user identifier' },
+      { path: 'body.nickname', message: 'Unrecognized key' },
+      { message: 'Something else' },
+    ]],
+    'Le nom du groupe ne doit pas contenir les caractères < ou >. La description du groupe dépasse 500 caractères. Un membre sélectionné ne correspond à aucun utilisateur connu. nickname : Unrecognized key Something else'],
+  ['400 without details keeps the BFF message', 'send', { conversationId: 'conversation-4', content: 'Bonjour', attachments: [], mentions: [] },
+    ['post', '/conversations/{conversationId}/messages', []], 'Validation failed'],
+]) {
+  test(`a BFF 400 is explained in French per refused field (${label})`, async () => {
+    await renderLoadedPage();
+    const [method, template, details] = reply;
+    messageBff.on(method, template, { status: 400, body: { error: { code: 'BAD_REQUEST', message: 'Validation failed', details } }, outOfContract: true });
+    const handler = { send: 'onSendMessage', direct: 'onNewMessageSend', group: 'onCreateGroup' }[operation];
+
+    assert.equal(await view.act(() => view.props('Messaging')[handler](send)), false);
+    const html = await view.waitFor((current) => current.includes('role="alert"'));
+    const text = html.match(/<p role="alert" class="messages-error">([^<]*)<\/p>/)[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, '’');
+    assert.equal(text, expected);
+    assert.equal(messageBff.calls(template, method.toUpperCase()).length, 1);
+  });
+}
+
+test('selected files are uploaded before their server IDs are attached to a message', async (t) => {
+  await renderLoadedPage(bootstrap(), PageWithUploads);
   const revokePreview = t.mock.method(URL, 'revokeObjectURL');
   const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:sent-agenda' };
   const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
@@ -458,7 +555,7 @@ test('selected files are uploaded before their server IDs are attached to a mess
 });
 
 test('failed or unregistered file uploads never send a message with a local attachment ID', async (t) => {
-  await renderLoadedPage();
+  await renderLoadedPage(bootstrap(), PageWithUploads);
   const revokePreview = t.mock.method(URL, 'revokeObjectURL');
   const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:retry-agenda' };
   const missingFileResult = await view.act(() => view.props('Messaging').onSendMessage({
@@ -483,7 +580,7 @@ test('failed or unregistered file uploads never send a message with a local atta
 });
 
 test('an upload response without an ID cannot be mistaken for a sent attachment', async () => {
-  await renderLoadedPage();
+  await renderLoadedPage(bootstrap(), PageWithUploads);
   const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain' };
   const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
   await view.act(() => view.props('Messaging').onAttach([file], [attachment]));
@@ -1870,7 +1967,7 @@ test('MAIR-370: verifying a previous send preserves a changed draft before a new
 });
 
 test('MAIR-370: unconfirmed attachment sends verify without uploading or posting again', async t => {
-  await renderLoadedPage();
+  await renderLoadedPage(bootstrap(), PageWithUploads);
   await view.settle();
   const revoke = t.mock.method(URL, 'revokeObjectURL');
   const attachment = { id: 'draft-file', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:unconfirmed-agenda' };
@@ -1946,7 +2043,7 @@ test('MAIR-370: a mismatched verification preserves the confirmed history and un
 
 for (const phase of ['upload', 'send']) {
   test('MAIR-370: a disposed ' + phase + ' completion cannot confirm or start another write', async t => {
-    await renderLoadedPage();
+    await renderLoadedPage(bootstrap(), phase === 'upload' ? PageWithUploads : Page);
     await view.settle();
     const attachment = { id: 'draft-file', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:disposed-agenda' };
     if (phase === 'upload') {
