@@ -9,6 +9,7 @@ import {
   getPayloadIds,
   idsMatch,
   replaceConversationMessages,
+  toMentionIds,
   toMessagingContacts,
   toMessagingUserId,
   upsertConversation,
@@ -45,8 +46,9 @@ const sendDraftSignature = (payload: SendMessagePayload) => JSON.stringify({
   references: (getPayloadIds(payload.businessLinks) ?? []).map(String),
 });
 
-import { pendingAttachmentPort, receiveAttachment } from "@/lib/attachment-features";
+import { ATTACHMENTS_UNAVAILABLE_MESSAGE, pendingAttachmentPort, receiveAttachment, uploadDraftAttachments } from "@/lib/attachment-features";
 import type { AttachmentFeaturePort } from "@/lib/attachment-features";
+import { describeBffError } from "@/lib/bff-error-messages";
 
 export function useMessagingController({ attachmentPort = pendingAttachmentPort }: { attachmentPort?: AttachmentFeaturePort } = {}) {
   const downloadRef = useRef<AbortController | null>(null);
@@ -452,6 +454,9 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
     beginMutation();
 
     try {
+      // BFF_Message does not store attachments yet (POST /attachments answers 503, `attachmentIds` must be
+      // empty): a draft carrying files is refused here, before any network call (MAIR-512).
+      if (draftAttachments.length > 0 && !attachmentPort.upload) throw new Error(ATTACHMENTS_UNAVAILABLE_MESSAGE);
       const unconfirmed = unconfirmedSendsRef.current.get(key);
       if (unconfirmed) {
         // A successful but unrelated/incomplete receipt may already represent a
@@ -494,7 +499,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
           }
           files.push(file);
         }
-        const uploaded = await messageClient.uploadAttachments(files);
+        const uploaded = await uploadDraftAttachments(attachmentPort, files);
         if (!isOwned()) return false;
         if (!Array.isArray(uploaded?.attachments) || uploaded.attachments.length !== draftAttachments.length) {
           throw new Error("Le transfert des pièces jointes n’a pas été confirmé. Aucun message n’a été envoyé.");
@@ -509,7 +514,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
       const response = await messageClient.sendMessage(payload.conversationId, {
         content: payload.content,
         attachmentIds,
-        mentionIds: getPayloadIds(payload.mentions),
+        mentionIds: toMentionIds(payload.mentions),
       });
 
       if (!isOwned()) return false;
@@ -544,11 +549,9 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
       if (isOwned() && idsMatch(activeConversationRef.current, payload.conversationId) &&
           pageIsVisible() && unconfirmedSendsRef.current.has(key) &&
           await recoverSessionNavigation(sendError)) return false;
-      if (isOwned() && idsMatch(activeConversationRef.current, payload.conversationId)) setError(
-        sendError instanceof Error
-          ? sendError.message
-          : "Le message n'a pas pu être envoyé.",
-      );
+      if (isOwned() && idsMatch(activeConversationRef.current, payload.conversationId)) {
+        setError(describeBffError(sendError, "Le message n’a pas pu être envoyé."));
+      }
       return false;
     } finally {
       if (pendingSendsRef.current.get(key) === request) pendingSendsRef.current.delete(key);
@@ -631,11 +634,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
       setShowConversationList(false);
       return true;
     } catch (sendError) {
-      setError(
-        sendError instanceof Error
-          ? sendError.message
-          : "Le message direct n'a pas pu être créé.",
-      );
+      setError(describeBffError(sendError, "Le message direct n’a pas pu être créé."));
       return false;
     } finally {
       endMutation();
@@ -658,11 +657,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
       setShowConversationList(false);
       return true;
     } catch (createError) {
-      setError(
-        createError instanceof Error
-          ? createError.message
-          : "Le groupe n'a pas pu être créé.",
-      );
+      setError(describeBffError(createError, "Le groupe n’a pas pu être créé."));
       return false;
     } finally {
       endMutation();
@@ -742,6 +737,9 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
 
   return {
     handleAttachmentDownload: attachmentPort.download ? handleAttachmentDownload : undefined,
+    // The shared composer always offers "Joindre un fichier"; without an upload capability the files are not
+    // registered and a draft carrying them is refused by handleSendMessage.
+    handleAttach: attachmentPort.upload ? handleAttach : undefined,
     loading,
     currentUser,
     bootstrapError,
@@ -764,7 +762,6 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
     handleSendMessage,
     hasConfirmedMessages,
     handleReadVisibleMessages,
-    handleAttach,
     handleNewMessageSend,
     handleCreateGroup,
     handleConversationDelete,

@@ -121,7 +121,7 @@ Les sources et limites suivantes concernent le BFF associé, dont dépend la sau
 
 Conversations et messages passent par Message API. Les contacts proviennent directement de la table SQL `users`, y compris l’utilisateur courant (identifiant `sub` du jeton). Les références métier sont agrégées depuis BFF Project et BFF Calendar. La modification locale du profil, les métadonnées de pièces jointes et l’accusé de lecture ne constituent pas une persistance complète.
 
-L’upload de pièces jointes fabrique actuellement des métadonnées et ne fournit pas un stockage binaire durable. Le marquage lu renvoie un compteur nul sans écrire dans Message API ; la page n’appelle donc pas cette route et n’efface pas localement les compteurs de non-lus. Les groupes de conversation passent par l’API, tandis que certaines données de profil restent locales au processus.
+Les pièces jointes ne sont pas encore disponibles (MAIR-512) : le BFF répond 503 à `POST /attachments` et refuse tout `attachmentIds` non vide. La page utilise donc le port par défaut `pendingAttachmentPort` (`src/lib/attachment-features.ts`), sans capacité `upload` : le composer partagé affiche toujours « Joindre un fichier » (son bouton ne dépend pas de `onAttach`), mais les fichiers ne sont pas enregistrés et un brouillon qui en contient est refusé localement en français, sans appel réseau. `messageAttachmentPort` garde le chemin d’upload (`messageClient.uploadAttachments`) prêt pour le jour où le BFF stockera les fichiers. Seuls les identifiants d’utilisateurs (`user-<n>` ou entier, la règle du BFF) sont envoyés dans `mentionIds` : les mentions de groupe restent mises en évidence mais ne sont pas transmises. Un 400 du BFF à l’envoi, au message direct ou à la création de groupe est traduit champ par champ depuis `error.details[]` (`src/lib/bff-error-messages.ts`) ; les autres refus gardent le message du BFF. Le marquage lu renvoie un compteur nul sans écrire dans Message API ; la page n’appelle donc pas cette route et n’efface pas localement les compteurs de non-lus. Les groupes de conversation passent par l’API, tandis que certaines données de profil restent locales au processus.
 
 Le callback de groupe retourne la promesse réelle de `messageClient.createGroup()`
 et une confirmation booléenne : `true` après intégration de la conversation reçue,
@@ -190,7 +190,7 @@ Ces chemins de données sont exposés à la même origine par le proxy; les page
 
 | Méthode | Chemin | Corps déclaré | Statuts déclarés |
 | --- | --- | --- | --- |
-| POST | `/attachments` | multipart/form-data | 401, 2XX |
+| POST | `/attachments` | multipart/form-data | 401, 2XX (toujours 503 aujourd’hui : non appelé par la page) |
 | GET | `/business-references` | — | 2XX |
 | GET | `/check_apis` | — | 2XX |
 | GET | `/contacts` | — | 401, 2XX |

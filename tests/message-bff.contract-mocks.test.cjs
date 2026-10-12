@@ -288,3 +288,18 @@ describe('same-origin proxy only forwards operations declared by the BFF_Message
     network.violations.length = 0;
   });
 });
+
+// MAIR-512: the ErrorResponse envelope is exposed for field-level messages.
+test('a BFF refusal exposes its code and details next to the unchanged message and status', async () => {
+  const details = [{ path: 'body.content', message: 'Must not contain < or >' }, { message: 'Context only' }, { path: 'ignored' }, 'junk'];
+  messageBff.on('post', '/conversations/{conversationId}/messages', { status: 400, body: { error: { code: 'BAD_REQUEST', message: 'Validation failed', details } }, outOfContract: true });
+  const error = await messageClient.sendMessage(4, { content: 'x' }).catch((reason) => reason);
+  assert.ok(error instanceof BffRequestError);
+  assert.deepEqual([error.message, error.status, error.code], ['Validation failed', 400, 'BAD_REQUEST']);
+  assert.deepEqual(error.details, [{ path: 'body.content', message: 'Must not contain < or >' }, { path: undefined, message: 'Context only' }]);
+
+  messageBff.on('get', '/contacts', { status: 503, raw: 'down', contentType: 'text/plain', outOfContract: true });
+  const unreadable = await messageClient.getContacts().catch((reason) => reason);
+  assert.ok(unreadable instanceof BffRequestError);
+  assert.deepEqual([unreadable.status, unreadable.code, unreadable.details], [503, undefined, []]);
+});

@@ -95,6 +95,15 @@ an error; only the server-created conversation is added to the list.
 - Conversation and message timestamps displayed in French (day/month and hour:minute), using the browser timezone. Missing or unrecognized values are preserved without invented dates; message content is unchanged.
 - Load project, task and event references, refreshing suggestions when returning to the visible tab. Temporary failures retain the last successful list; an access refusal clears it.
 
+Attachments are not available yet (MAIR-512): the BFF answers 503 to the upload
+and refuses any attachment id. The shared composer still shows "Joindre un fichier",
+but a draft carrying files is refused locally in French before any network call;
+sending the same text without its files works. Mentions offer contacts and group
+conversations; only user mentions are transmitted to the BFF, group mentions stay
+highlighted in the text. A BFF refusal of a send, a direct message or a group
+creation is explained in French per refused field (markup `<` `>`, length,
+unknown recipient or member); other refusals keep the BFF message.
+
 ## Typical workflow
 
 ### Polling session recovery — MAIR-409 / issue #215
