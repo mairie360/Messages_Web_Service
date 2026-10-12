@@ -264,8 +264,11 @@ services:
         condition: service_healthy
     volumes:
       - ./.zap/rules.tsv:/zap/wrk/rules.tsv:ro
-    # zap-baseline.py : spider + scan passif (adapté à une interface web, là où
-    #   les BFFs rejouent leur OpenAPI avec zap-api-scan.py).
+    # zap-baseline.py: spider + passive scan (fit for a web UI, where the BFFs replay
+    #   their OpenAPI with zap-api-scan.py).
+    # -j: the AJAX spider renders the page in a headless browser and follows the fetch()
+    #   calls of the client bundle, so the /api/bff/* routes the UI really uses are scanned
+    #   too; the classic spider only sees server-rendered links (MAIR-516).
     # -c rules.tsv : les alertes informatives sont passées à IGNORE, toute autre
     #   alerte (WARN/FAIL) fait sortir zap-baseline.py en code != 0.
     # -z ... replacer : injecte le cookie accessToken (JWT HS256 statique sub=2,
@@ -277,6 +280,7 @@ services:
       - http://message-front:5003/
       - -m
       - "3"
+      - -j
       - -c
       - rules.tsv
       - -z
