@@ -6,8 +6,8 @@
 -- interroge la même table users, en excluant l'appelant) renvoie au moins une entrée.
 INSERT INTO users (id, first_name, last_name, email, password, status)
 VALUES
-  (2, 'Perf', 'Tester', 'perf-tester@mairie360.fr', 'dummy', 'active'),
-  (3, 'Contact', 'Sample', 'contact-sample@mairie360.fr', 'dummy', 'active')
+  (2, 'Perf', 'Tester', 'perf-tester@mairie360.fr', '$argon2id$v=19$m=19456,t=2,p=1$/iKF9PbiDRDs4EKPjlIIhg$UKx9vfwwps250mEP/bYp63CXbEnQGULeUAhDq+az9Aw', 'active'),
+  (3, 'Contact', 'Sample', 'contact-sample@mairie360.fr', '$argon2id$v=19$m=19456,t=2,p=1$/iKF9PbiDRDs4EKPjlIIhg$UKx9vfwwps250mEP/bYp63CXbEnQGULeUAhDq+az9Aw', 'active')
 ON CONFLICT (id) DO NOTHING;
 -- Rôle de l'utilisateur de test, repris par le shell du front (GET /me de BFF Message).
 INSERT INTO user_roles (user_id, role_id)

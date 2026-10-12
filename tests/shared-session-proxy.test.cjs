@@ -39,7 +39,7 @@ function renewed() {
 }
 function rejectedRead() {
   business.on('get', '/messaging/bootstrap', call => call.headers.authorization === `Bearer ${access}`
-    ? { body: bootstrap() } : { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée') });
+    ? { body: bootstrap() } : { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
 }
 
 test('three simultaneous message reads share one published User refresh and rotated cookie pair', async () => {
@@ -62,7 +62,7 @@ test('missing access ignores a forged browser bearer and renews using the HttpOn
 });
 test('a browser bearer without either session cookie cannot authenticate a business read', async () => {
   network.cookies = {};
-  business.on('get', '/messaging/bootstrap', { status: 401, body: apiError('UNAUTHORIZED', 'No cookie') });
+  business.on('get', '/messaging/bootstrap', { status: 401, body: apiError('UNAUTHORIZED', 'No cookie'), outOfContract: true });
   const reply = await fetch('/api/bff/messaging/bootstrap', { headers: { Authorization: 'Bearer forged-browser' } });
   assert.equal(reply.status, 401);
   assert.equal(business.requests[0].headers.authorization, undefined);
@@ -81,7 +81,7 @@ test('malformed renewal and a second401 never loop or revoke the session', async
   await assert.rejects(messageClient.getBootstrap(), { status: 502 });
   assert.equal(business.requests.length, 1);
   network.ownerOverride = undefined; renewed();
-  business.on('get', '/messaging/bootstrap', { status: 401, body: apiError('UNAUTHORIZED', 'Still refused') });
+  business.on('get', '/messaging/bootstrap', { status: 401, body: apiError('UNAUTHORIZED', 'Still refused'), outOfContract: true });
   await assert.rejects(messageClient.getBootstrap(), { status: 401 });
   assert.equal(business.requests.length, 3);
   assert.equal(user.calls('/auth/refresh').length, 1);
@@ -92,7 +92,7 @@ test('a rejected send retries the exact published payload once and never adds a 
   const payload = { content: 'Réunion à 14h', attachmentIds: ['attachment-1'], mentionIds: [users.sophie.id] };
   business.on('post', '/conversations/{conversationId}/messages', call => call.headers.authorization === `Bearer ${access}`
     ? { status: 201, body: { message: message(3, 4, payload.content), conversation: conversation(4, 'Équipe communication') } }
-    : { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée') });
+    : { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
   await messageClient.sendMessage(4, payload);
   assert.deepEqual(business.requests.map(call => call.body), [payload, payload]);
   assert.equal(user.calls('/auth/refresh').length, 1);
@@ -101,7 +101,7 @@ test('multipart attachment bytes survive one rejected upload and one replay', as
   renewed();
   business.on('post', '/attachments', call => call.headers.authorization === `Bearer ${access}`
     ? { status: 201, body: { attachments: [{ id: 'stored-1', name: 'agenda.txt', size: 6, type: 'text/plain' }] } }
-    : { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée') });
+    : { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
   await messageClient.uploadAttachments([new File(['agenda'], 'agenda.txt', { type: 'text/plain' })]);
   assert.equal(business.requests.length, 2);
   assert.deepEqual(business.requests[0].rawBody, business.requests[1].rawBody);

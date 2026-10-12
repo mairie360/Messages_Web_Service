@@ -471,7 +471,7 @@ test('failed or unregistered file uploads never send a message with a local atta
 
   const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
   await view.act(() => view.props('Messaging').onAttach([file], [attachment]));
-  messageBff.on('post', '/attachments', { status: 401, body: apiError('UNAUTHORIZED', 'Envoi du fichier refusé') });
+  messageBff.on('post', '/attachments', { status: 401, body: apiError('UNAUTHORIZED', 'Envoi du fichier refusé'), outOfContract: true });
   const refusedUploadResult = await view.act(() => view.props('Messaging').onSendMessage({
     conversationId: 'conversation-4', content: 'Sans fichier enregistré', attachments: [attachment], mentions: [],
   }));
@@ -850,7 +850,7 @@ test('retry retains the requested authorized thread and bootstrap contacts when 
   view = mount(React.createElement(Page));
   await view.waitFor(html => html.includes('Lecture refusée'));
   messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
-  messageBff.on('get', '/contacts', { status: 401, body: apiError('UNAUTHORIZED', 'Contacts refusés') });
+  messageBff.on('get', '/contacts', { status: 401, body: apiError('UNAUTHORIZED', 'Contacts refusés'), outOfContract: true });
   messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
     conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
     messages: [message(7, 5, 'Message ciblé après reprise', users.sophie)],
@@ -1524,7 +1524,7 @@ test('composed bootstrap recovery starts two-second reception and immediately re
   assert.equal(view.find('Messaging').length, 0);
   const recovered = { ...bootstrap(), conversations: [], messages: [], activeConversationId: '' };
   messageBff.on('get', '/messaging/bootstrap', { body: recovered });
-  messageBff.on('get', '/contacts', { status: 401, body: apiError('UNAUTHORIZED', 'Contacts refusés') });
+  messageBff.on('get', '/contacts', { status: 401, body: apiError('UNAUTHORIZED', 'Contacts refusés'), outOfContract: true });
   await view.click('Réessayer');
   await view.waitFor(() => view.find('Messaging').length > 0);
   assert.deepEqual(view.props('Messaging').conversations, []);

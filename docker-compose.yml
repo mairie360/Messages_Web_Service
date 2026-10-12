@@ -24,7 +24,7 @@ x-db-env: &db-env
 
 services:
   postgres:
-    image: ghcr.io/mairie360/database:dev-latest
+    image: ghcr.io/mairie360/database:dev-99f6127
     restart: always
     container_name: mairie360-db-message-front
     environment:
@@ -44,7 +44,7 @@ services:
       retries: 5
 
   liquibase:
-    image: ghcr.io/mairie360/liquibase-migrations:dev-latest
+    image: ghcr.io/mairie360/liquibase-migrations:dev-99f6127
     container_name: mairie360-liquibase-message-front
     depends_on:
       postgres:
@@ -54,9 +54,12 @@ services:
       LIQUIBASE_COMMAND_USERNAME: ${DB_USER:-postgres}
       LIQUIBASE_COMMAND_PASSWORD: ${DB_PASSWORD:-password}
       LIQUIBASE_SEARCH_PATH: /liquibase/changelog
+    # Database >= MAIR-413 only seeds the template admin (users.id = 1) with -Dallow_template_admin=true;
+    # without it the migration fails on a fresh database. Test / dev stacks only.
     command: >
       --changelog-file=changelog.xml
       update
+      -Dallow_template_admin=true
     networks:
       - backend
 
@@ -78,7 +81,7 @@ services:
 
   message-api:
     container_name: message-api-front-message-developpement
-    image: ghcr.io/mairie360/message-api:dev-latest
+    image: ghcr.io/mairie360/message-api:dev-3b5213a
     ports:
       - "3003:3003"
     networks:
@@ -89,6 +92,13 @@ services:
       PORT: 3003
       REDIS_URL: redis://redis:6379
       PUBLIC_URL: http://core.development.mairie360.fr
+      # API >= api_lib 3.0 refuses the weak shared test secret unless this flag is set (MAIR-428),
+      # and rate-limits each account (MAIR-425): the scan / load test hammer it as one user.
+      JWT_ALLOW_WEAK_SECRET: "true"
+      RATE_LIMIT_ENABLED: "false"
+      # Message API also throttles each client IP with a token bucket (actix-governor): "0" disables it,
+      # otherwise the k6 load test turns into 429s relayed as 502 by the BFF.
+      RATE_LIMIT_PER_SECOND: "0"
       JWT_SECRET: b"secret"
       JWT_TIMEOUT: 3600
     depends_on:
@@ -99,7 +109,7 @@ services:
 
   bff-message:
     container_name: bff-message-message-front
-    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:0.4.0}
+    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:dev-0f3838b}
     ports:
       - "4003:4003"
     networks:
@@ -111,6 +121,14 @@ services:
       PORT: 4003
       MESSAGE_API_URL: message-api
       MESSAGE_API_PORT: 3003
+      # No Core API in this local stack: BFF_Message needs a valid CORE_API_URL to start (sessions answer 503).
+      CORE_API_URL: http://127.0.0.1:9
+      # BFF_Message >= MAIR-507 also calls BFF Project and BFF Calendar for the business references and refuses to
+      # start without their URLs; these stacks do not run them, so an unreachable sentinel keeps the route failing
+      # cleanly (same choice as BFF_Message's own stacks). JWT_SECRET: the BFF verifies the session tokens itself.
+      PROJECT_BFF_URL: http://127.0.0.1:9
+      CALENDAR_BFF_URL: http://127.0.0.1:9
+      JWT_SECRET: 'b"secret"'
       MESSAGE_API_BASE_PATH: http://message-api:3003/api
     depends_on:
       liquibase:
