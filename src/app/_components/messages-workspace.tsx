@@ -88,6 +88,7 @@ export function MessagesWorkspace({
           </section>
         ) : (
           <>
+            <h1 className="sr-only">Messagerie</h1>
             {deletingConversation && (
               <p role="status" className="messages-operation-status">
                 Suppression de la conversation en cours…

@@ -1,6 +1,8 @@
 'use client';
 
-import { Alert, AppShell as SharedAppShell } from "@mairie360/lib-components";
+import SharedAppShell from "@/components/accessible-shell";
+
+import { Alert } from "@mairie360/lib-components";
 import { useState, type ReactNode } from "react";
 import { navigateToLogin } from "@/lib/logout";
 import { logoutAndReload, useAuthSession, type AuthSession } from "@/lib/auth-session";
