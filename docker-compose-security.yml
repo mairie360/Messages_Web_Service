@@ -267,7 +267,7 @@ services:
     # zap-baseline.py: spider + passive scan (fit for a web UI, where the BFFs replay
     #   their OpenAPI with zap-api-scan.py).
     # -j: the AJAX spider renders the page in a headless browser and follows the fetch()
-    #   calls of the client bundle, so the /api/bff/* routes the UI really uses are scanned
+    #   calls of the client bundle, so the /* routes the UI really uses are scanned
     #   too; the classic spider only sees server-rendered links (MAIR-516).
     # -c rules.tsv : les alertes informatives sont passées à IGNORE, toute autre
     #   alerte (WARN/FAIL) fait sortir zap-baseline.py en code != 0.
