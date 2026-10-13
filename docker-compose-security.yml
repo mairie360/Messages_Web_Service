@@ -41,7 +41,7 @@ x-api-env: &api-env
 
 services:
   postgres:
-    image: ${DB_IMAGE:-ghcr.io/mairie360/database:dev-99f6127}
+    image: ${DB_IMAGE:-ghcr.io/mairie360/database:dev-90c22bb}
     container_name: message-front-sec-db
     environment:
       POSTGRES_USER: postgres
@@ -60,7 +60,7 @@ services:
       retries: 10
 
   liquibase:
-    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:dev-99f6127}
+    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:dev-90c22bb}
     container_name: message-front-sec-liquibase
     depends_on:
       postgres:
@@ -110,7 +110,7 @@ services:
       retries: 5
 
   message-api:
-    image: ${MESSAGE_API_IMAGE:-ghcr.io/mairie360/message-api:dev-3b5213a}
+    image: ${MESSAGE_API_IMAGE:-ghcr.io/mairie360/message-api:dev-d33e731}
     container_name: message-front-sec-message-api
     depends_on:
       liquibase:
@@ -148,7 +148,7 @@ services:
       - backend
 
   core-api:
-    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:dev-2529974}
+    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:dev-95531e2}
     container_name: message-front-sec-core-api
     depends_on:
       liquibase:
@@ -159,6 +159,11 @@ services:
       <<: *api-env
       PORT: 3000
       PUBLIC_URL: http://core-api:3000
+      # Core refuses to start without its Resend configuration (MAIR-522). No page of this front sends an
+      # e-mail through these stacks, so the key is fake and the URL never called.
+      RESEND_API_KEY: "re_fake_local"
+      RESEND_BASE_URL: "http://fake-resend.invalid"
+      EMAIL_DOMAIN: "mairie360.local"
       # API >= api_lib 3.0 refuses the weak shared test secret unless this flag is set (MAIR-428),
       # and rate-limits each account (MAIR-425): the scan / load test hammer it as one user.
       JWT_ALLOW_WEAK_SECRET: "true"
@@ -183,7 +188,7 @@ services:
       - backend
 
   bff-message:
-    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:dev-0f3838b}
+    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:dev-ad5339c}
     container_name: message-front-sec-bff-message
     depends_on:
       seeder:
@@ -198,11 +203,12 @@ services:
       PORT: 4003
       MESSAGE_API_URL: message-api
       MESSAGE_API_PORT: 3003
-      # BFF_Message >= MAIR-507 also calls BFF Project and BFF Calendar for the business references and refuses to
-      # start without their URLs; these stacks do not run them, so an unreachable sentinel keeps the route failing
-      # cleanly (same choice as BFF_Message's own stacks). JWT_SECRET: the BFF verifies the session tokens itself.
-      PROJECT_BFF_URL: http://127.0.0.1:9
-      CALENDAR_BFF_URL: http://127.0.0.1:9
+      # BFF_Message also calls Project API and Calendar API for the business references (directly since MAIR-525)
+      # and refuses to start without their URLs; these stacks do not run them, so an unreachable sentinel keeps the
+      # route failing cleanly (same choice as BFF_Message's own stacks). JWT_SECRET: the BFF verifies the session
+      # tokens itself.
+      PROJECT_API_URL: http://127.0.0.1:9
+      CALENDAR_API_URL: http://127.0.0.1:9
       JWT_SECRET: 'b"secret"'
       MESSAGE_API_BASE_PATH: http://message-api:3003
       # L'annuaire des agents (contacts, utilisateur courant) vient de Core API.

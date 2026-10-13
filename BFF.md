@@ -30,4 +30,4 @@ Le paquet est épinglé à une version exacte : une release `X.Y.Z` de BFF_Messa
 
 ## Références métier
 
-`/business-references` est agrégé dans BFF Message depuis `PROJECT_BFF_URL` et `CALENDAR_BFF_URL`. Le web service relaie la même réponse. Les pièces jointes, groupes ou profils déjà gérés en mémoire par le BFF ne deviennent pas persistants par cet alignement.
+`/business-references` est agrégé dans BFF Message depuis Project API et Calendar API (`PROJECT_API_URL`, `CALENDAR_API_URL`, MAIR-525). Le web service relaie la même réponse. Les pièces jointes, groupes ou profils déjà gérés en mémoire par le BFF ne deviennent pas persistants par cet alignement.

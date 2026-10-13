@@ -2115,6 +2115,21 @@
         ],
         "type": "object"
       },
+      "MessageStreamEvent": {
+        "properties": {
+          "conversationId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "conversationId"
+        ],
+        "type": "object"
+      },
       "MessagesQuery": {
         "properties": {
           "before": {
@@ -3975,7 +3990,7 @@
   "info": {
     "title": "bff_message",
     "version": "1.0.0",
-    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-dev.0f3838b81c6fa6e66b938c35ef211cf2ed862ad3"
+    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-dev.ad5339c36fb676e62e828894253dcd699df7c842"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4427,6 +4442,24 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetMessagingBootstrap200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      }
+    },
+    "/stream": {
+      "get": {
+        "operationId": "getStream",
+        "parameters": [],
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageStreamEvent"
                 }
               }
             },
