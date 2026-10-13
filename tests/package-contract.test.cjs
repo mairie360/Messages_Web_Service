@@ -63,6 +63,20 @@ test('every Docker stack starts BFF Message only, in the image built from the co
   }
 });
 
+test('MAIR-553: every Docker stack gives BFF Message the upstream URLs it requires at startup', () => {
+  // Since MAIR-525 BFF Message calls Project API and Calendar API instead of their BFFs and exits when one of
+  // these variables is missing: a stack still setting PROJECT_BFF_URL / CALENDAR_BFF_URL never becomes ready.
+  for (const file of fs.readdirSync(ROOT).filter((name) => /^docker-compose.*\.ya?ml$/.test(name))) {
+    const block = /^ {2}bff-message:\n((?: {4}.*\n|\s*\n)*)/m.exec(fs.readFileSync(path.join(ROOT, file), 'utf8'));
+    assert.ok(block, `${file}: no bff-message service`);
+    const variables = [...block[1].matchAll(/^ {6}([A-Z_]+):/gm)].map(([, name]) => name);
+    for (const required of ['MESSAGE_API_URL', 'CORE_API_URL', 'PROJECT_API_URL', 'CALENDAR_API_URL', 'JWT_SECRET']) {
+      assert.ok(variables.includes(required), `${file}: bff-message needs ${required}`);
+    }
+    assert.deepEqual(variables.filter((name) => /_BFF_URL$/.test(name)), [], `${file}: BFF Message calls no other BFF`);
+  }
+});
+
 test('the contract version policy accepts releases and dev packages and maps them to image tags', async () => {
   const { isAcceptedContractVersion, imageTagForContractVersion } = await import('../scripts/contract-version.mjs');
   assert.equal(imageTagForContractVersion('0.4.0'), '0.4.0');

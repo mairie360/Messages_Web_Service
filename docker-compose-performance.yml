@@ -199,11 +199,12 @@ services:
       PORT: 4003
       MESSAGE_API_URL: message-api
       MESSAGE_API_PORT: 3003
-      # BFF_Message >= MAIR-507 also calls BFF Project and BFF Calendar for the business references and refuses to
-      # start without their URLs; these stacks do not run them, so an unreachable sentinel keeps the route failing
-      # cleanly (same choice as BFF_Message's own stacks). JWT_SECRET: the BFF verifies the session tokens itself.
-      PROJECT_BFF_URL: http://127.0.0.1:9
-      CALENDAR_BFF_URL: http://127.0.0.1:9
+      # BFF_Message also calls Project API and Calendar API for the business references (directly since MAIR-525)
+      # and refuses to start without their URLs; these stacks do not run them, so an unreachable sentinel keeps the
+      # route failing cleanly (same choice as BFF_Message's own stacks). JWT_SECRET: the BFF verifies the session
+      # tokens itself.
+      PROJECT_API_URL: http://127.0.0.1:9
+      CALENDAR_API_URL: http://127.0.0.1:9
       JWT_SECRET: 'b"secret"'
       MESSAGE_API_BASE_PATH: http://message-api:3003
       # L'annuaire des agents (contacts, utilisateur courant) vient de Core API.
