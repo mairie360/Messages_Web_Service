@@ -766,6 +766,7 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
 
   assert.ok(upstream().includes('GET /conversations'));
   assert.ok(upstream().includes('GET /messaging/bootstrap'));
+  assert.equal((html.match(/<h1\b/g) ?? []).length, 1, 'the loaded workspace retains one accessible page title');
   assert.doesNotMatch(html, /role="alert"/);
   assert.match(view.text(), /Équipe communication/);
   assert.match(view.text(), /Sophie Leroy/);
@@ -781,8 +782,8 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
   assert.match(view.html, /<footer/);
   const footer = view.html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/)?.[0];
   assert.ok(footer);
-  assert.match(view.html, /<aside\b[^]*?<footer\b[^]*?<\/footer>[^]*?<\/aside>/);
-  assert.doesNotMatch(view.html, /<\/main>\s*<footer\b/);
+  assert.doesNotMatch(view.html, /<aside\b[^]*?<footer\b[^]*?<\/footer>[^]*?<\/aside>/);
+  assert.match(view.html, /<\/main>\s*<footer\b/);
   assert.match(footer.replace(/<[^>]*>/g, ''), new RegExp(`© ${new Date().getFullYear()} Mairie360`));
   assert.doesNotMatch(footer, /Version|<button\b|<a\b/);
 });

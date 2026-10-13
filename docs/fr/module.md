@@ -171,3 +171,8 @@ Le [guide technique](technical.md) détaille architecture, configuration, routes
 ### Confirmation de l’envoi — MAIR-370
 
 Le brouillon et ses aperçus restent disponibles si la réponse de succès est incomplète ou concerne un autre fil. L’activation suivante vérifie le fil par lecture, sans répéter l’envoi ni le transfert des pièces jointes. La présence du même identifiant de message dans le fil demandé confirme l’envoi initial. Une saisie modifiée pendant cette reprise reste conservée et demande une nouvelle activation explicite pour être envoyée. Sans identifiant reçu, l’envoi reste à confirmer et la réponse du service doit être examinée. Le brouillon n’est pas conservé après rechargement.
+
+
+## Direction visuelle commune — MAIR-547
+
+DA claire option 1 : tokens et police communs, navigation accessible et contenu métier conservé. Voir la [recette visuelle](../qa/design-qa.md) pour les preuves, vérifications et limites RGAA.

@@ -169,3 +169,8 @@ The [technical guide](technical.md) covers architecture, configuration, routes, 
 ### Send confirmation — MAIR-370
 
 An incomplete or unrelated successful receipt retains the draft and previews. The next activation reads the thread instead of repeating the send or upload. Only the original server message ID in the requested thread confirms that send. A changed draft remains available and requires another explicit activation to send. A missing receipt ID remains unconfirmed and needs investigation of the service response. Drafts are not durable across reloads.
+
+
+## Shared visual direction — MAIR-547
+
+Approved light option 1: shared tokens and font, accessible navigation, and preserved business layouts. See the [visual QA](../qa/design-qa.md) for evidence, checks, and RGAA limitations.
