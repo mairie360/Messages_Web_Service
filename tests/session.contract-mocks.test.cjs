@@ -57,7 +57,7 @@ describe('fetchAuthSession maps the BFF Message current user', () => {
         error: null,
       },
     });
-    assert.deepEqual(network.browserCalls, [{ method: 'GET', path: '/api/bff/me' }]);
+    assert.deepEqual(network.browserCalls, [{ method: 'GET', path: '/me' }]);
     assert.deepEqual(upstream(), ['GET /me']);
     assert.equal(messageBff.requests[0].headers.authorization, `Bearer ${agentToken}`);
   });
@@ -103,7 +103,7 @@ describe('useAuthSession', () => {
 
     await waitFor(() => browser.window.location.assigned.length === 1);
     assert.equal(hooks.updates, 0);
-    assert.deepEqual(network.browserCalls, [{ method: 'GET', path: '/api/bff/me' }]);
+    assert.deepEqual(network.browserCalls, [{ method: 'GET', path: '/me' }]);
     assert.equal(browser.window.location.reloads, 0);
     assert.equal(new URL(browser.window.location.assigned[0]).searchParams.get('redirect'), browser.window.location.href);
     assert.deepEqual(upstream(), ['GET /me'], 'la déconnexion ne sollicite aucun BFF');

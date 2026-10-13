@@ -47,6 +47,8 @@ test('src imports contract types from the package only, never from a local copy'
     .map(([, specifier]) => `${path.relative(ROOT, file)}: ${specifier}`));
   assert.deepEqual(imports.sort(), [
     'src/clients/messageClient.ts: @mairie360/bff-message-openapi/model',
+    // The generated operations own every BFF path: only the BFF client builds them.
+    'src/lib/bff-client.ts: @mairie360/bff-message-openapi/endpoints/bffMessage',
     // Le proxy lit la reconstruction du paquet, vérifiée ci-dessus.
     'src/lib/bff-proxy.ts: ../../contracts/openapi.json',
   ]);

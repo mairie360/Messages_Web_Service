@@ -55,7 +55,7 @@ test('three simultaneous message reads share one published User refresh and rota
 });
 test('missing access ignores a forged browser bearer and renews using the HttpOnly refresh cookie', async () => {
   delete network.cookies.accessToken; renewed(); rejectedRead();
-  const reply = await fetch('/api/bff/messaging/bootstrap', { headers: { Authorization: 'Bearer forged-browser' } });
+  const reply = await fetch('/messaging/bootstrap', { headers: { Authorization: 'Bearer forged-browser' } });
   assert.equal(reply.status, 200);
   assert.equal(business.requests[0].headers.authorization, undefined);
   assert.equal(business.requests[1].headers.authorization, `Bearer ${access}`);
@@ -63,7 +63,7 @@ test('missing access ignores a forged browser bearer and renews using the HttpOn
 test('a browser bearer without either session cookie cannot authenticate a business read', async () => {
   network.cookies = {};
   business.on('get', '/messaging/bootstrap', { status: 401, body: apiError('UNAUTHORIZED', 'No cookie'), outOfContract: true });
-  const reply = await fetch('/api/bff/messaging/bootstrap', { headers: { Authorization: 'Bearer forged-browser' } });
+  const reply = await fetch('/messaging/bootstrap', { headers: { Authorization: 'Bearer forged-browser' } });
   assert.equal(reply.status, 401);
   assert.equal(business.requests[0].headers.authorization, undefined);
   assert.equal(network.ownerCalls.length, 0);
@@ -109,7 +109,7 @@ test('multipart attachment bytes survive one rejected upload and one replay', as
 });
 test('foreign business reads and explicit logout cannot reach an owner or modify cookies', async () => {
   for (const [url, init] of [
-    ['/api/bff/health', { headers: { Origin: 'https://foreign.mairie.test' } }],
+    ['/health', { headers: { Origin: 'https://foreign.mairie.test' } }],
     ['/api/auth/logout', { method: 'POST', headers: { Origin: 'https://foreign.mairie.test', 'Content-Type': 'application/json' }, body: '{}' }],
   ]) {
     const reply = await fetch(url, init);

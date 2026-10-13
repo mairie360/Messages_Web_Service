@@ -163,7 +163,7 @@ describe('BFF_Message errors surfaced by messageClient', () => {
     });
     await assert.rejects(messageClient.getConversations(), BffNavigationRequiredError);
     await assert.rejects(messageClient.getConversationMessages('conversation-4'), BffNavigationRequiredError);
-    assert.deepEqual(paths, ['/api/bff/conversations', '/api/bff/conversations/conversation-4/messages']);
+    assert.deepEqual(paths, ['/conversations', '/conversations/conversation-4/messages']);
   });
 
   test('a synchronization transport failure remains a transport failure, not a guessed 401', async (t) => {
