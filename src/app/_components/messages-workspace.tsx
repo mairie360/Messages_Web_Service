@@ -35,6 +35,8 @@ export function MessagesWorkspace({
   deletingConversation,
   error,
   syncError,
+  streamState,
+  retryReception,
   selectionPending,
   threadPlaceholder,
   activeConversationId,
@@ -89,6 +91,10 @@ export function MessagesWorkspace({
         ) : (
           <>
             <h1 className="sr-only">Messagerie</h1>
+            <div className="messages-reception-status" role="status" aria-live="polite">
+              {streamState === 'connected' ? 'Réception automatique active.' : streamState === 'polling' ? 'Actualisation automatique active.' : streamState === 'connecting' ? 'Connexion à la réception automatique…' : 'Réception automatique retardée.'}
+              {streamState === 'offline' && <button type="button" onClick={retryReception} className="ml-3 min-h-11 font-semibold underline">Réessayer la réception</button>}
+            </div>
             {deletingConversation && (
               <p role="status" className="messages-operation-status">
                 Suppression de la conversation en cours…
@@ -119,6 +125,7 @@ export function MessagesWorkspace({
               ref={prepareMessagingScrollRegions}
             >
               <Messaging
+                key={String(currentUser.id)}
                 conversations={displayedConversations}
                 contacts={contacts}
                 messages={displayedMessages}

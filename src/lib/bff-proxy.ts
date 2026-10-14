@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { proxyPublishedBffRequest } from '@mairie360/lib-components/next';
 import contract from '../../contracts/openapi.json';
+import { proxyMessageStream } from './message-stream-proxy';
 
 type RouteContext = { params: Promise<{ path: string[] }> };
 
@@ -24,6 +25,10 @@ export function configuredBffUrl() {
 }
 
 export async function forwardToBff(request: NextRequest, baseUrl: string, path: string) {
+  if (request.method === 'GET' && path === '/stream') return proxyMessageStream(cookieAuthorizedRequest(request), {
+    baseUrl: () => baseUrl, paths: contract.paths,
+    loginUrl: () => process.env.LOGIN_FRONT_URL?.trim() ?? '', frontUrl: () => process.env.MESSAGE_FRONT_URL?.trim() ?? '',
+  });
   return proxyPublishedBffRequest(cookieAuthorizedRequest(request), path.split('/').filter(Boolean), {
     baseUrl: () => baseUrl,
     paths: contract.paths,
@@ -34,6 +39,10 @@ export async function forwardToBff(request: NextRequest, baseUrl: string, path: 
 
 export async function proxyBffRequest(request: NextRequest, context: RouteContext) {
   const { path } = await context.params;
+  if (request.method === 'GET' && path.length === 1 && path[0] === 'stream') return proxyMessageStream(cookieAuthorizedRequest(request), {
+    baseUrl: configuredBffUrl, paths: contract.paths,
+    loginUrl: () => process.env.LOGIN_FRONT_URL?.trim() ?? '', frontUrl: () => process.env.MESSAGE_FRONT_URL?.trim() ?? '',
+  });
   return proxyPublishedBffRequest(cookieAuthorizedRequest(request), path, {
     baseUrl: configuredBffUrl,
     paths: contract.paths,

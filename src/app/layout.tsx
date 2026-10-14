@@ -35,7 +35,7 @@ export default function RootLayout({
       <head>
         <meta name="apple-mobile-web-app-title" content="Mairie360" />
       </head>
-      <body className={`${geistSans.variable} mairie-ui antialiased`}><FrontUrlsProvider urls={readFrontUrlsFromEnv()}>{children}</FrontUrlsProvider></body>
+      <body className={`${geistSans.variable} mairie-ui antialiased`}><FrontUrlsProvider urls={readFrontUrlsFromEnv()} cookieDomain={process.env.COOKIE_DOMAIN}>{children}</FrontUrlsProvider></body>
     </html>
   );
 }

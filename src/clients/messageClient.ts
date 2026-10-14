@@ -44,12 +44,12 @@ export const messageClient = {
     return (await bffMessage.getBusinessReferences()).data;
   },
 
-  async getConversations() {
-    return (await bffMessage.getConversations()).data;
+  async getConversations(signal?: AbortSignal) {
+    return (await bffMessage.getConversations(undefined, { signal })).data;
   },
 
-  async getConversationMessages(conversationId: MessageId) {
-    return (await bffMessage.getConversationsConversationIdMessages(encodeId(conversationId))).data;
+  async getConversationMessages(conversationId: MessageId, signal?: AbortSignal) {
+    return (await bffMessage.getConversationsConversationIdMessages(encodeId(conversationId), undefined, { signal })).data;
   },
 
   async acknowledgeVisibleMessages(conversationId: MessageId, readUntilMessageId: MessageId) {

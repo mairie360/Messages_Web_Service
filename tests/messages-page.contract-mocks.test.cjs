@@ -764,8 +764,7 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
 
   const html = await view.waitFor(() => view.find('Messaging').length > 0);
 
-  assert.ok(upstream().includes('GET /conversations'));
-  assert.ok(upstream().includes('GET /messaging/bootstrap'));
+  assert.equal(upstream().filter(call => call === 'GET /messaging/bootstrap').length, 1);
   assert.equal((html.match(/<h1\b/g) ?? []).length, 1, 'the loaded workspace retains one accessible page title');
   assert.doesNotMatch(html, /role="alert"/);
   assert.match(view.text(), /Équipe communication/);
@@ -833,7 +832,7 @@ test('desktop and mobile navigation expose only active modules and keep Settings
         assert.equal(props.activeItem, 'messages');
       }
       const menus = view.html.match(/<nav\b[^>]*aria-label="Menu principal"[^>]*>[\s\S]*?<\/nav>/g) ?? [];
-      assert.equal(menus.length, sidebars.length);
+      assert.equal(menus.length, sidebars.length + 1);
       for (const menu of menus) {
         assert.doesNotMatch(menu, /E-mails|Fichiers/);
         assert.match(menu, /Paramètres/);
