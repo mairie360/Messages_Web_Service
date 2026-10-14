@@ -227,7 +227,10 @@ describe('same-origin proxy only forwards operations declared by the BFF_Message
     for (const operation of contract.operations()) {
       const [method, template] = operation.split(' ');
       const { schema } = contract.responseSchema(contract.match(method, concrete(template)), 200);
-      messageBff.on(method, template, { status: 200, body: schema ? contract.sample(schema, 'reply') : undefined });
+      messageBff.on(method, template, template === '/stream'
+        ? { status: 200, raw: ': keep-alive\n\n', contentType: 'text/event-stream' }
+        : template === '/me' ? { status: 200, body: currentUser() }
+        : { status: 200, body: schema ? contract.sample(schema, 'reply') : undefined });
     }
     for (const operation of contract.operations()) {
       const [method, template] = operation.split(' ');
@@ -235,10 +238,10 @@ describe('same-origin proxy only forwards operations declared by the BFF_Message
       const response = await fetch(url, init);
       assert.equal(response.status, 200, operation);
     }
-    assert.deepEqual(upstream().sort(), contract.operations().map((operation) => {
+    assert.deepEqual(upstream().sort(), ['GET /me', ...contract.operations().map((operation) => {
       const [method, template] = operation.split(' ');
       return `${method} ${concrete(template)}`;
-    }).sort());
+    })].sort());
 
     messageBff.reset();
     messageBff.on('get', '/contacts', { body: { contacts: [] } });

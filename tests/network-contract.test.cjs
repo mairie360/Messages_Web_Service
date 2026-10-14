@@ -28,6 +28,8 @@ const visit = (node, callback) => { callback(node); ts.forEachChild(node, (child
 const FETCH_CALLERS = {
   'lib/bff-client.ts': { side: 'browser', dynamicArgument: 'path' },
   'lib/logout.ts': { side: 'browser' },
+  'lib/message-stream.ts': { side: 'browser', dynamicArgument: 'url' },
+  'lib/message-stream-proxy.ts': { side: 'server', dynamicArgument: 'target' },
 };
 /** Fonctions navigateur dont le 1er argument est un chemin same-origin. */
 const BROWSER_REQUESTERS = new Set(['fetch']);
@@ -39,7 +41,7 @@ function scan(file) {
   const findings = { fetchCalls: [], browserRequests: [], forbidden: [] };
   visit(source, (node) => {
     // axios only carries the generated operations through the fetch of the BFF client.
-    const axiosOutsideClient = (name) => name === 'axios' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/bff-client.ts';
+    const axiosOutsideClient = (name) => name === 'axios' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/bff-client.ts' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/message-stream.ts';
     if (ts.isImportDeclaration(node) && (FORBIDDEN_MODULES.test(node.moduleSpecifier.text) || axiosOutsideClient(node.moduleSpecifier.text)) && !node.importClause?.isTypeOnly) {
       findings.forbidden.push(`import ${node.moduleSpecifier.text}`);
     }

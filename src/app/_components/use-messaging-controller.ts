@@ -21,6 +21,9 @@ import {
 import { presentConversationTimestamps, presentMessageTimestamps } from "@/lib/message-timestamps";
 import { buildMessageMentionOptions, presentMessageAuthors } from "@/lib/message-authors";
 import { isSessionRecoveryPending, navigateToLogin } from "@/lib/logout";
+import { receiveMessageStream, type MessageStreamState, type StreamCursor } from '@/lib/message-stream';
+import { readPageUrlState, urlText } from '@/lib/page-url-state';
+import { usePageUrlState } from '@/lib/use-page-url-state';
 
 type MessagingProps = ComponentProps<typeof Messaging>;
 type SendMessagePayload = Parameters<NonNullable<MessagingProps["onSendMessage"]>>[0];
@@ -31,6 +34,7 @@ type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]
 // Match the reference reception cadence; the refresh effect skips hidden pages,
 // pending reads and mutations rather than queueing overlapping requests.
 const MESSAGE_REFRESH_INTERVAL_MS = 2_000;
+const messagingUrlSchema = { conversation: urlText(200) };
 const pageIsVisible = () => typeof document === "undefined" || !document.hidden;
 const requiresPageNavigation = (error: unknown) => error instanceof BffNavigationRequiredError ||
   (error instanceof BffRequestError && error.status === 401);
@@ -51,6 +55,13 @@ import type { AttachmentFeaturePort } from "@/lib/attachment-features";
 import { describeBffError } from "@/lib/bff-error-messages";
 
 export function useMessagingController({ attachmentPort = pendingAttachmentPort }: { attachmentPort?: AttachmentFeaturePort } = {}) {
+  const pageUrl = usePageUrlState(messagingUrlSchema);
+  const lastUrlConversation = useRef<string | null>(null);
+  const defaultConversationRef = useRef<MessagingContactId>('');
+  const selectionReadRef = useRef<AbortController | null>(null);
+  const [streamState, setStreamState] = useState<MessageStreamState>('connecting');
+  const [streamRetry, setStreamRetry] = useState(0);
+  const streamCursorRef = useRef<StreamCursor & { account: unknown }>({ account: null, lastEventId: '', seen: [] });
   const downloadRef = useRef<AbortController | null>(null);
   useEffect(() => () => downloadRef.current?.abort(), []);
   const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
@@ -90,6 +101,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
     senderIdentityRef.current = senderIdentity;
     pendingSendsRef.current.clear();
     unconfirmedSendsRef.current.clear();
+    if (streamCursorRef.current.account !== currentUser?.id) streamCursorRef.current = { account: currentUser?.id, lastEventId: '', seen: [] };
   }, [senderIdentity]);
 
   useEffect(() => { downloadRef.current?.abort(); }, [activeConversationId, currentUser?.id]);
@@ -145,8 +157,10 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
       if (!isCurrent()) return;
 
       const firstConversationId = bootstrap.conversations[0]?.id ?? "";
-      const requestedConversationId = new URLSearchParams(window.location.search).get("conversation")?.trim();
+      const requestedConversationId = readPageUrlState(window.location.search, messagingUrlSchema).conversation;
       let selectedId = bootstrap.activeConversationId ?? firstConversationId;
+      defaultConversationRef.current = selectedId;
+      lastUrlConversation.current = requestedConversationId;
       let initialConversations: MessagingConversation[] = bootstrap.conversations;
       let initialMessages: MessagingMessage[] = bootstrap.messages;
 
@@ -231,6 +245,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
       lifecycle.generation += 1;
       lifecycle.pending = false;
       selectionLoadingRef.current = null;
+      selectionReadRef.current?.abort();
       pendingSends.clear();
       unconfirmedSends.clear();
     };
@@ -271,18 +286,26 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
   }, []);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || loading) return;
     let disposed = false;
     let inFlight = false;
+    let streamConnected = false;
+    let eventPending = false;
+    let eventTimer: number | undefined;
+    let bootstrapWaitTimer: number | undefined;
+    let streamController: AbortController | undefined;
+    let readController: AbortController | undefined;
+    const streamingSupported = typeof window.ReadableStream === 'function';
 
     const refresh = async () => {
       if (disposed || navigationStartedRef.current || inFlight || !pageIsVisible() || isSessionRecoveryPending() || mutationCountRef.current > 0 ||
           selectionLoadingRef.current !== null) return;
       inFlight = true;
+      readController = new AbortController();
       const revision = revisionRef.current;
       const selectedId = activeConversationRef.current;
       try {
-        const list = await messageClient.getConversations();
+        const list = await messageClient.getConversations(readController.signal);
         if (isSessionRecoveryPending()) return;
         const selectedExists = selectedId !== "" && list.conversations.some((conversation: MessagingConversation) =>
           idsMatch(conversation.id, selectedId),
@@ -292,7 +315,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
         let fallbackReadFailed = false;
         if (nextId !== "") {
           try {
-            thread = await messageClient.getConversationMessages(nextId);
+            thread = await messageClient.getConversationMessages(nextId, readController.signal);
             if (!idsMatch(thread.conversation.id, nextId)) {
               throw new Error("Les messages reçus ne correspondent pas à la conversation sélectionnée.");
             }
@@ -322,6 +345,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
           activeConversationRef.current = nextId;
           revisionRef.current += 1;
           setActiveConversationId(nextId);
+          lastUrlConversation.current = String(nextId);
+          pageUrl.update({ conversation: String(nextId) }, "replace");
           setMessages((current) => current.filter((message) =>
             !idsMatch(message.conversationId, selectedId),
           ));
@@ -340,18 +365,65 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
       }
     };
 
-    const triggerRefresh = () => { void refresh(); };
+    const triggerRefresh = () => { if (!streamConnected) void refresh(); };
+    const flushEvents = () => {
+      eventTimer = undefined;
+      if (disposed || navigationStartedRef.current || !pageIsVisible() || !eventPending) return;
+      if (inFlight || mutationCountRef.current > 0 || selectionLoadingRef.current !== null || isSessionRecoveryPending()) {
+        eventTimer = window.setTimeout(flushEvents, 150);
+        return;
+      }
+      eventPending = false;
+      void refresh().finally(() => { if (eventPending && !disposed) eventTimer = window.setTimeout(flushEvents, 100); }).catch(() => undefined);
+    };
+    const receiveEvent = () => { eventPending = true; if (eventTimer === undefined) eventTimer = window.setTimeout(flushEvents, 100); };
+    const startStream = () => {
+      if (disposed || navigationStartedRef.current || !streamingSupported || !pageIsVisible()) { if (!disposed) setStreamState('polling'); return; }
+      if (bootstrapLifecycleRef.current.pending) { bootstrapWaitTimer = window.setTimeout(startStream, 100); return; }
+      streamController?.abort();
+      streamController = new AbortController();
+      void receiveMessageStream({
+        signal: streamController.signal, cursor: streamCursorRef.current, account: currentUser.id,
+        onAccountChange: () => {
+          if (disposed) return;
+          setCurrentUser(null); setConversations([]); setMessages([]); setLoading(true);
+          void loadBootstrap();
+        },
+        onState: state => {
+          if (disposed) return;
+          streamConnected = state === 'connected';
+          setStreamState(state);
+          if (streamConnected) receiveEvent(); // Catch up after a disconnected interval.
+        },
+        onEvent: receiveEvent,
+        onAuthenticationError: async error => { if (!disposed && pageIsVisible()) await recoverSessionNavigation(error); },
+      }).catch(() => { if (!disposed) setStreamState('offline'); });
+    };
+    const receiveVisibility = () => {
+      if (!pageIsVisible()) { streamController?.abort(); readController?.abort(); streamConnected = false; return; }
+      if (streamingSupported && mutationCountRef.current === 0 && selectionLoadingRef.current === null) {
+        if (!bootstrapLifecycleRef.current.pending) void loadBootstrap().finally(startStream);
+        return;
+      }
+      else triggerRefresh();
+      startStream();
+    };
     triggerRefresh();
+    startStream();
     const timer = window.setInterval(triggerRefresh, MESSAGE_REFRESH_INTERVAL_MS);
-    window.addEventListener("focus", triggerRefresh);
-    document.addEventListener("visibilitychange", triggerRefresh);
+    const receiveFocus = () => { if (streamingSupported) receiveVisibility(); else triggerRefresh(); };
+    window.addEventListener("focus", receiveFocus);
+    document.addEventListener("visibilitychange", receiveVisibility);
     return () => {
       disposed = true;
+      streamController?.abort(); readController?.abort();
+      if (eventTimer !== undefined) window.clearTimeout(eventTimer);
+      if (bootstrapWaitTimer !== undefined) window.clearTimeout(bootstrapWaitTimer);
       window.clearInterval(timer);
-      window.removeEventListener("focus", triggerRefresh);
-      document.removeEventListener("visibilitychange", triggerRefresh);
+      window.removeEventListener("focus", receiveFocus);
+      document.removeEventListener("visibilitychange", receiveVisibility);
     };
-  }, [currentUser, recoverSessionNavigation, confirmThread]);
+  }, [currentUser, loading, recoverSessionNavigation, confirmThread, loadBootstrap, streamRetry]);
 
   const beginMutation = () => {
     revisionRef.current += 1;
@@ -379,8 +451,13 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
     }
   };
 
-  const loadConversationMessages = async (conversationId: MessagingContactId) => {
+  const loadConversationMessages = async (conversationId: MessagingContactId, { fromHistory = false } = {}) => {
     if (navigationStartedRef.current || !bootstrapLifecycleRef.current.mounted) return;
+    lastUrlConversation.current = String(conversationId);
+    if (!fromHistory) pageUrl.update({ conversation: String(conversationId) });
+    selectionReadRef.current?.abort();
+    const controller = new AbortController();
+    selectionReadRef.current = controller;
     const revision = ++revisionRef.current;
     activeConversationRef.current = conversationId;
     selectionLoadingRef.current = revision;
@@ -392,7 +469,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
       idsMatch(activeConversationRef.current, conversationId);
 
     try {
-      const response = await messageClient.getConversationMessages(conversationId);
+      const response = await messageClient.getConversationMessages(conversationId, controller.signal);
       if (!isCurrent()) return;
       if (!idsMatch(response.conversation.id, conversationId)) {
         throw new Error("Les messages reçus ne correspondent pas à la conversation sélectionnée. Réessayez.");
@@ -427,6 +504,13 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
       }
     }
   };
+
+  useEffect(() => {
+    if (!pageUrl.ready || loading || !currentUser || pageUrl.state.conversation === lastUrlConversation.current) return;
+    lastUrlConversation.current = pageUrl.state.conversation;
+    const target = pageUrl.state.conversation || (conversations.some(conversation => idsMatch(conversation.id, defaultConversationRef.current)) ? defaultConversationRef.current : conversations[0]?.id ?? '');
+    if (target !== '' && !idsMatch(target, activeConversationRef.current)) void loadConversationMessages(target, { fromHistory: true });
+  }, [pageUrl.ready, pageUrl.state.conversation, loading, currentUser, conversations]);
 
   const handleSendMessage = async (payload: SendMessagePayload) => {
     // A captured callback must not send to the previous or unconfirmed thread,
@@ -629,6 +713,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
         appendMessage(currentMessages, response.message),
       );
       setActiveConversationId(response.conversation.id);
+      lastUrlConversation.current = String(response.conversation.id);
+      pageUrl.update({ conversation: String(response.conversation.id) });
       confirmThread(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
       setShowConversationList(false);
@@ -652,6 +738,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
         upsertConversation(currentConversations, response.conversation),
       );
       setActiveConversationId(response.conversation.id);
+      lastUrlConversation.current = String(response.conversation.id);
+      pageUrl.update({ conversation: String(response.conversation.id) });
       confirmThread(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
       setShowConversationList(false);
@@ -688,6 +776,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
             !idsMatch(conversation.id, conversationToDelete.id))?.id ?? "";
           activeConversationRef.current = fallbackId;
           setActiveConversationId(fallbackId);
+          lastUrlConversation.current = String(fallbackId);
+          pageUrl.update({ conversation: String(fallbackId) }, "replace");
           if (!fallbackId) setShowConversationList(true);
           else void loadConversationMessages(fallbackId);
         }
@@ -736,6 +826,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
   };
 
   return {
+    streamState,
+    retryReception: () => setStreamRetry(retry => retry + 1),
     handleAttachmentDownload: attachmentPort.download ? handleAttachmentDownload : undefined,
     // The shared composer always offers "Joindre un fichier"; without an upload capability the files are not
     // registered and a draft carrying them is refused by handleSendMessage.

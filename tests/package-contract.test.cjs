@@ -51,6 +51,8 @@ test('src imports contract types from the package only, never from a local copy'
     'src/lib/bff-client.ts: @mairie360/bff-message-openapi/endpoints/bffMessage',
     // Le proxy lit la reconstruction du paquet, vérifiée ci-dessus.
     'src/lib/bff-proxy.ts: ../../contracts/openapi.json',
+    'src/lib/message-stream.ts: @mairie360/bff-message-openapi/endpoints/bffMessage',
+    'src/lib/message-stream.ts: @mairie360/bff-message-openapi/model',
   ]);
 });
 
