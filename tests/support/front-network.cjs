@@ -74,7 +74,7 @@ class FrontNetwork {
 
   setOwner(userBff) {
     this.userBff = userBff;
-    const { createSessionRefreshHandler, createSessionLogoutHandler } = require('@mairie360/lib-components/next');
+    const { createSessionRefreshHandler, createSessionLogoutHandler } = require('@mairie360/front-kit/next');
     const config = { userBffUrl: () => userBff.url, cookieOptions: () => ({ secure: false }), allowedOrigins: () => [FRONT_ORIGIN] };
     this.ownerHandlers = { '/api/auth/refresh': createSessionRefreshHandler(config), '/api/auth/logout': createSessionLogoutHandler(config) };
   }
@@ -116,7 +116,7 @@ class FrontNetwork {
   }
 
   reset() {
-    if (this.userBff) require('@mairie360/lib-components/next').forgetUserSession(this.userBff.url, this.cookies.refreshToken);
+    if (this.userBff) require('@mairie360/front-kit/next').forgetUserSession(this.userBff.url, this.cookies.refreshToken);
     this.ownerCalls.length = 0;
     this.ownerOverride = undefined;
     this.browserCalls.length = 0;
@@ -158,7 +158,7 @@ class FrontNetwork {
     const headers = new Headers(init.headers ?? request?.headers);
     if (!headers.has('origin')) headers.set('origin', FRONT_ORIGIN);
     if (!headers.has('sec-fetch-site')) headers.set('sec-fetch-site', 'same-origin');
-    const cookie = Object.entries(this.cookies).map(([name, value]) => `${name}=${encodeURIComponent(value)}`).join('; ');
+    const cookie = Object.entries(this.cookies).filter(([name]) => name !== 'refreshToken' || url.pathname === '/api' || url.pathname.startsWith('/api/')).map(([name, value]) => `${name}=${encodeURIComponent(value)}`).join('; ');
     if (cookie) headers.set('cookie', cookie);
     const nextRequest = new NextRequest(url, {
       method,

@@ -1,8 +1,10 @@
 const assert = require('node:assert/strict');
 const { test, beforeEach, afterEach } = require('node:test');
 const savedLoginUrl = process.env.LOGIN_FRONT_URL;
-beforeEach(() => { process.env.LOGIN_FRONT_URL = 'https://login.mairie.test/'; });
+const savedFrontUrl = process.env.MESSAGE_FRONT_URL;
+beforeEach(() => { process.env.LOGIN_FRONT_URL = 'https://login.mairie.test/'; process.env.MESSAGE_FRONT_URL = 'https://messages.mairie.test'; });
 afterEach(() => {
+  if (savedFrontUrl === undefined) delete process.env.MESSAGE_FRONT_URL; else process.env.MESSAGE_FRONT_URL = savedFrontUrl;
   if (savedLoginUrl === undefined) delete process.env.LOGIN_FRONT_URL;
   else process.env.LOGIN_FRONT_URL = savedLoginUrl;
 });
@@ -31,7 +33,7 @@ test('authenticated pages get a per-request nonce CSP forwarded to Next.js', () 
   assert.notEqual(second.headers.get('x-middleware-request-x-nonce'), nonce);
 });
 
-test('missing or expired sessions are redirected to Login without a CSP', () => {
+test('missing or expired sessions are redirected to the configured local resume route without a CSP', () => {
   for (const token of [undefined, jwt(1)]) {
     const response = middleware(pageRequest(token));
     assert.equal(response.status, 307);

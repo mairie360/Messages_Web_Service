@@ -77,7 +77,7 @@ async function messagesDom(t, { unavailable = false } = {}) {
   React = require('react');
   const { createRoot } = require('react-dom/client'), Page = requireSrc('app/page.tsx').default;
   reactRoot = createRoot(dom.window.document.getElementById('root'));
-  await React.act(async () => reactRoot.render(React.createElement(Page)));
+  await React.act(async () => reactRoot.render(React.createElement(require('@mairie360/front-kit/react').InstanceProvider, { role: 'Admin', timeZone: 'UTC' }, React.createElement(Page))));
   async function waitFor(predicate) {
     for (let attempt = 0; attempt < 100 && !predicate(); attempt += 1) {
       await React.act(async () => new Promise((resolve) => setTimeout(resolve, 10)));

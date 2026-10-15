@@ -47,11 +47,11 @@ test('reconnection forwards Last-Event-ID and duplicate IDs are delivered only o
 });
 
 test('401 and opaque authentication redirects stop reconnecting and use existing recovery', async () => {
-  for (const makeResponse of [()=>Response.json({error:{message:'expired'}},{status:401}),()=>({type:'opaqueredirect'})]) {
+  for (const [makeResponse, expectedCalls] of [[()=>Response.json({error:{message:'expired'}},{status:401}), 2],[()=>({type:'opaqueredirect'}), 1]]) {
     let calls=0, recovered=0;
     global.fetch=async()=>{calls++;return makeResponse();};
     await receiveMessageStream(handlers({onAuthenticationError:()=>{recovered++;}}));
-    assert.equal(calls,1); assert.equal(recovered,1);
+    assert.equal(calls,expectedCalls); assert.equal(recovered,1);
   }
 });
 
