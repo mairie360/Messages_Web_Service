@@ -41,7 +41,7 @@ function scan(file) {
   const findings = { fetchCalls: [], browserRequests: [], forbidden: [] };
   visit(source, (node) => {
     // axios only carries the generated operations through the fetch of the BFF client.
-    const axiosOutsideClient = (name) => name === 'axios' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/bff-client.ts' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/message-stream.ts';
+    const axiosOutsideClient = (name) => name === 'axios' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/bff-client.ts' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/message-stream.ts' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/server-messaging-page.ts';
     if (ts.isImportDeclaration(node) && (FORBIDDEN_MODULES.test(node.moduleSpecifier.text) || axiosOutsideClient(node.moduleSpecifier.text)) && !node.importClause?.isTypeOnly) {
       findings.forbidden.push(`import ${node.moduleSpecifier.text}`);
     }
@@ -82,6 +82,16 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
   test('no HTTP client, socket or beacon other than fetch is used in src/', () => {
     const forbidden = Object.entries(scans).flatMap(([file, { forbidden: found }]) => found.map((item) => `${file}: ${item}`));
     assert.deepEqual(forbidden, []);
+  });
+
+  test('the server reader calls only the two published GET operations through its proxy adapter', () => {
+    const source = fs.readFileSync(path.join(SRC, 'lib/server-messaging-page.ts'), 'utf8');
+    assert.equal(scans['lib/server-messaging-page.ts'].fetchCalls.length, 0);
+    assert.match(source, /proxyBffRequest\(/);
+    const operations = [...source.matchAll(/api\.(\w+)\(/g)].map(([, name]) => name);
+    assert.deepEqual(operations, ['getMessagingBootstrap', 'getConversationsConversationIdMessages']);
+    const sdk = fs.readFileSync(path.join(path.dirname(require.resolve('@mairie360/bff-message-openapi/package.json')), 'endpoints/bffMessage.ts'), 'utf8');
+    for (const name of operations) assert.match(sdk, new RegExp(`const ${name} = \\(`));
   });
 
   test('fetch is only called by the contract-tested modules', () => {

@@ -22,7 +22,9 @@ import { presentConversationTimestamps, presentMessageTimestamps } from "@/lib/m
 import { buildMessageMentionOptions, presentMessageAuthors } from "@/lib/message-authors";
 import { isSessionRecoveryPending, navigateToLogin } from "@/lib/logout";
 import { receiveMessageStream, type MessageStreamState, type StreamCursor } from '@/lib/message-stream';
-import { readPageUrlState, urlText } from '@/lib/page-url-state';
+import { readPageUrlState } from '@/lib/page-url-state';
+import { messagingUrlSchema } from '@/lib/messaging-page-query';
+import { readInitialMessagingPage, MESSAGES_INITIAL_UNAVAILABLE, type InitialMessagingPage } from '@/lib/messaging-bootstrap-receipt';
 import { usePageUrlState } from '@/lib/use-page-url-state';
 
 type MessagingProps = ComponentProps<typeof Messaging>;
@@ -34,7 +36,6 @@ type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]
 // Match the reference reception cadence; the refresh effect skips hidden pages,
 // pending reads and mutations rather than queueing overlapping requests.
 const MESSAGE_REFRESH_INTERVAL_MS = 2_000;
-const messagingUrlSchema = { conversation: urlText(200) };
 const pageIsVisible = () => typeof document === "undefined" || !document.hidden;
 const requiresPageNavigation = (error: unknown) => error instanceof BffNavigationRequiredError ||
   (error instanceof BffRequestError && error.status === 401);
@@ -54,33 +55,37 @@ import { ATTACHMENTS_UNAVAILABLE_MESSAGE, pendingAttachmentPort, receiveAttachme
 import type { AttachmentFeaturePort } from "@/lib/attachment-features";
 import { describeBffError } from "@/lib/bff-error-messages";
 
-export function useMessagingController({ attachmentPort = pendingAttachmentPort }: { attachmentPort?: AttachmentFeaturePort } = {}) {
+export function useMessagingController({ attachmentPort = pendingAttachmentPort, initial }: { attachmentPort?: AttachmentFeaturePort; initial?: InitialMessagingPage } = {}) {
+  const [initialReceipt] = useState(() => readInitialMessagingPage(initial));
+  const initialSelected = initialReceipt?.thread?.conversation.id ?? initialReceipt?.data.activeConversationId ?? initialReceipt?.data.conversations[0]?.id ?? '';
+  const initialConversations = initialReceipt?.thread ? upsertConversation(initialReceipt.data.conversations, initialReceipt.thread.conversation) : initialReceipt?.data.conversations ?? [];
+  const initialMessages = initialReceipt?.thread ? replaceConversationMessages(initialReceipt.data.messages, initialSelected, initialReceipt.thread.messages) : initialReceipt?.data.messages ?? [];
   const pageUrl = usePageUrlState(messagingUrlSchema);
-  const lastUrlConversation = useRef<string | null>(null);
-  const defaultConversationRef = useRef<MessagingContactId>('');
+  const lastUrlConversation = useRef<string | null>(initialReceipt?.requested ?? null);
+  const defaultConversationRef = useRef<MessagingContactId>(initialReceipt?.data.activeConversationId ?? initialReceipt?.data.conversations[0]?.id ?? '');
   const selectionReadRef = useRef<AbortController | null>(null);
   const [streamState, setStreamState] = useState<MessageStreamState>('connecting');
   const [streamRetry, setStreamRetry] = useState(0);
   const streamCursorRef = useRef<StreamCursor & { account: unknown }>({ account: null, lastEventId: '', seen: [] });
   const downloadRef = useRef<AbortController | null>(null);
   useEffect(() => () => downloadRef.current?.abort(), []);
-  const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(initialReceipt?.data.currentUser ?? null);
   const [activeConversationId, setActiveConversationId] =
-    useState<MessagingContactId>("");
-  const [conversations, setConversations] = useState<MessagingConversation[]>([]);
-  const [contacts, setContacts] = useState<MessagingConversation[]>([]);
-  const [messages, setMessages] = useState<MessagingMessage[]>([]);
-  const [confirmedConversationIds, setConfirmedConversationIds] = useState(() => new Set<string>());
+    useState<MessagingContactId>(initialSelected);
+  const [conversations, setConversations] = useState<MessagingConversation[]>(initialConversations);
+  const [contacts, setContacts] = useState<MessagingConversation[]>(toMessagingContacts(initialReceipt?.data.contacts));
+  const [messages, setMessages] = useState<MessagingMessage[]>(initialMessages);
+  const [confirmedConversationIds, setConfirmedConversationIds] = useState(() => new Set<string>(initialReceipt ? [...(initialSelected === '' ? [] : [String(initialSelected)]), ...initialMessages.map(message => String(message.conversationId))] : []));
   const [pendingSelection, setPendingSelection] = useState<MessagingContactId | null>(null);
   const [businessReferences, setBusinessReferences] =
     useState<MessagingBusinessReference[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(!initialReceipt);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(initial?.status === 'unavailable' ? initial.message : initial && !initialReceipt ? MESSAGES_INITIAL_UNAVAILABLE : null);
   const [error, setError] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [showConversationList, setShowConversationList] = useState(false);
+  const [showConversationList, setShowConversationList] = useState(initialSelected === '');
   const [deletingConversation, setDeletingConversation] = useState(false);
-  const activeConversationRef = useRef<MessagingContactId>("");
+  const activeConversationRef = useRef<MessagingContactId>(initialSelected);
   const revisionRef = useRef(0);
   const mutationCountRef = useRef(0);
   const selectionLoadingRef = useRef<number | null>(null);
@@ -236,7 +241,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
     const pendingSends = pendingSendsRef.current;
     const unconfirmedSends = unconfirmedSendsRef.current;
     lifecycle.mounted = true;
-    void loadBootstrap();
+    if (!initialReceipt) void loadBootstrap();
 
     return () => {
       // The existing client has no AbortSignal parameter. Ignore disposed responses
@@ -249,7 +254,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort 
       pendingSends.clear();
       unconfirmedSends.clear();
     };
-  }, [loadBootstrap]);
+  }, [loadBootstrap, initialReceipt]);
 
   useEffect(() => {
     let disposed = false;

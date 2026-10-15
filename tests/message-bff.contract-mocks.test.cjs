@@ -53,7 +53,7 @@ const clientScenarios = {
   async getBootstrap() {
     const body = bootstrap();
     messageBff.on('get', '/messaging/bootstrap', { body });
-    assert.deepEqual(await messageClient.getBootstrap(), body);
+    assert.deepEqual(await messageClient.getBootstrap(), { ...body, currentUser: { id: body.currentUser.id, name: body.currentUser.name } });
     assert.deepEqual(upstream(), ['GET /messaging/bootstrap']);
   },
   async getContacts() {

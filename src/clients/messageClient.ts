@@ -1,3 +1,4 @@
+import { parseMessagingBootstrapReceipt } from '../lib/messaging-bootstrap-receipt';
 import type {
   GetContacts200,
   GetMe200,
@@ -33,7 +34,7 @@ export const messageClient = {
   },
 
   async getBootstrap() {
-    return (await bffMessage.getMessagingBootstrap()).data;
+    return parseMessagingBootstrapReceipt((await bffMessage.getMessagingBootstrap()).data);
   },
 
   async getContacts() {
