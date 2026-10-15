@@ -181,7 +181,7 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
   });
 
   test('the browser cannot reach another origin and Next.js does not rewrite to one', () => {
-    const { buildContentSecurityPolicy } = requireSrc('lib/content-security-policy.ts');
+    const { buildContentSecurityPolicy } = require('@mairie360/front-kit/shared');
     const directives = Object.fromEntries(buildContentSecurityPolicy('nonce').split('; ').map((directive) => {
       const [name, ...values] = directive.split(' ');
       return [name, values.join(' ')];
