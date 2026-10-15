@@ -15,20 +15,26 @@ export async function startPerformancePreview(source, { port = 0, log = 'perform
   const nextPort = reservation.address().port;
   await new Promise(resolve => reservation.close(resolve));
   let child;
+  const reads = [];
+  // /me is the published Admin BFF route; the older browser facade fixture
+  // carries exactly this same contract-shaped profile. Never invent a profile.
+  const routes = fixture.module === 'Administrator'
+    ? { ...fixture.routes, '/me': fixture.routes['/api/auth/me'] } : fixture.routes;
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     if (!url.pathname.startsWith('/_next/') && !/\.[a-z0-9]+$/i.test(url.pathname)) console.log('LAB', req.method, url.pathname);
     if (url.pathname === '/qa/session') {
       const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');
       const token = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: '1', exp: 4102444800 })}.laboratory`;
-      res.writeHead(302, { 'Location': '/', 'Cache-Control': 'no-store', ...(fixture.module === 'Login' ? {} : { 'Set-Cookie': `mairie360_lab_session=${token}; Path=/; HttpOnly; SameSite=Lax` }) });
+      res.writeHead(302, { 'Location': fixture.module === 'Calendars' ? '/?view=month&date=2026-10-15' : '/', 'Cache-Control': 'no-store', ...(fixture.module === 'Login' ? {} : { 'Set-Cookie': `mairie360_lab_session=${token}; Path=/; HttpOnly; SameSite=Lax` }) });
       res.end(); return;
     }
-    if (fixture.routes[url.pathname]) {
+    if (routes[url.pathname]) {
+      reads.push({ path: url.pathname, transport: req.headers.authorization ? 'server-bff' : 'browser' });
       await delay(100);
       if (req.method !== 'GET') { res.writeHead(405); res.end(); return; }
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify(fixture.routes[url.pathname])); return;
+      res.end(JSON.stringify(routes[url.pathname])); return;
     }
     if (fixture.module === 'Messages' && url.pathname === '/stream') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', 'X-Mairie360-Stream-Account': encodeURIComponent(String(fixture.routes['/messaging/bootstrap'].currentUser.id)) });
@@ -50,6 +56,9 @@ export async function startPerformancePreview(source, { port = 0, log = 'perform
   const environment = { ...process.env, NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1', COOKIE_DOMAIN: '' };
   delete environment.NODE_AUTH_TOKEN;
   for (const prefix of ['LOGIN', 'PROJECT', 'CALENDAR', 'MESSAGE', 'ELEARNING', 'ADMINISTRATION', 'DASHBOARD', 'SETTINGS']) environment[`${prefix}_FRONT_URL`] = origin;
+  // Exercise actual server reads against the same delayed loopback fixture.
+  // Without these runtime values an SSR benchmark would measure the client fallback.
+  for (const name of ['SETTINGS_BFF_URL', 'DASHBOARD_BFF_URL', 'BFF_PROJECT_BASE_URL', 'BFF_CALENDAR_BASE_URL', 'BFF_MESSAGE_BASE_URL', 'BFF_ELEARNING_BASE_URL', 'BFF_ADMIN_BASE_URL']) environment[name] = origin;
   const fd = openSync(log, 'w');
   child = spawn(process.execPath, [path.join(source, 'node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', String(nextPort)], { cwd: source, env: environment, stdio: ['ignore', fd, fd] });
   closeSync(fd);
@@ -69,7 +78,7 @@ export async function startPerformancePreview(source, { port = 0, log = 'perform
       try { await fetch(`http://127.0.0.1:${nextPort}/favicon.ico`); ready = true; break; } catch { await delay(250); }
     }
     if (!ready) throw new Error('Production server did not become ready.');
-    return { origin, close };
+    return { origin, close, reads: () => reads.map(read => ({ ...read })) };
   } catch (error) { await close(); throw error; }
 }
 

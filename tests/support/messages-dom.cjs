@@ -75,7 +75,7 @@ async function messagesDom(t, { unavailable = false } = {}) {
     ADMINISTRATION_FRONT_URL: 'https://admin.example/', SETTINGS_FRONT_URL: 'https://settings.example/' });
   t.after(() => setBrowserFrontUrls({}));
   React = require('react');
-  const { createRoot } = require('react-dom/client'), Page = requireSrc('app/page.tsx').default;
+  const { createRoot } = require('react-dom/client'), Page = requireSrc('app/messages-client.tsx').default;
   reactRoot = createRoot(dom.window.document.getElementById('root'));
   await React.act(async () => reactRoot.render(React.createElement(require('@mairie360/front-kit/react').InstanceProvider, { role: 'Admin', timeZone: 'UTC' }, React.createElement(Page))));
   async function waitFor(predicate) {

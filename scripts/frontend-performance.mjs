@@ -28,6 +28,7 @@ try {
   browser = await chromium.launch({ headless: true });
   const samples = [];
   for (let run = 0; run < repetitions; run++) {
+    const firstRead = preview.reads().length;
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
     const page = await context.newPage();
     const metrics = { LCP: null, INP: null, CLS: null };
@@ -74,7 +75,7 @@ try {
     await new Promise(resolve => setTimeout(resolve, 200));
     if (errors.length) throw new Error(`Runtime errors: ${errors.join('; ')}`);
     if (Object.values(metrics).some(value => value === null)) throw new Error(`Missing observed Web Vital: ${JSON.stringify(metrics)}`);
-    samples.push({ run: run + 1, ...metrics, layoutShifts, initialJsRawBytes: [...requestedJs.values()].reduce((sum, value) => sum + value.rawBytes, 0), initialJsGzipBytes: [...requestedJs.values()].reduce((sum, value) => sum + value.gzipBytes, 0) });
+    samples.push({ run: run + 1, ...metrics, reads: preview.reads().slice(firstRead), layoutShifts, initialJsRawBytes: [...requestedJs.values()].reduce((sum, value) => sum + value.rawBytes, 0), initialJsGzipBytes: [...requestedJs.values()].reduce((sum, value) => sum + value.gzipBytes, 0) });
     await context.close();
   }
   const median = key => samples.map(sample => sample[key]).sort((a, b) => a - b)[Math.floor(samples.length / 2)];

@@ -15,7 +15,7 @@ const { apiError, bootstrap, businessReferences, contact, conversation, currentU
 const { FrontNetwork } = require('./support/front-network.cjs');
 const { ContractMockServer } = require('./support/contract-mock-server.cjs');
 const { OpenApiContract } = require('./support/openapi-contract.cjs');
-const Page = requireSrc('app/page.tsx').default;
+const Page = requireSrc('app/messages-client.tsx').default;
 const { MessagesWorkspace } = requireSrc('app/_components/messages-workspace.tsx');
 const { useMessagingController } = requireSrc('app/_components/use-messaging-controller.ts');
 const { ATTACHMENTS_UNAVAILABLE_MESSAGE, messageAttachmentPort } = requireSrc('lib/attachment-features.ts');
@@ -989,7 +989,7 @@ test('bootstrap effect cleanup and replay ignores the older response after the r
   t.mock.method(React, 'useEffect', (effect, deps) => {
     // Identify the load callback dependency without assuming the bootstrap
     // effect's source position relative to other effects.
-    if (!bootstrapEffect && deps?.length === 1 && typeof deps[0] === 'function') {
+    if (!bootstrapEffect && deps?.length === 2 && typeof deps[0] === 'function' && deps[1] === null) {
       bootstrapEffect = effect;
       bootstrapDependencies = deps;
     }
@@ -1003,7 +1003,7 @@ test('bootstrap effect cleanup and replay ignores the older response after the r
   view = mount(React.createElement(Page));
   await view.waitFor(() => releases.length === 1);
   // Replay only this effect lifecycle; this is not a full browser StrictMode test.
-  const bootstrapSlot = view.find('Page')[0].slots.find(slot => slot?.effect && slot.deps === bootstrapDependencies);
+  const bootstrapSlot = view.find('MessagesClient')[0].slots.find(slot => slot?.effect && slot.deps === bootstrapDependencies);
   assert.equal(typeof bootstrapSlot?.cleanup, 'function');
   bootstrapSlot.cleanup();
   const cleanup = bootstrapEffect();
