@@ -22,7 +22,8 @@
     "lucide-react": "^1.0.0",
     "next": "16.3.8",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "@mairie360/front-kit": "file:vendor/mairie360-front-kit-0.1.0.tgz"
   },
   "overrides": {
     "next": {

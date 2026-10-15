@@ -1,3 +1,4 @@
+import { sessionFetch } from '@mairie360/front-kit/browser';
 import axios, { type AxiosAdapter } from 'axios';
 import { getBffMessage } from '@mairie360/bff-message-openapi/endpoints/bffMessage';
 import type { MessageStreamEvent } from '@mairie360/bff-message-openapi/model';
@@ -10,7 +11,7 @@ export type MessageStreamState = 'connecting' | 'connected' | 'offline' | 'polli
 const streamAdapter: AxiosAdapter = async config => {
   const url = axios.getUri(config);
   if (!/^\/(?!\/)/.test(url) || url.includes("\\")) throw new Error("La réception doit utiliser une route locale.");
-  const response = await fetch(url, {
+  const response = await sessionFetch(url, {
     headers: { ...config.headers.toJSON() as Record<string, string>, Accept: 'text/event-stream' },
     credentials: 'same-origin', cache: 'no-store', redirect: 'manual',
     signal: config.signal as AbortSignal | undefined,

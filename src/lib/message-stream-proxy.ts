@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { clearSessionCookies, proxyPublishedBffRequest, readSessionCookies, validSessionToken, type SessionProxyConfig } from '@mairie360/lib-components/next';
+import { proxyPublishedBffRequest, readSessionCookies, validSessionToken, type SessionProxyConfig } from '@mairie360/front-kit/next';
 
 function failure(status: number, message: string, cookies: string[] = []) {
   const response = NextResponse.json({ error: { message } }, { status, headers: { 'Cache-Control': 'no-store' } });
-  if (status === 401) clearSessionCookies(response, { secure: process.env.NODE_ENV === 'production', domain: process.env.COOKIE_DOMAIN });
-  if (status !== 401) for (const cookie of cookies) response.headers.append('Set-Cookie', cookie);
+  for (const cookie of cookies) response.headers.append('Set-Cookie', cookie);
   return response;
 }
 
@@ -20,7 +19,7 @@ export async function proxyMessageStream(request: NextRequest, config: SessionPr
   const identity = receipt?.currentUser?.id;
   if ((typeof identity !== 'string' && typeof identity !== 'number') || String(identity).trim() === '') return failure(502, 'La connexion à la messagerie n’a pas pu être vérifiée.', renewedCookies);
   const access = readSessionCookies(probe)?.accessToken ?? request.cookies.get('accessToken')?.value;
-  if (!validSessionToken(access)) return failure(401, 'Votre session a expiré. Veuillez vous reconnecter.');
+  if (!validSessionToken(access)) return failure(401, 'Votre session a expiré. Veuillez vous reconnecter.', renewedCookies);
 
   const base = config.baseUrl().trim();
   let target: URL;

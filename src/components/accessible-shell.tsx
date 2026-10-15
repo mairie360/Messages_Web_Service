@@ -1,4 +1,5 @@
 "use client";
+import { useInstanceRole } from '@mairie360/front-kit/react';
 
 import { AppShell } from "@mairie360/lib-components";
 import { useEffect, useId, useRef, useState, type CSSProperties, type ComponentProps } from "react";
@@ -7,6 +8,8 @@ import DesktopNavigation from './desktop-navigation';
 // Keep 0.8.0's supplied navigation while the shared semantic fix awaits publication.
 // The copyright remains visually in the sidebar; its landmark lives outside aside.
 export default function AccessibleShell({ children, footerProps, ...props }: ComponentProps<typeof AppShell>) {
+  const role = useInstanceRole();
+  props = { ...props, isAdmin: role === 'Admin' };
   const contentId = useId();
   const frame = useRef<HTMLDivElement>(null);
   const [footerHeight, setFooterHeight] = useState(76);

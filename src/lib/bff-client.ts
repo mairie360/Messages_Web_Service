@@ -1,3 +1,4 @@
+import { sessionFetch } from '@mairie360/front-kit/browser';
 import axios, { type AxiosAdapter } from "axios";
 import { getBffMessage } from "@mairie360/bff-message-openapi/endpoints/bffMessage";
 
@@ -56,7 +57,7 @@ export async function bffRequest<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(path, {
+  const response = await sessionFetch(path, {
     ...init,
     headers,
     cache: "no-store",
