@@ -1,5 +1,5 @@
 "use client";
-import { useInstanceRole } from '@mairie360/front-kit/react';
+import { useInstanceRole, useModalFocusScope } from '@mairie360/front-kit/react';
 
 import { AppShell } from "@mairie360/lib-components";
 import { useEffect, useId, useRef, useState, type CSSProperties, type ComponentProps } from "react";
@@ -14,16 +14,7 @@ export default function AccessibleShell({ children, footerProps, ...props }: Com
   const frame = useRef<HTMLDivElement>(null);
   const [footerHeight, setFooterHeight] = useState(76);
   const [collapsed, setCollapsed] = useState(false);
-  const [navigationInactive, setNavigationInactive] = useState(false);
-  useEffect(() => {
-    const root = frame.current;
-    if (!root || typeof MutationObserver === 'undefined') return;
-    const receive = () => setNavigationInactive(Boolean(root.querySelector('[role="dialog"][aria-modal="true"]')));
-    const observer = new MutationObserver(receive);
-    observer.observe(root, { childList: true, subtree: true });
-    receive();
-    return () => observer.disconnect();
-  }, []);
+  const navigationInactive = useModalFocusScope(frame);
   useEffect(() => {
     if (typeof ResizeObserver === "undefined") return;
     const footer = frame.current?.querySelector("footer.app-accessible-footer");
