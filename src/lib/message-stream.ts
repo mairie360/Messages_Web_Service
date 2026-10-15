@@ -1,3 +1,4 @@
+import { sessionFetch } from '@mairie360/front-kit/browser';
 import axios, { type AxiosAdapter } from 'axios';
 import { getBffMessage } from '@mairie360/bff-message-openapi/endpoints/bffMessage';
 import type { MessageStreamEvent } from '@mairie360/bff-message-openapi/model';
@@ -10,7 +11,7 @@ export type MessageStreamState = 'connecting' | 'connected' | 'offline' | 'polli
 const streamAdapter: AxiosAdapter = async config => {
   const url = axios.getUri(config);
   if (!/^\/(?!\/)/.test(url) || url.includes("\\")) throw new Error("La réception doit utiliser une route locale.");
-  const response = await fetch(url, {
+  const response = await sessionFetch(url, {
     headers: { ...config.headers.toJSON() as Record<string, string>, Accept: 'text/event-stream' },
     credentials: 'same-origin', cache: 'no-store', redirect: 'manual',
     signal: config.signal as AbortSignal | undefined,
@@ -55,7 +56,9 @@ export async function receiveMessageStream({ signal, cursor, account, onAccountC
 }) {
   let delay = 1_000;
   const maximumAttempts = Number.isSafeInteger(attempts) ? Math.max(1, Math.min(5, attempts)) : 5;
-  for (let attempt = 0; attempt < maximumAttempts && !signal.aborted; attempt += 1) {
+  // Reconnect only after the prior reader is released and its backoff settles.
+  const receiveAttempt = async (attempt: number): Promise<void> => {
+    if (attempt >= maximumAttempts || signal.aborted) return;
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
     const cancel = () => { void reader?.cancel().catch(() => undefined); };
     try {
@@ -89,12 +92,14 @@ export async function receiveMessageStream({ signal, cursor, account, onAccountC
         if (frame.id) { cursor.seen.push(frame.id); if (cursor.seen.length > 100) cursor.seen.shift(); }
         onEvent(value);
       });
-      while (!signal.aborted) {
-        const chunk = await reader.read();
+      // SSE chunks and cursor updates must be consumed in transport order.
+      const chunks = { [Symbol.asyncIterator]: () => ({ next: () => reader!.read() }) };
+      for await (const chunk of chunks) {
         signal.throwIfAborted();
-        if (chunk.done) { parser.end(); throw new Error('Le flux de réception a été interrompu.'); }
-        parser.push(decoder.decode(chunk.value, { stream: true }));
+        parser.push(decoder.decode(chunk, { stream: true }));
+        if (signal.aborted) break;
       }
+      if (!signal.aborted) { parser.end(); throw new Error('Le flux de réception a été interrompu.'); }
     } catch (error) {
       if (signal.aborted) return;
       onState('offline');
@@ -111,5 +116,7 @@ export async function receiveMessageStream({ signal, cursor, account, onAccountC
     if (attempt + 1 < maximumAttempts) {
       try { await wait(Math.min(15_000, delay * 2 ** attempt), signal); } catch { return; }
     }
-  }
+    return receiveAttempt(attempt + 1);
+  };
+  return receiveAttempt(0);
 }

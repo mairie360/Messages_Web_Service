@@ -4,12 +4,13 @@ const Module = require('node:module');
  * React, the real root component and its providers remain unmocked.
  * This helper does not verify style, font metrics or browser geometry.
  */
-function loadRootLayout(load) {
+function loadRootLayout(load, cookieValues = {}) {
   const previousCss = require.extensions['.css'];
   const previousLoad = Module._load;
   const font = options => ({ variable: options.variable, className: 'test-font' });
   require.extensions['.css'] = () => {};
   Module._load = function (request, ...rest) {
+    if (request === 'next/headers') return { cookies: async () => ({ get: name => cookieValues[name] === undefined ? undefined : {value:cookieValues[name]} }) };
     if (request === 'next/font/google') return { Geist: font, Geist_Mono: font };
     return previousLoad.call(this, request, ...rest);
   };

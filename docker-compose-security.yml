@@ -246,15 +246,16 @@ services:
     environment:
       HOSTNAME: "0.0.0.0"
       PORT: 5003
-      # The unauthenticated health probe expects a redirect, not a missing-login 503.
+      # Readiness resumes on this isolated frontend origin without following Login.
       LOGIN_FRONT_URL: "${LOGIN_FRONT_URL:-http://login-front.invalid/}"
+      MESSAGE_FRONT_URL: http://message-front:5003/
       BFF_MESSAGE_BASE_URL: http://bff-message:4003
     expose:
       - "5003"
     networks:
       - backend
     # curl est installé dans l'image runner. Sans cookie, le middleware répond 307
-    # (redirection Login) : curl -f l'accepte, seul un statut >= 400 échoue.
+    # (reprise locale) : curl -f l'accepte, seul un statut >= 400 échoue.
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:5003/"]
       interval: 10s

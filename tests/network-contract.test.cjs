@@ -32,7 +32,7 @@ const FETCH_CALLERS = {
   'lib/message-stream-proxy.ts': { side: 'server', dynamicArgument: 'target' },
 };
 /** Fonctions navigateur dont le 1er argument est un chemin same-origin. */
-const BROWSER_REQUESTERS = new Set(['fetch']);
+const BROWSER_REQUESTERS = new Set(['fetch', 'sessionFetch']);
 const FORBIDDEN_MODULES = /^(openapi-fetch|undici|got|ky|superagent|node-fetch|cross-fetch|(node:)?https?|(node:)?net|@mairie360\/bff-.*-openapi)$/;
 const FORBIDDEN_CONSTRUCTORS = new Set(['XMLHttpRequest', 'WebSocket', 'EventSource']);
 
@@ -56,7 +56,7 @@ function scan(file) {
     }
     if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) return;
     const callee = node.expression.text;
-    if (callee === 'fetch') findings.fetchCalls.push(node.arguments[0]?.getText());
+    if (['fetch', 'sessionFetch'].includes(callee)) findings.fetchCalls.push(node.arguments[0]?.getText());
     if (!BROWSER_REQUESTERS.has(callee) || !node.arguments[0]) return;
     const [target, init] = node.arguments;
     const methodProperty = init && ts.isObjectLiteralExpression(init)
@@ -161,7 +161,7 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
       } else {
         assert.equal(policy.imports(ast).some(name => name.includes('bff-proxy')), false, route);
         if (route === '/api/auth/logout') {
-          assert.deepEqual(policy.imports(ast), ['@mairie360/lib-components/next']);
+          assert.deepEqual(policy.imports(ast), ['@mairie360/front-kit/next']);
           assert.equal(policy.calls(ast, 'createSessionLogoutProxy').length, 1);
         }
       }
@@ -181,7 +181,7 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
   });
 
   test('the browser cannot reach another origin and Next.js does not rewrite to one', () => {
-    const { buildContentSecurityPolicy } = requireSrc('lib/content-security-policy.ts');
+    const { buildContentSecurityPolicy } = require('@mairie360/front-kit/shared');
     const directives = Object.fromEntries(buildContentSecurityPolicy('nonce').split('; ').map((directive) => {
       const [name, ...values] = directive.split(' ');
       return [name, values.join(' ')];

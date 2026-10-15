@@ -174,10 +174,10 @@ describe('BFF_Message errors surfaced by messageClient', () => {
 
   test('a rejected session becomes a controlled BffRequestError without preserving upstream cookie changes', async () => {
     messageBff.on('get', '/messaging/bootstrap', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
-    await assert.rejects(messageClient.getBootstrap(), (error) => error instanceof BffRequestError && error.status === 401 && error.message === 'Votre session a expiré. Veuillez vous reconnecter.');
+    await assert.rejects(messageClient.getBootstrap(), (error) => error instanceof BffRequestError && error.status === 401 && error.message === 'Votre session a expiré.');
 
     messageBff.on('post', '/groups', { status: 401, body: apiError('UNAUTHORIZED', 'Authentification requise'), outOfContract: true });
-    await assert.rejects(messageClient.createGroup({ name: 'Groupe', memberIds: [] }), { message: 'Votre session a expiré. Veuillez vous reconnecter.' });
+    await assert.rejects(messageClient.createGroup({ name: 'Groupe', memberIds: [] }), { message: 'Votre session a expiré.' });
   });
 
   test('an undocumented non-JSON failure uses a readable fallback', async () => {

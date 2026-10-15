@@ -90,7 +90,7 @@ async function renderLoadedPage(body = bootstrap(), Component = Page) {
 }
 
 const frenchTime = (value) => new Intl.DateTimeFormat('fr-FR', {
-  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
 }).format(new Date(value));
 
 for (const status of [403, 503]) {
@@ -573,7 +573,7 @@ test('failed or unregistered file uploads never send a message with a local atta
     conversationId: 'conversation-4', content: 'Sans fichier enregistré', attachments: [attachment], mentions: [],
   }));
   assert.equal(refusedUploadResult, false);
-  await view.waitFor((html) => html.includes('Votre session a expiré. Veuillez vous reconnecter.'));
+  await view.waitFor((html) => html.includes('Votre session a expiré.'));
   assert.equal(messageBff.calls('/attachments', 'post').length, 1);
   assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'post').length, 0);
   assert.equal(revokePreview.mock.callCount(), 0);

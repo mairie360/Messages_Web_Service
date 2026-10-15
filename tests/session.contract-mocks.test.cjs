@@ -103,7 +103,7 @@ describe('useAuthSession', () => {
 
     await waitFor(() => browser.window.location.assigned.length === 1);
     assert.equal(hooks.updates, 0);
-    assert.deepEqual(network.browserCalls, [{ method: 'GET', path: '/me' }]);
+    assert.deepEqual(network.browserCalls, [{ method: 'GET', path: '/me' }, { method: 'POST', path: '/api/auth/refresh' }]);
     assert.equal(browser.window.location.reloads, 0);
     assert.equal(new URL(browser.window.location.assigned[0]).searchParams.get('redirect'), browser.window.location.href);
     assert.deepEqual(upstream(), ['GET /me'], 'la déconnexion ne sollicite aucun BFF');

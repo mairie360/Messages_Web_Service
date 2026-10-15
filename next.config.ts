@@ -14,6 +14,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Let Next optimize the published UI barrel; subpath adoption follows its release.
+  experimental: { optimizePackageImports: ['@mairie360/lib-components'] },
   output: "standalone",
   turbopack: {
     root: process.cwd(),

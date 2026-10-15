@@ -1,4 +1,5 @@
 "use client";
+import { normalizeDisplayRole } from "@mairie360/front-kit/shared";
 
 import { useEffect, useState } from "react";
 import { navigateToLogin } from "./logout";
@@ -33,33 +34,9 @@ export type AuthSessionResult =
   | { status: "unauthorized" }
   | { status: "error"; error: string };
 
-const ROLE_ALIASES: Record<string, AppRole> = {
-  admin: "Admin",
-  administrateur: "Admin",
-  administrator: "Admin",
-  responsable: "Responsable",
-  manager: "Responsable",
-  maire: "Maire",
-  mayor: "Maire",
-  user: "User",
-  utilisateur: "User",
-  guest: "Guest",
-  invite: "Guest",
-};
-
-function normalizeRoleKey(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]+/g, "")
-    .replace(/^role/, "");
-}
-
-/** Rôle applicatif (alias FR/EN, préfixe `ROLE_`, accents) ; `Guest` si le rôle est absent ou inconnu. */
+/** One shared alias table; the BFF still owns business permissions. */
 export function normalizeAppRole(value: string | undefined): AppRole {
-  return value ? ROLE_ALIASES[normalizeRoleKey(value)] ?? "Guest" : "Guest";
+  return normalizeDisplayRole(value) ?? "Guest";
 }
 
 /** Convertit l'utilisateur courant de BFF Message (`GET /me`) en session applicative. */

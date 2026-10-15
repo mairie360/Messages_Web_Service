@@ -5,7 +5,7 @@ const { requireSrc, ROOT } = require('./support/load-ts.cjs');
 const { formatMessageTimestamp, presentConversationTimestamps, presentMessageTimestamps } = requireSrc('lib/message-timestamps.ts');
 
 const expected = (value) => new Intl.DateTimeFormat('fr-FR', {
-  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
 }).format(new Date(value));
 
 for (const value of [undefined, '', ' ', 'Hier', '9:05', 'rendez-vous à 9 h 05', '25 h 30', '12 h 60', '0',
@@ -36,12 +36,13 @@ for (const [zone, source, label] of [
   ['Europe/Paris', '2026-03-29T01:30:00Z', '29/03 03:30'],
   ['Europe/Paris', '2026-01-01T00:30:00Z', '01/01 01:30'],
 ]) {
-  test(`uses the user's ${zone} timezone for ${source}`, () => {
+  test(`uses the configured instance ${zone} timezone independently of the browser for ${source}`, () => {
     const script = `const {requireSrc} = require('./tests/support/load-ts.cjs');
+      global.window = {}; require('@mairie360/front-kit/shared').setInstanceTimeZone(${JSON.stringify(zone)});
       const {formatMessageTimestamp} = requireSrc('lib/message-timestamps.ts');
       process.stdout.write(formatMessageTimestamp(${JSON.stringify(source)}));`;
     const result = execFileSync(process.execPath, ['-e', script], {
-      cwd: ROOT, env: { ...process.env, TZ: zone }, encoding: 'utf8',
+      cwd: ROOT, env: { ...process.env, TZ: zone === 'UTC' ? 'Indian/Reunion' : 'UTC' }, encoding: 'utf8',
     });
     assert.equal(result, label);
   });

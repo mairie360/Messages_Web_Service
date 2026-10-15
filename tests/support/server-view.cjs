@@ -519,6 +519,11 @@ function ensureBrowserGlobals() {
       createElement: () => ({ style: {}, setAttribute() {}, appendChild() {}, remove() {} }),
     });
   }
+  const root = globalThis.document.documentElement ??= { clientWidth: 1280, clientHeight: 800 };
+  root.dataset ??= {};
+  root.style ??= {};
+  root.style.setProperty ??= function (name, value) { this[name] = value; };
+  root.style.removeProperty ??= function (name) { delete this[name]; };
   const window = globalThis.window;
   if (!window || typeof window !== 'object') return;
   if (!window.addEventListener) eventTarget(window);
