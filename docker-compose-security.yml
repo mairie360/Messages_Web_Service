@@ -188,7 +188,7 @@ services:
       - backend
 
   bff-message:
-    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:dev-ad5339c}
+    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:1.0.0}
     container_name: message-front-sec-bff-message
     depends_on:
       seeder:
