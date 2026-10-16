@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps } from "react";
-import type { Messaging } from "@mairie360/lib-components";
+import type { Messaging } from "@mairie360/lib-components/messages";
 import { BffNavigationRequiredError, BffRequestError, messageClient, type CurrentUserDto, type MessageId } from "@/clients/messageClient";
 import {
   appendMessage,
@@ -82,6 +82,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   const [loading, setLoading] = useState(!initialReceipt);
   const [bootstrapError, setBootstrapError] = useState<string | null>(initial?.status === 'unavailable' ? initial.message : initial && !initialReceipt ? MESSAGES_INITIAL_UNAVAILABLE : null);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [showConversationList, setShowConversationList] = useState(initialSelected === '');
   const [deletingConversation, setDeletingConversation] = useState(false);
@@ -104,6 +105,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   const senderIdentityRef = useRef(senderIdentity);
   useLayoutEffect(() => {
     senderIdentityRef.current = senderIdentity;
+    setFeedback(null);
     pendingSendsRef.current.clear();
     unconfirmedSendsRef.current.clear();
     if (streamCursorRef.current.account !== currentUser?.id) streamCursorRef.current = { account: currentUser?.id, lastEventId: '', seen: [] };
@@ -431,6 +433,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   }, [currentUser, loading, recoverSessionNavigation, confirmThread, loadBootstrap, streamRetry]);
 
   const beginMutation = () => {
+    setFeedback(null);
     revisionRef.current += 1;
     mutationCountRef.current += 1;
     selectionLoadingRef.current = null;
@@ -707,9 +710,13 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
 
     setError(null);
     beginMutation();
+    const identity = senderIdentityRef.current;
 
     try {
       const response = await messageClient.createDirectMessage(payload);
+      if (!hasServerId(response?.conversation?.id) || !hasServerId(response?.message?.id) || !idsMatch(response.message.conversationId, response.conversation.id)) {
+        throw new Error("La création du message direct n’a pas été confirmée. Le brouillon est conservé.");
+      }
 
       setConversations((currentConversations) =>
         upsertConversation(currentConversations, response.conversation),
@@ -723,6 +730,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       confirmThread(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
       setShowConversationList(false);
+      if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback('Message direct créé.');
       return true;
     } catch (sendError) {
       setError(describeBffError(sendError, "Le message direct n’a pas pu être créé."));
@@ -735,9 +743,13 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   const handleCreateGroup = async (payload: CreateGroupPayload) => {
     setError(null);
     beginMutation();
+    const identity = senderIdentityRef.current;
 
     try {
       const response = await messageClient.createGroup(payload);
+      if (!hasServerId(response?.conversation?.id) || typeof response.conversation.name !== 'string' || !response.conversation.name.trim()) {
+        throw new Error("La création du groupe n’a pas été confirmée. Le brouillon est conservé.");
+      }
 
       setConversations((currentConversations) =>
         upsertConversation(currentConversations, response.conversation),
@@ -748,6 +760,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       confirmThread(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
       setShowConversationList(false);
+      if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback(`Groupe « ${response.conversation.name} » créé.`);
       return true;
     } catch (createError) {
       setError(describeBffError(createError, "Le groupe n’a pas pu être créé."));
@@ -765,6 +778,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       setDeletingConversation(true);
       setError(null);
       beginMutation();
+      const identity = senderIdentityRef.current;
 
       try {
         const response = await messageClient.deleteConversation(conversationToDelete.id);
@@ -796,6 +810,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
             (message) => !idsMatch(message.conversationId, conversationToDelete.id),
           ),
         );
+        if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback(`Conversation « ${conversationToDelete.name} » supprimée.`);
       } catch (deleteError) {
         setError(
           deleteError instanceof Error
@@ -843,6 +858,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     retryBootstrap,
     deletingConversation,
     error,
+    feedback,
+    dismissFeedback: () => setFeedback(null),
     syncError,
     selectionPending,
     threadPlaceholder,

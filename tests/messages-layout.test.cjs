@@ -13,6 +13,9 @@ function policyDocument(t) {
   console.on('jsdomError', (error) => errors.push(error.message));
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { virtualConsole: console });
   t.after(() => dom.window.close());
+  const sharedStyle = dom.window.document.createElement('style');
+  sharedStyle.textContent = require('./support/shared-theme-css.cjs').sharedThemeCss();
+  dom.window.document.head.append(sharedStyle);
   const style = dom.window.document.createElement('style'); style.textContent = stylesheet;
   dom.window.document.head.append(style); assert.deepEqual(errors, [], 'Actual stylesheet must parse');
   const rows = [];
@@ -33,7 +36,7 @@ function policyDocument(t) {
     return declarations.at(-1);
   };
   const color = (value) => {
-    const probe = dom.window.document.createElement('span'); probe.style.color = value;
+    const probe = dom.window.document.createElement('span'); probe.style.color = value.replace(/var\((--[\w-]+)\)/g, (_match, name) => dom.window.getComputedStyle(dom.window.document.documentElement).getPropertyValue(name).trim());
     dom.window.document.body.append(probe);
     try { return dom.window.getComputedStyle(probe).color; } finally { probe.remove(); }
   };

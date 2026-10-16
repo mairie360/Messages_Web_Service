@@ -84,7 +84,7 @@ const upstream = () => messageBff.requests.map((call) => `${call.method} ${call.
 async function renderLoadedPage(body = bootstrap(), Component = Page) {
   messageBff.on('get', '/messaging/bootstrap', { body });
   view = mount(React.createElement(Component));
-  return view.waitFor(() => view.find('Messaging').length > 0 && view.props('Messaging').emptyStateLabel === 'Aucune conversation' &&
+  return view.waitFor(() => view.find('Messaging').length > 0 && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('EmptyState').some(state => state.props.title === 'Aucune conversation')) &&
     view.props('Header').user.name !== 'Chargement…' &&
     view.props('Messaging').conversations[0]?.unreadCount === 0);
 }
@@ -632,7 +632,7 @@ test('business suggestions wait for visibility and do not add periodic backgroun
   browser.setHidden(true);
   messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
   view = mount(React.createElement(Page));
-  await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Messaging').emptyStateLabel === 'Aucune conversation');
+  await view.waitFor(() => view.find('Messaging').length > 0 && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('EmptyState').some(state => state.props.title === 'Aucune conversation')));
   browser.focus();
   browser.tickIntervals(2_000);
   assert.equal(pending.length, 0);
@@ -934,7 +934,8 @@ test('a confirmed empty bootstrap is distinct from refusal and enables the norma
   await view.waitFor(() => view.find('Messaging').length > 0);
   assert.deepEqual(view.props('Messaging').conversations, []);
   assert.deepEqual(view.props('Messaging').contacts, []);
-  assert.equal(view.props('Messaging').emptyStateLabel, 'Aucune conversation');
+  assert.equal(view.find('EmptyState').some(state => state.props.title === 'Aucune conversation'), true);
+  assert.match(view.text(), /Créez un message ou un groupe pour commencer/);
   assert.equal(typeof view.props('Messaging').onCreateGroup, 'function');
   assert.doesNotMatch(view.text(), /Messagerie indisponible|Réessayer/);
   assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
@@ -1740,7 +1741,7 @@ for (const label of ['disappeared active thread', 'new first conversation']) {
     }
     messageBff.on('get', '/messaging/bootstrap', { body });
     view = mount(React.createElement(Page));
-    await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Header').user.name !== 'Chargement…' && view.props('Messaging').emptyStateLabel === 'Aucune conversation');
+    await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Header').user.name !== 'Chargement…' && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('EmptyState').some(state => state.props.title === 'Aucune conversation')));
     messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
     messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
     browser.setHidden(false);
