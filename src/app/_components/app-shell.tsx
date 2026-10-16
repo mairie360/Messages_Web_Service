@@ -2,7 +2,7 @@
 
 import SharedAppShell from "@/components/accessible-shell";
 
-import { Alert } from "@mairie360/lib-components";
+import { Alert } from "@mairie360/lib-components/primitives";
 import { useState, type ReactNode } from "react";
 import { navigateToLogin } from "@/lib/logout";
 import { logoutAndReload, useAuthSession, type AuthSession } from "@/lib/auth-session";

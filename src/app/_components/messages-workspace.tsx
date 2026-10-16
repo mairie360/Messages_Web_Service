@@ -1,6 +1,7 @@
 'use client';
 
-import { Messaging } from "@mairie360/lib-components";
+import { Messaging } from "@mairie360/lib-components/messages";
+import { EmptyState, Skeleton, Toast } from "@mairie360/lib-components/primitives";
 import { toMessagingUserId } from "@/lib/messaging-state";
 import { AppShell } from "./app-shell";
 import { prepareMessagingScrollRegions } from "./messaging-scroll-regions";
@@ -34,6 +35,8 @@ export function MessagesWorkspace({
   retryBootstrap,
   deletingConversation,
   error,
+  feedback,
+  dismissFeedback,
   syncError,
   streamState,
   retryReception,
@@ -79,6 +82,7 @@ export function MessagesWorkspace({
                 ? "Les conversations sont en cours de chargement."
                 : "Les conversations n’ont pas pu être chargées. Vous pouvez réessayer."}
             </p>
+            {loading && <Skeleton className="mb-4 h-64" />}
             <button
               type="button"
               disabled={loading}
@@ -91,6 +95,7 @@ export function MessagesWorkspace({
         ) : (
           <>
             <h1 className="sr-only">Messagerie</h1>
+            {feedback && <Toast variant="success" message={feedback} onClose={dismissFeedback} />}
             <div className="messages-reception-status" role="status" aria-live="polite">
               {streamState === 'connected' ? 'Réception automatique active.' : streamState === 'polling' ? 'Actualisation automatique active.' : streamState === 'connecting' ? 'Connexion à la réception automatique…' : 'Réception automatique retardée.'}
               {streamState === 'offline' && <button type="button" onClick={retryReception} className="ml-3 min-h-11 font-semibold underline">Réessayer la réception</button>}
@@ -133,7 +138,9 @@ export function MessagesWorkspace({
                 businessReferences={businessReferences}
                 activeConversationId={hasConfirmedThread ? activeConversationId : ""}
                 currentUserId={toMessagingUserId(currentUser?.id)}
-                emptyStateLabel={activeConversationId === "" || hasConfirmedThread ? "Aucune conversation" : threadPlaceholder}
+                emptyStateLabel={activeConversationId === ""
+                  ? <EmptyState title="Aucune conversation" description="Créez un message ou un groupe pour commencer." />
+                  : hasConfirmedThread ? "Aucune conversation" : threadPlaceholder}
                 aria-busy={selectionPending}
                 onConversationSelect={(conversation) =>
                   void loadConversationMessages(conversation.id)

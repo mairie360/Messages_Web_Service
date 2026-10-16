@@ -13,14 +13,13 @@ const markup = `<body class="mairie-ui"><div class="messages-app-root"><main><se
 async function screen(theme) {
   const { compile } = await import('tailwindcss');
   const globals = readFileSync(resolve(root, 'src/app/globals.css'), 'utf8');
-  const municipal = readFileSync(resolve(root, 'src/app/municipal-theme.css'), 'utf8');
   const dom = new JSDOM(`<html data-theme="${theme}"><head></head>${markup}</html>`);
   const classes = [...dom.window.document.querySelectorAll('[class]')].flatMap(element => [...element.classList]);
   const style = dom.window.document.createElement('style');
-  const compiled = (await compile(`${globals}\n${municipal}`, {
+  const compiled = (await compile(globals, {
     base: root,
     loadStylesheet: async (id, base) => {
-      const path = id === 'tailwindcss' ? require.resolve('tailwindcss/index.css') : resolve(base, id);
+      const path = id === 'tailwindcss' ? require.resolve('tailwindcss/index.css') : id.startsWith('.') || id.startsWith('/') ? resolve(base, id) : require.resolve(id);
       return { path, base: dirname(path), content: readFileSync(path, 'utf8') };
     },
     loadModule: async id => ({ path: require.resolve(id), base: root, module: (await import(id)).default }),
