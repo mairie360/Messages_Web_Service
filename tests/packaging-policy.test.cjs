@@ -91,9 +91,15 @@ test('the exact required legacy status executes both real blocking scanners with
 test('the reusable frontend workflow retains blocking defaults and only declared secrets', () => {
   assert.deepEqual(workflow().jobs.CICD, {
     permissions: { contents: 'write', packages: 'write', 'id-token': 'write' },
-    uses: 'mairie360/CICD/.github/workflows/frontend-cicd.yml@5b7d127d46f95d8951935b6209ca7c2ca857a21d',
-    with: { package_name: 'message-front', node_version: '24.21.0', cicd_version: '5b7d127d46f95d8951935b6209ca7c2ca857a21d' },
-    secrets: { CODECOV_TOKEN: '${{ secrets.CODECOV_TOKEN }}', N8N_WEBHOOK_SECRET: '${{ secrets.N8N_WEBHOOK_SECRET }}' },
+    uses: 'mairie360/CICD/.github/workflows/frontend-cicd.yml@bbd2207256969f9f63e5477452d86e1f6c56339d',
+    with: { package_name: 'message-front', node_version: '24.21.0', cicd_version: 'bbd2207256969f9f63e5477452d86e1f6c56339d' },
+    secrets: {
+      CODECOV_TOKEN: '${{ secrets.CODECOV_TOKEN }}',
+      N8N_WEBHOOK_SECRET: '${{ secrets.N8N_WEBHOOK_SECRET }}',
+      ANTHROPIC_API_KEY: '${{ secrets.ANTHROPIC_API_KEY }}',
+      RELEASE_APP_ID: '${{ secrets.RELEASE_APP_ID }}',
+      RELEASE_APP_PK: '${{ secrets.RELEASE_APP_PK }}',
+    },
   });
   assert.doesNotMatch(read('.github/workflows/cicd.yml'), /secrets:\s*inherit|continue-on-error:|image_scan_fail_on_findings:|semgrep_fail_on_findings:\s*false/);
 });
