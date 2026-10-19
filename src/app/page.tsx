@@ -1,6 +1,6 @@
 import React from 'react';
 import { cookies } from 'next/headers';
-import { createNonce } from '@mairie360/front-kit/shared';
+import { createNonce } from '@mairie360/lib-components/shared';
 import { loadInitialMessagingPage } from '@/lib/server-messaging-page';
 import { serverMessagingSelection } from '@/lib/messaging-page-query';
 import MessagesClient from './messages-client';

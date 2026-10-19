@@ -55,7 +55,7 @@ test('three simultaneous message reads share one published User refresh and rota
 });
 test('missing access ignores a forged browser bearer and renews using the HttpOnly refresh cookie', async () => {
   delete network.cookies.accessToken; renewed(); rejectedRead();
-  const { sessionFetch } = require('@mairie360/front-kit/browser');
+  const { sessionFetch } = require('@mairie360/lib-components/browser');
   const reply = await sessionFetch('/messaging/bootstrap', { headers: { Authorization: 'Bearer forged-browser' } });
   assert.equal(reply.status, 200);
   assert.equal(business.requests[0].headers.authorization, undefined);

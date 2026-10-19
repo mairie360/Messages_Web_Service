@@ -38,7 +38,7 @@ for (const [zone, source, label] of [
 ]) {
   test(`uses the configured instance ${zone} timezone independently of the browser for ${source}`, () => {
     const script = `const {requireSrc} = require('./tests/support/load-ts.cjs');
-      global.window = {}; require('@mairie360/front-kit/shared').setInstanceTimeZone(${JSON.stringify(zone)});
+      global.window = {}; require('@mairie360/lib-components/shared').setInstanceTimeZone(${JSON.stringify(zone)});
       const {formatMessageTimestamp} = requireSrc('lib/message-timestamps.ts');
       process.stdout.write(formatMessageTimestamp(${JSON.stringify(source)}));`;
     const result = execFileSync(process.execPath, ['-e', script], {
