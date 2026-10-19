@@ -13,10 +13,20 @@ const React = require('react');
 const { installBrowser } = require('./support/browser.cjs');
 const { apiError, bootstrap, businessReferences, contact, conversation, currentUser, message, messageBffMock, tokenFor, users } = require('./support/fixtures.cjs');
 const { FrontNetwork } = require('./support/front-network.cjs');
-const Page = requireSrc('app/page.tsx').default;
+const { ContractMockServer } = require('./support/contract-mock-server.cjs');
+const { OpenApiContract } = require('./support/openapi-contract.cjs');
+const Page = requireSrc('app/messages-client.tsx').default;
+const { MessagesWorkspace } = requireSrc('app/_components/messages-workspace.tsx');
+const { useMessagingController } = requireSrc('app/_components/use-messaging-controller.ts');
+const { ATTACHMENTS_UNAVAILABLE_MESSAGE, messageAttachmentPort } = requireSrc('lib/attachment-features.ts');
+// The page once BFF_Message stores attachments (MAIR-512): the same workspace with the upload-capable port.
+function PageWithUploads() { return React.createElement(MessagesWorkspace, useMessagingController({ attachmentPort: messageAttachmentPort })); }
+const { messageClient } = requireSrc('clients/messageClient.ts');
+const { BffNavigationRequiredError, BffRequestError } = requireSrc('clients/messageClient.ts');
 
 const messageBff = messageBffMock();
-const network = new FrontNetwork([messageBff]);
+const userBff = new ContractMockServer('BFF_USER', OpenApiContract.load(require('node:path').join(__dirname, 'fixtures/user-session-openapi.json')));
+const network = new FrontNetwork([messageBff, userBff]);
 const browser = installBrowser();
 let view;
 
@@ -30,18 +40,22 @@ const swappedModel = (reply) => ({ ...reply, outOfContract: true });
 
 before(async () => {
   await messageBff.start();
+  await userBff.start();
   delete process.env.MESSAGE_BFF_URL;
   delete process.env.NEXT_PUBLIC_BFF_MESSAGE_BASE_URL;
   process.env.BFF_MESSAGE_BASE_URL = messageBff.url;
+  network.setOwner(userBff);
   network.install();
 });
 after(async () => {
   network.restore();
   browser.restore();
   await messageBff.stop();
+  await userBff.stop();
 });
 beforeEach(() => {
   messageBff.reset();
+  userBff.reset();
   network.reset();
   browser.reset();
   router.reset();
@@ -49,33 +63,709 @@ beforeEach(() => {
   messageBff.on('get', '/me', { body: currentUser() });
   messageBff.on('get', '/contacts', { body: { contacts: [contact(users.sophie), contact(users.thomas)] } });
   messageBff.on('get', '/business-references', { body: businessReferences() });
+  messageBff.on('get', '/conversations', { body: {
+    conversations: [conversation(4, 'Équipe communication'), conversation(5, 'Sophie Leroy', { kind: 'direct' })],
+  } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({
+    body: {
+      conversation: conversation(4, 'Équipe communication'),
+      messages: [message(1, 4, 'Bonjour à tous', users.sophie)],
+    },
+  }));
 });
 afterEach(() => {
   view?.unmount();
   view = undefined;
-  assert.deepEqual([...messageBff.violations.filter((line) => !KNOWN_CONTRACT_DEFECTS.some((known) => known.test(line))), ...network.violations], []);
+  assert.deepEqual([...messageBff.violations.filter((line) => !KNOWN_CONTRACT_DEFECTS.some((known) => known.test(line))), ...userBff.violations, ...network.violations], []);
 });
 
 const upstream = () => messageBff.requests.map((call) => `${call.method} ${call.url.pathname}`).sort();
 
-async function renderLoadedPage(body = bootstrap(), reply = {}) {
-  messageBff.on('get', '/messaging/bootstrap', { body, ...reply });
-  view = mount(React.createElement(Page));
-  return view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation' && view.props('Header').user.name !== 'Chargement…');
+async function renderLoadedPage(body = bootstrap(), Component = Page) {
+  messageBff.on('get', '/messaging/bootstrap', { body });
+  view = mount(React.createElement(Component));
+  return view.waitFor(() => view.find('Messaging').length > 0 && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('EmptyState').some(state => state.props.title === 'Aucune conversation')) &&
+    view.props('Header').user.name !== 'Chargement…' &&
+    view.props('Messaging').conversations[0]?.unreadCount === 0);
 }
 
-test('the first pass renders the empty messaging, the next ones the bootstrap, contacts and session', async () => {
+const frenchTime = (value) => new Intl.DateTimeFormat('fr-FR', {
+  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
+}).format(new Date(value));
+
+for (const status of [403, 503]) {
+  test(`an unseen refused thread ${status} is unavailable, never a confirmed empty result`, async () => {
+    await renderLoadedPage();
+    await view.settle();
+    messageBff.on('get', '/conversations/{conversationId}/messages', {
+      status, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true,
+    });
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => /Lecture refusée/.test(view.text()));
+    assert.doesNotMatch(view.text(), /Aucun message dans cette conversation|Aucune conversation/);
+    assert.match(view.text(), /messages de Sophie Leroy sont indisponibles/);
+    assert.equal(view.props('Messaging').onSendMessage, undefined);
+    assert.equal(view.find('MessagingComposer').filter(instance => !instance.hidden).length, 1);
+    assert.equal(view.visibleProps('MessagingComposer').disabled, true);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+    messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+      conversation: conversation(5, 'Sophie Leroy'), messages: [],
+    } }));
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5');
+    assert.match(view.text(), /Aucun message dans cette conversation/);
+    assert.equal(typeof view.props('Messaging').onSendMessage, 'function');
+    assert.equal(view.visibleProps('MessagingComposer').disabled, false);
+    assert.doesNotMatch(view.text(), /Lecture refusée|messages de Sophie Leroy sont indisponibles/);
+  });
+}
+
+test('a pending unseen selection retains its recipient draft without exposing it to another thread', async (t) => {
+  await renderLoadedPage();
+  await view.settle();
+  const original = messageClient.getConversationMessages;
+  let release;
+  t.mock.method(messageClient, 'getConversationMessages', (id) => id === 'conversation-5'
+    ? new Promise(resolve => { release = resolve; }) : original(id));
+  const composerCount = view.find('MessagingComposer').filter(instance => !instance.hidden).length;
+  const previouslyEnabledSend = view.props('Messaging').onSendMessage;
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', {target:{value:'Brouillon conservé'}});
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+  try {
+    assert.equal(typeof release, 'function');
+    assert.match(view.text(), /Chargement des messages de Sophie Leroy/);
+    assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+    assert.equal(view.visibleProps('MessagingComposer').disabled, true);
+    assert.equal(view.find('MessagingComposer').filter(instance => !instance.hidden).length, composerCount);
+    assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, '');
+    assert.equal(await previouslyEnabledSend({conversationId:'conversation-4',content:'Ne pas envoyer pendant sélection'}), false);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication')));
+    await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-4');
+    await view.waitFor(() => view.visibleProps('MessagingComposer').disabled === false);
+    assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
+  } finally {
+    release?.({ conversation: conversation(5, 'Sophie Leroy'), messages: [] });
+  }
+  await view.settle();
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.doesNotMatch(view.text(), /Chargement des messages de Sophie Leroy|Aucun message dans cette conversation/);
+  assert.equal(view.visibleProps('MessagingComposer').disabled, false);
+  assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
+});
+
+test('a refused already confirmed thread preserves known messages and its draft', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', {target:{value:'Brouillon conservé'}});
+  messageBff.on('get', '/conversations/{conversationId}/messages', {
+    status: 503, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true,
+  });
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication')));
+  await view.waitFor(() => /Lecture refusée/.test(view.text()));
+  assert.match(view.text(), /Bonjour à tous/);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+  assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
+});
+
+for (const cause of ['redirect', '401']) {
+  test(`explicit thread selection handles ${cause} before any polling tick`, async (t) => {
+    await renderLoadedPage();
+    await view.settle();
+    if (cause === 'redirect') {
+      t.mock.method(messageClient, 'getConversationMessages', async () => { throw new BffNavigationRequiredError(); });
+    } else {
+      messageBff.on('get', '/conversations/{conversationId}/messages', {
+        status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true,
+      });
+    }
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => browser.window.location.reloads + browser.window.location.assigned.length === 1);
+    assert.equal(browser.window.location.reloads + browser.window.location.assigned.length, 1);
+    assert.deepEqual(network.browserCalls.filter(call => call.path === '/api/auth/logout'),
+      []);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+    browser.tickIntervals(2000);
+    browser.focus();
+    await view.settle();
+    assert.equal(browser.window.location.reloads + browser.window.location.assigned.length, 1);
+  });
+}
+
+for (const status of [403, 503]) {
+  test(`explicit thread selection ${status} remains an actionable refusal, not logout`, async () => {
+    await renderLoadedPage();
+    await view.settle();
+    messageBff.on('get', '/conversations/{conversationId}/messages', {
+      status, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true,
+    });
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => /Lecture refusée/.test(view.text()));
+    assert.match(view.text(), /Lecture refusée/);
+    assert.equal(browser.window.location.reloads, 0);
+    assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+  });
+}
+
+for (const invalidate of ['hidden', 'selection', 'unmount']) {
+  test(`explicit thread selection ${invalidate} prevents obsolete session navigation`, async (t) => {
+    await renderLoadedPage();
+    await view.settle();
+    const originalRead = messageClient.getConversationMessages;
+    let rejectRead;
+    t.mock.method(messageClient, 'getConversationMessages', (id) => id === conversation(5, 'Sophie Leroy').id
+      ? new Promise((resolve, reject) => { rejectRead = reject; }) : originalRead(id));
+    view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy'));
+    await view.settle();
+    assert.equal(typeof rejectRead, 'function');
+    if (invalidate === 'hidden') browser.setHidden(true);
+    if (invalidate === 'selection') {
+      await view.act(() => view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication')));
+    }
+    if (invalidate === 'unmount') { view.unmount(); view = undefined; }
+    rejectRead(new BffRequestError('Session expirée', 401));
+    await new Promise(resolve => setImmediate(resolve));
+    if (view) await view.settle();
+    assert.equal(browser.window.location.reloads, 0);
+    assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+  });
+}
+
+test('explicit selection and polling share one Login navigation without replay', async (t) => {
+  await renderLoadedPage();
+  await view.settle();
+  t.mock.method(messageClient, 'getConversationMessages', async () => { throw new BffRequestError('Session expirée', 401); });
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+  await view.waitFor(() => browser.window.location.assigned.length === 1);
+  browser.tickIntervals(2000);
+  browser.focus();
+  await view.settle();
+  assert.equal(browser.window.location.assigned.length, 1);
+  assert.equal(browser.window.location.reloads, 0);
+  assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+});
+
+for (const cause of ['redirect', '401']) {
+  for (const source of ['list', 'selected thread', 'replacement thread']) {
+    test(`polling ${cause} on the ${source} starts the existing session navigation exactly once`, async (t) => {
+      await renderLoadedPage();
+      await view.settle();
+      const before = view.props('Messaging');
+      const previousMessages = before.messages;
+      let attempts = 0;
+      if (source === 'replacement thread') {
+        messageBff.on('get', '/conversations', { body: { conversations: [conversation(5, 'Sophie Leroy')] } });
+      }
+      const method = source === 'list' ? 'getConversations' : 'getConversationMessages';
+      if (cause === 'redirect') {
+        t.mock.method(messageClient, method, async () => {
+          attempts++;
+          throw new BffNavigationRequiredError();
+        });
+      } else {
+        const route = source === 'list' ? '/conversations' : '/conversations/{conversationId}/messages';
+        messageBff.on('get', route, () => {
+          attempts++;
+          return { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true };
+        });
+      }
+      browser.tickIntervals(2000);
+      await view.waitFor(() => browser.window.location.reloads + browser.window.location.assigned.length === 1);
+      browser.tickIntervals(2000);
+      browser.tickIntervals(2000);
+      browser.focus();
+      await view.settle();
+      assert.equal(browser.window.location.reloads + browser.window.location.assigned.length, 1);
+      assert.equal(attempts, 1);
+      assert.deepEqual(view.props('Messaging').messages, previousMessages);
+      assert.equal(view.props('Messaging').activeConversationId, before.activeConversationId);
+      assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+      assert.deepEqual(network.browserCalls.filter(call => call.path === '/api/auth/logout'),
+        []);
+    });
+  }
+}
+
+for (const status of [403, 503]) {
+  test(`a polling ${status} preserves the thread and does not reload or log out`, async () => {
+    await renderLoadedPage();
+    await view.settle();
+    const previousMessages = view.props('Messaging').messages;
+    messageBff.on('get', '/conversations', { status, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true });
+    browser.tickIntervals(2000);
+    await view.waitFor(html => html.includes('La synchronisation des conversations est momentanément indisponible.'));
+    assert.equal(browser.window.location.reloads, 0);
+    assert.deepEqual(view.props('Messaging').messages, previousMessages);
+    messageBff.on('get', '/conversations', { body: { conversations: [conversation(4, 'Équipe communication')] } });
+    browser.tickIntervals(2000);
+    await view.waitFor(html => !html.includes('La synchronisation des conversations est momentanément indisponible.'));
+    assert.equal(browser.window.location.reloads, 0);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+    assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+  });
+}
+
+test('a 401 Login navigation is single-flight and a transport failure does not reject the polling task', async (t) => {
+  await renderLoadedPage();
+  await view.settle();
+  messageBff.on('get', '/conversations', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
+  browser.tickIntervals(2000);
+  await view.waitFor(() => browser.window.location.assigned.length === 1);
+  browser.tickIntervals(2000);
+  browser.focus();
+  await view.settle();
+  assert.equal(browser.window.location.assigned.length, 1);
+  assert.equal(browser.window.location.reloads, 0);
+  assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+});
+
+test('a generic polling network failure never implies a Login navigation', async (t) => {
+  await renderLoadedPage();
+  await view.settle();
+  t.mock.method(messageClient, 'getConversations', async () => { throw new TypeError('Failed to fetch'); });
+  browser.tickIntervals(2000);
+  await view.waitFor(html => html.includes('La synchronisation des conversations est momentanément indisponible.'));
+  assert.equal(browser.window.location.reloads, 0);
+  assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+  assert.match(view.text(), /Bonjour à tous/);
+});
+
+for (const invalidate of ['hidden', 'selection', 'unmount']) {
+  test(`a ${invalidate} polling response cannot start an obsolete Login navigation`, async (t) => {
+    await renderLoadedPage();
+    await view.settle();
+    let rejectRead;
+    let attempted = false;
+    t.mock.method(messageClient, 'getConversations', () => {
+      attempted = true;
+      return new Promise((resolve, reject) => { rejectRead = reject; });
+    });
+    browser.tickIntervals(2000);
+    await view.waitFor(() => attempted);
+    if (invalidate === 'hidden') browser.setHidden(true);
+    if (invalidate === 'selection') {
+      await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    }
+    if (invalidate === 'unmount') { view.unmount(); view = undefined; }
+    rejectRead(new BffNavigationRequiredError());
+    if (view) await view.settle();
+    else await new Promise(resolve => setImmediate(resolve));
+    assert.equal(browser.window.location.reloads, 0);
+  });
+}
+
+test('bootstrap renders French timestamp labels without modifying message text or source data', async () => {
+  browser.setHidden(true); // Inspect bootstrap before the independent visible-tab refresh.
+  const body = bootstrap();
+  const timestamp = '2026-09-26T23:30:00Z';
+  body.conversations[0] = conversation(4, 'Équipe communication', { lastMessageAt: timestamp });
+  body.messages[0] = message(1, 4, 'Rendez-vous à 9 h 05', users.sophie, { sentAt: timestamp });
+  await renderLoadedPage(body);
+
+  assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
+  assert.equal(view.props('Messaging').messages[0].sentAt, frenchTime(timestamp));
+  assert.equal(body.messages[0].content, 'Rendez-vous à 9 h 05');
+  assert.match(view.text(), /Sophie Leroy/);
+  assert.match(view.text(), /Rendez-vous à 9 h 05/);
+  assert.ok(view.text().includes(frenchTime(timestamp)));
+  assert.equal(body.messages[0].sentAt, timestamp);
+  assert.equal(body.conversations[0].lastMessageAt, timestamp);
+  assert.doesNotMatch(view.text(), /2026-09-26T23:30:00Z/);
+});
+
+test('selection renders legacy times and preserves unknown or absent timestamp labels', async () => {
+  await renderLoadedPage();
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(5, 'Sophie Leroy', { kind: 'direct', lastMessageAt: '09 h 45' }),
+    messages: [
+      message(2, 5, 'Heure transmise', users.sophie, { sentAt: '09 h 45' }),
+      message(3, 5, 'Sans horodatage', users.sophie, { sentAt: undefined }),
+      message(4, 5, 'Valeur inconnue', users.sophie, { sentAt: 'Hier' }),
+    ],
+  } }));
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-4'));
+  const selected = view.props('Messaging').messages.filter(item => item.conversationId === 'conversation-5');
+  assert.deepEqual(selected.map(item => item.sentAt), ['09:45', undefined, 'Hier']);
+  assert.equal(view.props('Messaging').conversations.find(item => item.id === 'conversation-5').lastMessageAt, '09:45');
+  assert.match(view.text(), /09:45/);
+  assert.match(view.text(), /Sans horodatage/);
+  assert.doesNotMatch(view.text(), /Invalid Date/);
+});
+
+test('focus refresh formats new timestamps without changing BFF ordering or unread counts', async () => {
+  await renderLoadedPage();
+  const timestamp = '2026-09-27T08:15:00+04:00';
+  const refreshed = conversation(4, 'Équipe communication', { lastMessageAt: timestamp, unreadCount: 3 });
+  messageBff.on('get', '/conversations', { body: { conversations: [refreshed, conversation(6, 'Autre groupe')] } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: refreshed,
+    messages: [message(10, 4, 'Message actualisé', users.sophie, { sentAt: timestamp })],
+  } }));
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-10'));
+  assert.equal(view.props('Messaging').messages[0].sentAt, frenchTime(timestamp));
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-4', 'conversation-6']);
+  assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
+  assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
+});
+
+test('send keeps user-authored date text and request payload intact, then formats only the BFF reply', async () => {
+  await renderLoadedPage();
+  const timestamp = '2026-09-26T14:00:00Z';
+  const content = 'Réunion à 9 h 05, référence 2026-09-26T14:00:00Z';
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({ status: 201, body: {
+    message: message(3, 4, content, users.agent, { sentAt: timestamp }),
+    conversation: conversation(4, 'Équipe communication', { lastMessage: content, lastMessageAt: timestamp }),
+  } }));
+  await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-4', content, attachments: [], mentions: [] }));
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-3'));
+  assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages', 'POST')[0].body,
+    { content, attachmentIds: [], mentionIds: [] });
+  assert.equal(view.props('Messaging').messages.find(item => item.id === 'message-3').sentAt, frenchTime(timestamp));
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'POST')[0].body.content, content);
+  assert.match(view.text(), /Agent Mairie \(vous\)/);
+  assert.match(view.text(), /Réunion à 9 h 05/);
+  assert.equal(view.props('Messaging').conversations[0].lastMessage, content);
+  assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
+});
+
+// MAIR-512 (the mocked 400 bodies below are contract-valid: the refusal is the BFF's own validation, mocked).
+// BFF_Message answers 503 to POST /attachments and refuses a non-empty attachmentIds, so the
+// page has no upload capability: files are not registered and a draft carrying them is refused locally.
+test('the page offers no onAttach and refuses a draft with attachments before any network call', async () => {
+  await renderLoadedPage();
+  assert.equal(view.props('Messaging').onAttach, undefined);
+  assert.equal(typeof view.props('Messaging').onSendMessage, 'function');
+  const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:refused-agenda' };
+
+  const result = await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content: 'Voici le document', attachments: [attachment], mentions: [],
+  }));
+  assert.equal(result, false);
+  const html = await view.waitFor((current) => current.includes('role="alert"'));
+  assert.match(html, new RegExp(`<p role="alert" class="messages-error">${ATTACHMENTS_UNAVAILABLE_MESSAGE}</p>`));
+  assert.equal(ATTACHMENTS_UNAVAILABLE_MESSAGE, 'Les pièces jointes ne sont pas encore disponibles. Retirez-les du brouillon pour envoyer votre message.');
+  assert.deepEqual(messageBff.requests.filter((call) => call.method === 'POST'), []);
+  assert.match(html, /Bonjour à tous/);
+
+  // The same draft without its files is sent normally.
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({ status: 201, body: {
+    message: message(3, 4, 'Voici le document'), conversation: conversation(4, 'Équipe communication', { lastMessage: 'Voici le document' }),
+  } }));
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content: 'Voici le document', attachments: [], mentions: [],
+  })), true);
+  await view.waitFor((current) => !current.includes('role="alert"'));
+  assert.deepEqual(messageBff.requests.filter((call) => call.method === 'POST').map((call) => call.template), ['/conversations/{conversationId}/messages']);
+});
+
+test('group mention options are highlighted but only user ids are sent as mentionIds', async () => {
+  await renderLoadedPage();
+  const options = view.props('Messaging').mentionOptions;
+  const group = options.find((option) => option.kind === 'group');
+  const sophie = options.find((option) => String(option.id) === `user-${users.sophie.id}`);
+  assert.ok(group && String(group.id).startsWith('conversation-'), 'a group conversation is offered as a mention');
+  assert.ok(sophie);
+  const content = `@${sophie.name} @${group.name} réunion à 14h`;
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({ status: 201, body: {
+    message: message(3, 4, content), conversation: conversation(4, 'Équipe communication', { lastMessage: content }),
+  } }));
+
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content, attachments: [], mentions: [sophie, group, { id: 'user-0', name: 'Nobody' }],
+  })), true);
+  await view.waitFor((current) => current.includes('réunion à 14h'));
+
+  const [call] = messageBff.calls('/conversations/{conversationId}/messages', 'POST');
+  assert.deepEqual(call.body, { content, attachmentIds: [], mentionIds: [`user-${users.sophie.id}`] });
+});
+
+for (const [label, operation, send, reply, expected] of [
+  ['send content with markup and too long', 'send', { conversationId: 'conversation-4', content: 'Bonjour', attachments: [], mentions: [] },
+    ['post', '/conversations/{conversationId}/messages', [
+      { path: 'body.content', message: 'Must not contain < or >' },
+      { path: 'body.content', message: 'String must contain at most 5000 character(s)' },
+      { path: 'body.mentionIds.0', message: 'Expected a user identifier' },
+      { path: 'body.attachmentIds', message: 'Attachments are not supported yet' },
+    ]],
+    'Le message ne doit pas contenir les caractères < ou >. Le message dépasse 5 000 caractères. Une mention ne correspond à aucun utilisateur connu. Retirez-la avant d’envoyer. Les pièces jointes ne sont pas encore disponibles. Retirez-les du brouillon pour envoyer votre message.'],
+  ['direct message refused fields', 'direct', { recipientId: 'user-9', message: 'Salut' },
+    ['post', '/direct-messages', [
+      { path: 'body.message', message: 'String must contain at least 1 character(s)' },
+      { path: 'body.recipientId', message: 'Expected a user identifier' },
+    ]],
+    'Le message est vide ou contient des caractères non autorisés. Le destinataire ne correspond à aucun utilisateur connu.'],
+  ['group refused fields', 'group', { name: 'Commission voirie', description: 'x', memberIds: ['user-3'] },
+    ['post', '/groups', [
+      { path: 'body.name', message: 'Must not contain < or >' },
+      { path: 'body.description', message: 'Too big: expected string to have <=500 characters' },
+      { path: 'body.memberIds.0', message: 'Expected a user identifier' },
+      { path: 'body.nickname', message: 'Unrecognized key' },
+      { message: 'Something else' },
+    ]],
+    'Le nom du groupe ne doit pas contenir les caractères < ou >. La description du groupe dépasse 500 caractères. Un membre sélectionné ne correspond à aucun utilisateur connu. nickname : Unrecognized key Something else'],
+  ['400 without details keeps the BFF message', 'send', { conversationId: 'conversation-4', content: 'Bonjour', attachments: [], mentions: [] },
+    ['post', '/conversations/{conversationId}/messages', []], 'Validation failed'],
+]) {
+  test(`a BFF 400 is explained in French per refused field (${label})`, async () => {
+    await renderLoadedPage();
+    const [method, template, details] = reply;
+    messageBff.on(method, template, { status: 400, body: { error: { code: 'BAD_REQUEST', message: 'Validation failed', details } }, outOfContract: true });
+    const handler = { send: 'onSendMessage', direct: 'onNewMessageSend', group: 'onCreateGroup' }[operation];
+
+    assert.equal(await view.act(() => view.props('Messaging')[handler](send)), false);
+    const html = await view.waitFor((current) => current.includes('role="alert"'));
+    const text = html.match(/<p role="alert" class="messages-error">([^<]*)<\/p>/)[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, '’');
+    assert.equal(text, expected);
+    assert.equal(messageBff.calls(template, method.toUpperCase()).length, 1);
+  });
+}
+
+test('selected files are uploaded before their server IDs are attached to a message', async (t) => {
+  await renderLoadedPage(bootstrap(), PageWithUploads);
+  const revokePreview = t.mock.method(URL, 'revokeObjectURL');
+  const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:sent-agenda' };
+  const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
+  await view.act(() => view.props('Messaging').onAttach([file], [attachment]));
+  messageBff.on('post', '/attachments', { status: 201, body: {
+    attachments: [{ id: 'stored-42', name: 'agenda.txt', size: 6, type: 'text/plain' }],
+  } });
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({ status: 201, body: {
+    message: message(3, 4, 'Voici le document', users.agent),
+    conversation: conversation(4, 'Équipe communication', { lastMessage: 'Voici le document' }),
+  } }));
+
+  const sendResult = await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content: 'Voici le document', attachments: [attachment], mentions: [],
+  }));
+  assert.equal(sendResult, true);
+  await view.waitFor(() => view.props('Messaging').messages.some((item) => item.id === 'message-3'));
+
+  const writes = messageBff.requests.filter((call) => call.method === 'POST');
+  assert.deepEqual(writes.map((call) => call.template), ['/attachments', '/conversations/{conversationId}/messages']);
+  assert.match(writes[0].headers['content-type'], /^multipart\/form-data; boundary=/);
+  assert.deepEqual(writes[1].body, { content: 'Voici le document', attachmentIds: ['stored-42'], mentionIds: [] });
+  assert.doesNotMatch(JSON.stringify(writes[1].body), /agenda\.txt-123-0/);
+  assert.equal(revokePreview.mock.callCount(), 1);
+  assert.equal(revokePreview.mock.calls[0].arguments[0], 'blob:sent-agenda');
+});
+
+test('failed or unregistered file uploads never send a message with a local attachment ID', async (t) => {
+  await renderLoadedPage(bootstrap(), PageWithUploads);
+  const revokePreview = t.mock.method(URL, 'revokeObjectURL');
+  const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:retry-agenda' };
+  const missingFileResult = await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content: 'Sans fichier réel', attachments: [attachment], mentions: [],
+  }));
+  assert.equal(missingFileResult, false);
+  await view.waitFor((html) => html.includes('La pièce jointe sélectionnée est indisponible'));
+  assert.equal(messageBff.calls('/attachments', 'post').length, 0);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'post').length, 0);
+
+  const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
+  await view.act(() => view.props('Messaging').onAttach([file], [attachment]));
+  messageBff.on('post', '/attachments', { status: 401, body: apiError('UNAUTHORIZED', 'Envoi du fichier refusé'), outOfContract: true });
+  const refusedUploadResult = await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content: 'Sans fichier enregistré', attachments: [attachment], mentions: [],
+  }));
+  assert.equal(refusedUploadResult, false);
+  await view.waitFor((html) => html.includes('Votre session a expiré.'));
+  assert.equal(messageBff.calls('/attachments', 'post').length, 1);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'post').length, 0);
+  assert.equal(revokePreview.mock.callCount(), 0);
+});
+
+test('an upload response without an ID cannot be mistaken for a sent attachment', async () => {
+  await renderLoadedPage(bootstrap(), PageWithUploads);
+  const attachment = { id: 'agenda.txt-123-0', name: 'agenda.txt', size: 6, type: 'text/plain' };
+  const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
+  await view.act(() => view.props('Messaging').onAttach([file], [attachment]));
+  messageBff.on('post', '/attachments', { status: 201, body: { attachments: [] } });
+
+  await view.act(() => view.props('Messaging').onSendMessage({
+    conversationId: 'conversation-4', content: 'Fichier non confirmé', attachments: [attachment], mentions: [],
+  }));
+  await view.waitFor((html) => html.includes('Le transfert des pièces jointes n’a pas été confirmé'));
+
+  assert.equal(messageBff.calls('/attachments', 'post').length, 1);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'post').length, 0);
+});
+
+// Observe completion without replacing the real client, Next.js route or contract mock.
+function trackReferenceRequests(t) {
+  const original = messageClient.getBusinessReferences;
+  const pending = [];
+  t.mock.method(messageClient, 'getBusinessReferences', () => {
+    const request = original();
+    pending.push(request);
+    return request;
+  });
+  return pending;
+}
+
+test('focus replaces business suggestions with the current BFF response, including an empty list', async (t) => {
+  const pending = trackReferenceRequests(t);
+  await renderLoadedPage();
+  await Promise.allSettled(pending);
+  const updated = businessReferences();
+  updated.references[0].title = 'Projet actualisé';
+  messageBff.on('get', '/business-references', { body: updated });
+
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').businessReferences[0]?.title === 'Projet actualisé');
+  assert.equal(pending.length, 2);
+  assert.equal(browser.window.location.reloads, 0);
+
+  messageBff.on('get', '/business-references', { body: { ...updated, references: [] } });
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').businessReferences.length === 0);
+  assert.equal(pending.length, 3);
+  assert.match(view.text(), /Bonjour à tous/);
+});
+
+test('business suggestions wait for visibility and do not add periodic background requests', async (t) => {
+  const pending = trackReferenceRequests(t);
+  browser.setHidden(true);
+  messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+  view = mount(React.createElement(Page));
+  await view.waitFor(() => view.find('Messaging').length > 0 && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('EmptyState').some(state => state.props.title === 'Aucune conversation')));
+  browser.focus();
+  browser.tickIntervals(2_000);
+  assert.equal(pending.length, 0);
+
+  browser.setHidden(false);
+  await view.waitFor(() => view.props('Messaging').businessReferences.length === 2);
+  assert.equal(pending.length, 1);
+  browser.tickIntervals(2_000);
+  assert.equal(pending.length, 1);
+});
+
+test('failed initial business suggestions stay empty and recover on focus', async (t) => {
+  const pending = trackReferenceRequests(t);
+  messageBff.on('get', '/business-references', { status: 503, body: apiError('UNAVAILABLE', 'Indisponible'), outOfContract: true });
+  await renderLoadedPage();
+  await Promise.allSettled(pending);
+  await view.settle();
+  assert.deepEqual(view.props('Messaging').businessReferences, []);
+
+  messageBff.on('get', '/business-references', { body: businessReferences() });
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').businessReferences.length === 2);
+});
+
+test('temporary business reference failures preserve the last successful suggestions', async (t) => {
+  const pending = trackReferenceRequests(t);
+  await renderLoadedPage();
+  await Promise.allSettled(pending);
+  const known = view.props('Messaging').businessReferences;
+
+  for (const reply of [
+    { status: 503, body: apiError('UNAVAILABLE', 'Indisponible'), outOfContract: true },
+    { dropConnection: true },
+  ]) {
+    messageBff.on('get', '/business-references', reply);
+    browser.focus();
+    await Promise.allSettled(pending);
+    await view.settle();
+    assert.deepEqual(view.props('Messaging').businessReferences, known);
+  }
+
+  const recovered = { ...businessReferences(), references: businessReferences().references.slice(1) };
+  messageBff.on('get', '/business-references', { body: recovered });
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').businessReferences.length === 1);
+});
+
+for (const status of [401, 403]) {
+  test(`business suggestions are cleared after an explicit ${status} access refusal`, async (t) => {
+    const pending = trackReferenceRequests(t);
+    await renderLoadedPage();
+    await Promise.allSettled(pending);
+    assert.equal(view.props('Messaging').businessReferences.length, 2);
+    messageBff.on('get', '/business-references', { status, body: apiError('FORBIDDEN', 'Accès refusé'), outOfContract: true });
+
+    browser.focus();
+    await view.waitFor(() => view.props('Messaging').businessReferences.length === 0);
+    assert.match(view.text(), /Bonjour à tous/);
+  });
+}
+
+test('simultaneous focus and visibility events share an in-flight business reference request', async (t) => {
+  const pending = trackReferenceRequests(t);
+  await renderLoadedPage();
+  await Promise.allSettled(pending);
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  t.after(() => release());
+  const updated = businessReferences();
+  updated.references[0].title = 'Dernière réponse';
+  messageBff.on('get', '/business-references', async () => {
+    await gate;
+    return { body: updated };
+  });
+
+  browser.focus();
+  browser.setHidden(true);
+  browser.setHidden(false);
+  browser.focus();
+  assert.equal(pending.length, 2);
+  release();
+  await view.waitFor(() => view.props('Messaging').businessReferences[0]?.title === 'Dernière réponse');
+  browser.focus();
+  assert.equal(pending.length, 3);
+  await Promise.allSettled(pending);
+});
+
+test('unmount removes business reference listeners and ignores the pending response', async (t) => {
+  const pending = trackReferenceRequests(t);
+  await renderLoadedPage();
+  await Promise.allSettled(pending);
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  t.after(() => release());
+  messageBff.on('get', '/business-references', async () => {
+    await gate;
+    return { body: { ...businessReferences(), references: [] } };
+  });
+  browser.focus();
+  assert.equal(pending.length, 2);
+  view.unmount();
+  const updates = t.mock.method(view, 'invalidate');
+  const passes = view.passes;
+  browser.focus();
+  browser.setHidden(true);
+  browser.setHidden(false);
+  release();
+  await Promise.allSettled(pending);
+  await view.settle();
+
+  assert.equal(pending.length, 2);
+  assert.equal(updates.mock.callCount(), 0);
+  assert.equal(view.passes, passes);
+  assert.equal(view.props('Messaging').businessReferences.length, 2);
+});
+
+test('the first pass withholds messaging controls until bootstrap, contacts and session are loaded', async () => {
   messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
   view = mount(React.createElement(Page));
 
   assert.equal(view.passes, 1);
-  assert.deepEqual(view.props('Messaging').conversations, []);
-  assert.equal(view.props('Messaging').emptyStateLabel, 'Chargement de la messagerie...');
+  assert.equal(view.find('Messaging').length, 0);
+  assert.match(view.text(), /Chargement de la messagerie/);
+  assert.equal(view.hostElements((props, text, tag) => tag === 'button' && text === 'Chargement en cours…')[0].props.disabled, true);
+  assert.doesNotMatch(view.text(), /Aucune conversation/);
+  assert.match(view.html, /messages-app-root/);
+  assert.match(view.html, /messages-main-inner/);
   assert.doesNotMatch(view.text(), /Équipe communication/);
 
-  const html = await view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation');
+  const html = await view.waitFor(() => view.find('Messaging').length > 0);
 
-  assert.deepEqual(upstream(), ['GET /business-references', 'GET /contacts', 'GET /me', 'GET /messaging/bootstrap']);
+  assert.equal(upstream().filter(call => call === 'GET /messaging/bootstrap').length, 1);
+  assert.equal((html.match(/<h1\b/g) ?? []).length, 1, 'the loaded workspace retains one accessible page title');
   assert.doesNotMatch(html, /role="alert"/);
   assert.match(view.text(), /Équipe communication/);
   assert.match(view.text(), /Sophie Leroy/);
@@ -89,18 +779,252 @@ test('the first pass renders the empty messaging, the next ones the bootstrap, c
   await view.waitFor(() => view.props('Header').user.name === 'Agent Mairie');
   assert.match(view.html, /<span[^>]*>Agent Mairie<\/span>/);
   assert.match(view.html, /<footer/);
+  const footer = view.html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/)?.[0];
+  assert.ok(footer);
+  assert.doesNotMatch(view.html, /<aside\b[^]*?<footer\b[^]*?<\/footer>[^]*?<\/aside>/);
+  assert.match(view.html, /<\/main>\s*<footer\b/);
+  assert.match(footer.replace(/<[^>]*>/g, ''), new RegExp(`© ${new Date().getFullYear()} Mairie360`));
+  assert.doesNotMatch(footer, /Version|<button\b|<a\b/);
 });
 
-test('a bootstrap failure is rendered as an alert and the messaging stays empty', async () => {
+test('narrow screens can switch to the conversation list and return to the selected thread', async () => {
+  await renderLoadedPage();
+
+  assert.match(view.html, /Voir les conversations/);
+  assert.doesNotMatch(view.html, /messages-list-open/);
+
+  await view.act(() => view.props('MobileConversationSwitch').onToggle());
+  assert.match(view.html, /messages-list-open/);
+  assert.match(view.html, /Retour à la conversation/);
+
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication')));
+  await view.waitFor(() => !view.html.includes('messages-list-open'));
+  assert.match(view.html, /Voir les conversations/);
+});
+
+test('desktop and mobile navigation expose only active modules and keep Settings functional', async () => {
+  const { setBrowserFrontUrls } = requireSrc('lib/front-urls.ts');
+  const assigned = [];
+  const originalAssign = global.window.location.assign;
+  global.window.location.assign = (href) => assigned.push(href);
+  setBrowserFrontUrls({
+    DASHBOARD_FRONT_URL: 'https://dashboard.test.example/',
+    PROJECT_FRONT_URL: 'https://projects.test.example/',
+    MESSAGE_FRONT_URL: 'https://messages.test.example/',
+    ELEARNING_FRONT_URL: 'https://training.test.example/',
+    CALENDAR_FRONT_URL: 'https://calendar.test.example/',
+    ADMINISTRATION_FRONT_URL: 'https://admin.test.example/',
+    SETTINGS_FRONT_URL: 'https://settings.test.example/',
+  });
+  try {
+    await renderLoadedPage();
+    assert.equal(view.props('Header').profileHref, 'https://settings.test.example/');
+    const isAdmin = view.props('Sidebar').isAdmin;
+    for (const mobileOpen of [false, true]) {
+      await view.act(() => view.props('Header').setSidebarOpen(mobileOpen));
+      const sidebars = view.find('Sidebar');
+      assert.equal(sidebars.length, mobileOpen ? 2 : 1);
+      for (const { props } of sidebars) {
+        assert.deepEqual(props.items.map(item => item.id),
+          ['dashboard', 'projects', 'messages', 'training', 'calendar', 'admin', 'settings']);
+        assert.equal(props.items.find(item => item.id === 'admin').adminOnly, true);
+        assert.equal(props.isAdmin, isAdmin);
+        assert.equal(props.activeItem, 'messages');
+      }
+      const menus = view.html.match(/<nav\b[^>]*aria-label="Menu principal"[^>]*>[\s\S]*?<\/nav>/g) ?? [];
+      assert.equal(menus.length, sidebars.length + 1);
+      for (const menu of menus) {
+        assert.doesNotMatch(menu, /E-mails|Fichiers/);
+        assert.match(menu, /Paramètres/);
+        assert.equal(menu.includes('>Administration<'), isAdmin);
+      }
+    }
+    const mobileSidebar = view.find('Sidebar')[1].props;
+    await view.act(() => mobileSidebar.onItemSelect(mobileSidebar.items.find(item => item.id === 'settings')));
+    assert.deepEqual(assigned, ['https://settings.test.example/']);
+    await view.act(() => view.props('Header').onPageChange('profile'));
+    assert.deepEqual(assigned, ['https://settings.test.example/', 'https://settings.test.example/']);
+    assert.equal(view.find('Sidebar').length, 1);
+  } finally {
+    setBrowserFrontUrls({});
+    global.window.location.assign = originalAssign;
+  }
+});
+
+test('the sidebar keeps Settings as the only account entry', async () => {
+  const { setBrowserFrontUrls } = requireSrc('lib/front-urls.ts');
+  setBrowserFrontUrls({ SETTINGS_FRONT_URL: 'https://settings.test.example/' });
+  try {
+    await renderLoadedPage();
+    const ids = view.props('Sidebar').items.map((item) => item.id);
+    assert.equal(ids.includes('profile'), false);
+    assert.equal(ids.filter((id) => id === 'settings').length, 1);
+  } finally {
+    setBrowserFrontUrls({});
+  }
+});
+
+test('a bootstrap failure is unavailable, not an empty result, and has explicit retry without write controls', async () => {
   messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('BFF_UNAVAILABLE', 'La messagerie est en maintenance'), outOfContract: true });
   view = mount(React.createElement(Page));
 
   const html = await view.waitFor((current) => current.includes('role="alert"'));
 
   assert.match(html, /<p role="alert" class="messages-error">La messagerie est en maintenance<\/p>/);
-  await view.waitFor(() => view.props('Messaging').emptyStateLabel === 'Aucune conversation');
-  assert.deepEqual(view.props('Messaging').conversations, []);
+  assert.equal(view.find('Messaging').length, 0);
+  assert.match(view.text(), /Messagerie indisponible/);
+  assert.doesNotMatch(view.text(), /Aucune conversation/);
+  assert.equal([...html.matchAll(/<button\b[^>]*>Réessayer<\/button>/g)].length, 1);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
   assert.doesNotMatch(view.text(), /Équipe communication/);
+});
+
+test('explicit bootstrap retries survive another refusal then use real returned data without reloading', async () => {
+  browser.setHidden(true);
+  messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true });
+  view = mount(React.createElement(Page));
+  await view.waitFor(html => html.includes('Lecture refusée'));
+  await view.click('Réessayer');
+  await view.waitFor(html => html.includes('Lecture refusée') && html.includes('Réessayer'));
+  assert.equal(messageBff.calls('/messaging/bootstrap').length, 2);
+  assert.equal(view.find('Messaging').length, 0);
+  messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+  await view.click('Réessayer');
+  await view.waitFor(() => view.find('Messaging').length > 0);
+  assert.equal(messageBff.calls('/messaging/bootstrap').length, 3);
+  assert.match(view.text(), /Bonjour à tous/);
+  assert.equal(view.props('Messaging').currentUserId, 'user-2');
+  assert.doesNotMatch(view.text(), /Lecture refusée|Réessayer|Messagerie indisponible/);
+  assert.equal(browser.window.location.reloads, 0);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+});
+
+test('a pending bootstrap retry rejects repeated callbacks before and after rendering', async () => {
+  browser.setHidden(true);
+  messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true });
+  view = mount(React.createElement(Page));
+  await view.waitFor(html => html.includes('Lecture refusée'));
+  const retry = view.hostElements((props, text, tag) => tag === 'button' && text === 'Réessayer')[0].props.onClick;
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  messageBff.on('get', '/messaging/bootstrap', async () => { await gate; return { body: bootstrap() }; });
+  try {
+    await view.act(() => { retry(); retry(); retry(); });
+    await view.waitFor(() => messageBff.calls('/messaging/bootstrap').length === 2);
+    assert.equal(view.find('Messaging').length, 0);
+    assert.match(view.html, /aria-busy="true"/);
+    const pending = view.hostElements((props, text, tag) => tag === 'button' && text === 'Chargement en cours…')[0];
+    assert.equal(pending.props.disabled, true);
+    await view.act(() => pending.props.onClick());
+    assert.equal(messageBff.calls('/messaging/bootstrap').length, 2);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+  } finally {
+    release();
+    await view.waitFor(() => view.find('Messaging').length > 0);
+  }
+  assert.equal(messageBff.calls('/messaging/bootstrap').length, 2);
+});
+
+test('a confirmed empty bootstrap is distinct from refusal and enables the normal messaging journey', async () => {
+  browser.setHidden(true);
+  const empty = { ...bootstrap(), conversations: [], messages: [], contacts: [], activeConversationId: '' };
+  messageBff.on('get', '/messaging/bootstrap', { body: empty });
+  messageBff.on('get', '/contacts', { body: { contacts: [] } });
+  view = mount(React.createElement(Page));
+  await view.waitFor(() => view.find('Messaging').length > 0);
+  assert.deepEqual(view.props('Messaging').conversations, []);
+  assert.deepEqual(view.props('Messaging').contacts, []);
+  assert.equal(view.find('EmptyState').some(state => state.props.title === 'Aucune conversation'), true);
+  assert.match(view.text(), /Créez un message ou un groupe pour commencer/);
+  assert.equal(typeof view.props('Messaging').onCreateGroup, 'function');
+  assert.doesNotMatch(view.text(), /Messagerie indisponible|Réessayer/);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+});
+
+test('retry retains the requested authorized thread and bootstrap contacts when contacts are refused', async () => {
+  browser.setHidden(true);
+  browser.window.location.search = '?conversation=conversation-5';
+  messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true });
+  view = mount(React.createElement(Page));
+  await view.waitFor(html => html.includes('Lecture refusée'));
+  messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+  messageBff.on('get', '/contacts', { status: 401, body: apiError('UNAUTHORIZED', 'Contacts refusés'), outOfContract: true });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
+    messages: [message(7, 5, 'Message ciblé après reprise', users.sophie)],
+  } }));
+  await view.click('Réessayer');
+  await view.waitFor(() => view.find('Messaging').length > 0);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.match(view.text(), /Message ciblé après reprise/);
+  assert.deepEqual(view.props('Messaging').contacts.map(item => item.name), ['Sophie Leroy', 'Thomas Bernard']);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+});
+
+test('a disposed bootstrap completion and a saved retry callback do not update an unmounted page', async (t) => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  messageBff.on('get', '/messaging/bootstrap', async () => { await gate; return { body: bootstrap() }; });
+  const original = messageClient.getBootstrap;
+  let pending;
+  t.mock.method(messageClient, 'getBootstrap', () => { pending = original(); return pending; });
+  view = mount(React.createElement(Page));
+  await view.waitFor(() => messageBff.calls('/messaging/bootstrap').length === 1);
+  const retry = view.hostElements((props, text, tag) => tag === 'button' && text === 'Chargement en cours…')[0].props.onClick;
+  view.unmount();
+  const updates = t.mock.method(view, 'invalidate');
+  release();
+  await pending;
+  await new Promise(resolve => setImmediate(resolve));
+  retry();
+  assert.equal(updates.mock.callCount(), 0);
+  assert.equal(messageBff.calls('/messaging/bootstrap').length, 1);
+  assert.equal(messageBff.calls('/contacts').length, 0);
+});
+
+test('bootstrap effect cleanup and replay ignores the older response after the replacement succeeds', async (t) => {
+  browser.setHidden(true);
+  const originalEffect = React.useEffect;
+  let bootstrapEffect;
+  let bootstrapDependencies;
+  t.mock.method(React, 'useEffect', (effect, deps) => {
+    // Identify the load callback dependency without assuming the bootstrap
+    // effect's source position relative to other effects.
+    if (!bootstrapEffect && deps?.length === 2 && typeof deps[0] === 'function' && deps[1] === null) {
+      bootstrapEffect = effect;
+      bootstrapDependencies = deps;
+    }
+    return originalEffect(effect, deps);
+  });
+  const releases = [];
+  messageBff.on('get', '/messaging/bootstrap', () => new Promise(resolve => { releases.push(resolve); }));
+  const original = messageClient.getBootstrap;
+  const pending = [];
+  t.mock.method(messageClient, 'getBootstrap', () => { const request = original(); pending.push(request); return request; });
+  view = mount(React.createElement(Page));
+  await view.waitFor(() => releases.length === 1);
+  // Replay only this effect lifecycle; this is not a full browser StrictMode test.
+  const bootstrapSlot = view.find('MessagesClient')[0].slots.find(slot => slot?.effect && slot.deps === bootstrapDependencies);
+  assert.equal(typeof bootstrapSlot?.cleanup, 'function');
+  bootstrapSlot.cleanup();
+  const cleanup = bootstrapEffect();
+  try {
+    await view.waitFor(() => releases.length === 2);
+    const replacement = bootstrap();
+    replacement.messages[0].content = 'Réponse récente confirmée';
+    releases[1]({ body: replacement });
+    await view.waitFor(() => view.find('Messaging').length > 0);
+    releases[0]({ body: bootstrap() });
+    await Promise.all(pending);
+    await view.settle();
+    assert.match(view.text(), /Réponse récente confirmée/);
+    assert.doesNotMatch(view.text(), /Bonjour à tous/);
+    assert.equal(messageBff.calls('/contacts').length, 1);
+  } finally {
+    releases.forEach(release => release({ body: bootstrap() }));
+    cleanup();
+    await Promise.allSettled(pending);
+  }
 });
 
 test('selecting a conversation loads its messages and renders them', async () => {
@@ -112,10 +1036,108 @@ test('selecting a conversation loads its messages and renders them', async () =>
   await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy', { kind: 'direct' })));
   const html = await view.waitFor((current) => current.includes('Oui, je relis.'));
 
-  assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages')[0].pathParams, { conversationId: 'conversation-5' });
+  assert.ok(messageBff.calls('/conversations/{conversationId}/messages').some((call) =>
+    call.pathParams.conversationId === 'conversation-5'));
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
   assert.match(html, /Salut, tu as vu le dossier \?/);
   assert.doesNotMatch(html, /role="alert"/);
+});
+
+for (const cause of ['redirect', '401']) {
+  test(`initial conversation URL handles ${cause} before mounting an unrelated thread`, async (t) => {
+    browser.window.location.search = '?conversation=conversation-5';
+    messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+    if (cause === 'redirect') {
+      t.mock.method(messageClient, 'getConversationMessages', async () => { throw new BffNavigationRequiredError(); });
+    } else {
+      messageBff.on('get', '/conversations/{conversationId}/messages', {
+        status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true,
+      });
+    }
+    view = mount(React.createElement(Page));
+    await view.waitFor(() => browser.window.location.reloads + browser.window.location.assigned.length === 1);
+    assert.equal(view.find('Messaging').length, 0);
+    assert.doesNotMatch(view.text(), /conversation demandée est introuvable ou inaccessible/);
+    assert.deepEqual(network.browserCalls.filter(call => call.path === '/api/auth/logout'),
+      []);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+    browser.tickIntervals(2000);
+    browser.focus();
+    await view.settle();
+    assert.equal(browser.window.location.reloads + browser.window.location.assigned.length, 1);
+  });
+}
+
+for (const status of [403, 503]) {
+  test(`initial conversation URL ${status} retains bootstrap without logging out`, async () => {
+    browser.window.location.search = '?conversation=conversation-5';
+    messageBff.on('get', '/conversations/{conversationId}/messages', request =>
+      request.pathParams.conversationId === 'conversation-5'
+        ? { status, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true }
+        : swappedModel({ body: { conversation: conversation(4, 'Équipe communication'), messages: [message(1, 4, 'Bonjour à tous', users.sophie)] } }));
+    await renderLoadedPage();
+    assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+    assert.match(view.text(), /Bonjour à tous/);
+    assert.match(view.text(), /conversation demandée est introuvable ou inaccessible/);
+    assert.equal(browser.window.location.reloads, 0);
+    assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+    assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+  });
+}
+
+for (const invalidate of ['hidden', 'unmount']) {
+  test(`initial conversation URL ${invalidate} ignores a late session failure`, async (t) => {
+    browser.window.location.search = '?conversation=conversation-5';
+    messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+    let rejectRead;
+    t.mock.method(messageClient, 'getConversationMessages', () => new Promise((resolve, reject) => { rejectRead = reject; }));
+    view = mount(React.createElement(Page));
+    await view.waitFor(() => typeof rejectRead === 'function');
+    if (invalidate === 'hidden') browser.setHidden(true);
+    else { view.unmount(); view = undefined; }
+    rejectRead(new BffRequestError('Session expirée', 401));
+    await new Promise(resolve => setImmediate(resolve));
+    if (view) await view.settle();
+    assert.equal(browser.window.location.reloads, 0);
+    assert.equal(network.browserCalls.some(call => call.path === '/api/auth/logout'), false);
+  });
+}
+
+test('a conversation URL opens the authorized BFF thread without changing the default journey', async () => {
+  browser.window.location.search = '?conversation=conversation-5';
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({
+    body: {
+      conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
+      messages: [message(7, 5, 'Message ciblé', users.sophie)],
+    },
+  }));
+
+  await renderLoadedPage();
+
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.match(view.text(), /Message ciblé/);
+  assert.ok(messageBff.calls('/conversations/{conversationId}/messages').some((call) =>
+    call.pathParams.conversationId === 'conversation-5'));
+  assert.deepEqual(view.props('Messaging').conversations.map((item) => item.id), ['conversation-4', 'conversation-5']);
+});
+
+test('an inaccessible conversation URL keeps the real bootstrap and reports the failed target', async () => {
+  browser.window.location.search = '?conversation=conversation-999';
+  messageBff.on('get', '/conversations/{conversationId}/messages', (request) =>
+    request.pathParams.conversationId === 'conversation-999'
+      ? { status: 404, body: apiError('NOT_FOUND', 'Conversation introuvable'), outOfContract: true }
+      : swappedModel({ body: {
+          conversation: conversation(4, 'Équipe communication'),
+          messages: [message(1, 4, 'Bonjour à tous', users.sophie)],
+        } }),
+  );
+
+  await renderLoadedPage();
+
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.match(view.text(), /Bonjour à tous/);
+  assert.match(view.text(), /La conversation demandée est introuvable ou inaccessible/);
+  assert.equal(view.props('Messaging').conversations.length, 2);
 });
 
 test('sending a message posts it to the BFF and appends the answer to the thread', async () => {
@@ -139,7 +1161,8 @@ test('a refused send is shown as an alert without losing the thread', async () =
   await renderLoadedPage();
   messageBff.on('post', '/conversations/{conversationId}/messages', { status: 403, body: apiError('FORBIDDEN', 'Vous ne faites plus partie de cette conversation'), outOfContract: true });
 
-  await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-4', content: 'Encore là ?', attachments: [], mentions: [] }));
+  const sendResult = await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-4', content: 'Encore là ?', attachments: [], mentions: [] }));
+  assert.equal(sendResult, false);
   const html = await view.waitFor((current) => current.includes('role="alert"'));
 
   assert.match(html, /<p role="alert" class="messages-error">Vous ne faites plus partie de cette conversation<\/p>/);
@@ -147,39 +1170,1051 @@ test('a refused send is shown as an alert without losing the thread', async () =
   assert.doesNotMatch(html, /Encore là \?/);
 });
 
-test('a new message to a contact without a direct conversation creates it through POST /direct-messages', async () => {
+test('a refused direct message returns failure and preserves the selected conversation', async () => {
   await renderLoadedPage();
-  messageBff.on('post', '/direct-messages', {
-    status: 201,
-    body: { conversation: conversation(10, 'Thomas Bernard', { kind: 'direct' }), message: message(7, 10, 'Bonjour Thomas') },
+  messageBff.on('post', '/direct-messages', { status: 403, body: apiError('FORBIDDEN', 'Message direct refusé'), outOfContract: true });
+  const result = await view.act(() => view.props('Messaging').onNewMessageSend({
+    recipientId: `user-${users.thomas.id}`, message: 'Bonjour Thomas',
+  }));
+
+  assert.equal(result, false);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.match(view.text(), /Message direct refusé/);
+});
+
+test('group creation exposes the pending promise and confirms only the BFF-created conversation', async () => {
+  await renderLoadedPage();
+  let reply;
+  messageBff.on('post', '/groups', () => new Promise((resolve) => { reply = resolve; }));
+  const payload = { name: 'Groupe confirmé', description: 'Depuis le formulaire', memberIds: [`user-${users.sophie.id}`] };
+  const pending = view.props('Messaging').onCreateGroup(payload);
+  assert.equal(typeof pending?.then, 'function', 'the library must receive the actual service promise');
+  await view.waitFor(() => typeof reply === 'function');
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.equal(view.props('Messaging').conversations.length, 2, 'no optimistic group is invented');
+
+  reply({ status: 201, body: { conversation: conversation(6, payload.name) } });
+  assert.equal(await pending, true);
+  await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-6');
+  assert.equal(view.props('Messaging').conversations.length, 3);
+  const [call] = messageBff.calls('/groups', 'POST');
+  assert.deepEqual(call.body, payload);
+});
+
+test('refused group creation returns false, preserves the existing thread and supports retry', async () => {
+  await renderLoadedPage();
+  const payload = { name: 'Groupe à réessayer', description: 'Conservée', memberIds: [`user-${users.sophie.id}`] };
+  messageBff.on('post', '/groups', { status: 503, body: apiError('UNAVAILABLE', 'Création indisponible'), outOfContract: true });
+  const refused = await view.act(() => view.props('Messaging').onCreateGroup(payload));
+  assert.equal(refused, false);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.equal(view.props('Messaging').conversations.length, 2);
+  assert.match(view.text(), /Création indisponible/);
+  assert.match(view.text(), /Bonjour à tous/);
+
+  messageBff.on('post', '/groups', { status: 201, body: { conversation: conversation(6, payload.name) } });
+  const confirmed = await view.act(() => view.props('Messaging').onCreateGroup(payload));
+  assert.equal(confirmed, true);
+  await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-6');
+  assert.doesNotMatch(view.text(), /Création indisponible/);
+  assert.equal(messageBff.calls('/groups', 'POST').length, 2);
+  assert.deepEqual(messageBff.calls('/groups', 'POST')[1].body, messageBff.calls('/groups', 'POST')[0].body);
+});
+
+test('focus refreshes the real conversation list and active thread without duplicates', async () => {
+  await renderLoadedPage();
+  messageBff.on('get', '/conversations', { body: { conversations: [
+    conversation(4, 'Équipe communication', { lastMessage: 'Nouveau du serveur' }),
+    conversation(6, 'Nouveau groupe', { unreadCount: 1 }),
+  ] } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication'),
+    messages: [message(1, 4, 'Bonjour à tous', users.sophie), message(3, 4, 'Nouveau du serveur', users.sophie)],
+  } }));
+
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').messages.some((item) => item.id === 'message-3'));
+
+  assert.deepEqual(view.props('Messaging').conversations.map((item) => item.id), ['conversation-4', 'conversation-6']);
+  assert.deepEqual(view.props('Messaging').messages.map((item) => item.id), ['message-1', 'message-3']);
+  assert.match(view.text(), /Nouveau du serveur/);
+});
+
+test('the two-second visible-page interval matches the reference conversation cadence', async () => {
+  await renderLoadedPage();
+  const previousListCalls = messageBff.calls('/conversations').length;
+  messageBff.on('get', '/conversations', { body: { conversations: [
+    conversation(4, 'Équipe communication'), conversation(8, 'Synchronisé'),
+  ] } });
+
+  browser.tickIntervals(2_000);
+  await view.waitFor(() => view.props('Messaging').conversations.some((item) => item.id === 'conversation-8'));
+
+  assert.equal(messageBff.calls('/conversations').length, previousListCalls + 1);
+});
+
+test('two-second ticks do not overlap a slow conversation-list refresh', async () => {
+  await renderLoadedPage();
+  const previousListCalls = messageBff.calls('/conversations').length;
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  messageBff.on('get', '/conversations', async () => {
+    await gate;
+    return { body: { conversations: [conversation(4, 'Équipe communication')] } };
   });
+  try {
+    browser.tickIntervals(2_000);
+    await view.waitFor(() => messageBff.calls('/conversations').length === previousListCalls + 1);
+    browser.tickIntervals(2_000);
+    browser.tickIntervals(2_000);
+    browser.focus();
+    await view.settle();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(messageBff.calls('/conversations').length, previousListCalls + 1);
+  } finally {
+    release();
+  }
+  await view.waitFor(() => view.props('Messaging').conversations.length === 1);
+});
 
-  await view.act(() => view.props('Messaging').onNewMessageSend({ recipientId: 'user-9', message: 'Bonjour Thomas' }));
-  await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-10');
+test('two-second ticks do not overlap a slow active-thread refresh', async () => {
+  await renderLoadedPage();
+  const previousListCalls = messageBff.calls('/conversations').length;
+  const previousThreadCalls = messageBff.calls('/conversations/{conversationId}/messages').length;
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  messageBff.on('get', '/conversations/{conversationId}/messages', async () => {
+    await gate;
+    return swappedModel({ body: {
+      conversation: conversation(4, 'Équipe communication'),
+      messages: [message(12, 4, 'Reçu après lecture lente', users.sophie)],
+    } });
+  });
+  try {
+    browser.tickIntervals(2_000);
+    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages').length === previousThreadCalls + 1);
+    browser.tickIntervals(2_000);
+    browser.focus();
+    await view.settle();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(messageBff.calls('/conversations').length, previousListCalls + 1);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, previousThreadCalls + 1);
+  } finally {
+    release();
+  }
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-12'));
+});
 
-  const [call] = messageBff.calls('/direct-messages', 'POST');
-  assert.deepEqual(call.body, { recipientId: 'user-9', message: 'Bonjour Thomas' });
+test('two-second refresh preserves an unsent composer draft and official unread counts', async () => {
+  await renderLoadedPage();
+  await view.fire((props, text, tag) => tag === 'input' && props.placeholder === 'Tapez votre message...',
+    'onChange', { target: { value: 'Brouillon conservé pendant la réception' } });
+  messageBff.on('get', '/conversations', { body: { conversations: [
+    conversation(4, 'Équipe communication', { unreadCount: 3 }),
+  ] } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication', { unreadCount: 3 }),
+    messages: [message(13, 4, 'Message reçu automatiquement', users.sophie)],
+  } }));
+  browser.tickIntervals(2_000);
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-13'));
+  assert.equal(view.hostElements((props, text, tag) => tag === 'input' &&
+    props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé pendant la réception');
+  assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
   assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'POST').length, 0);
 });
 
-// `contactId` is added by BFF_Message#146 (MAIR-204) and is not in the pinned contract yet: the
-// bootstrap carrying it is out of contract until @mairie360/bff-message-openapi is bumped.
-test('a new message to a contact with a direct conversation is posted into it', async () => {
-  const body = bootstrap();
-  body.conversations = body.conversations.map((item) =>
-    item.id === 'conversation-5' ? { ...item, contactId: 'user-7' } : item);
-  await renderLoadedPage(body, { outOfContract: true });
+test('two-second polling is inactive after the page unmounts', async () => {
+  await renderLoadedPage();
+  view.unmount();
+  const previousCalls = messageBff.requests.length;
+  browser.tickIntervals(2_000);
+  browser.focus();
+  browser.setHidden(true);
+  browser.setHidden(false);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(messageBff.requests.length, previousCalls);
+});
+
+test('refresh keeps the BFF unread count without calling the non-persistent read route', async () => {
+  await renderLoadedPage();
+  messageBff.on('get', '/conversations', { body: { conversations: [
+    conversation(4, 'Équipe communication', { unreadCount: 2 }),
+  ] } });
+
+  browser.focus();
+  await view.waitFor(() => view.props('Messaging').conversations[0]?.unreadCount === 2);
+
+  assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+});
+
+test('a hidden tab does not refresh messages, then refreshes when shown', async () => {
+  await renderLoadedPage();
+  const previousListCalls = messageBff.calls('/conversations').length;
+  browser.setHidden(true);
+  browser.focus();
+  browser.tickIntervals(2_000);
+  await view.settle();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(messageBff.calls('/conversations').length, previousListCalls);
+
+  messageBff.on('get', '/conversations', { body: { conversations: [
+    conversation(4, 'Équipe communication'), conversation(7, 'Retour visible'),
+  ] } });
+  browser.setHidden(false);
+  await view.waitFor(() => view.props('Messaging').conversations.some((item) => item.id === 'conversation-7'));
+  assert.equal(messageBff.calls('/conversations').length, previousListCalls + 1);
+});
+
+test('a failed refresh preserves the known thread and recovers on focus', async () => {
+  await renderLoadedPage();
+  messageBff.on('get', '/conversations', { status: 503, body: apiError('BFF_UNAVAILABLE', 'Indisponible'), outOfContract: true });
+  browser.focus();
+  await view.waitFor((html) => html.includes('La synchronisation des conversations est momentanément indisponible.'));
+  assert.match(view.text(), /Bonjour à tous/);
+  assert.equal(view.props('Messaging').conversations.length, 2);
+
+  messageBff.on('get', '/conversations', { body: { conversations: [conversation(4, 'Équipe communication')] } });
+  browser.focus();
+  await view.waitFor((html) => !html.includes('La synchronisation des conversations est momentanément indisponible.') &&
+    view.props('Messaging').conversations.length === 1);
+});
+
+test('a stale refresh cannot erase a message sent while it was in flight', async () => {
+  await renderLoadedPage();
+  let release;
+  let responded = false;
+  const gate = new Promise((resolve) => { release = resolve; });
+  messageBff.on('get', '/conversations', async () => {
+    await gate;
+    responded = true;
+    return { body: { conversations: [conversation(4, 'Équipe communication')] } };
+  });
   messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({
     status: 201,
-    body: { message: message(8, 5, 'Tu as relu ?'), conversation: conversation(5, 'Sophie Leroy', { kind: 'direct', lastMessage: 'Tu as relu ?' }) },
+    body: { message: message(9, 4, 'Envoyé pendant le rafraîchissement'), conversation: conversation(4, 'Équipe communication') },
   }));
+  browser.focus();
+  await view.waitFor(() => messageBff.calls('/conversations').length === 2);
+  await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-4', content: 'Envoyé pendant le rafraîchissement', attachments: [], mentions: [] }));
+  release();
+  await view.waitFor(() => responded && view.props('Messaging').messages.some((item) => item.id === 'message-9'));
+  assert.equal(view.props('Messaging').messages.filter((item) => item.id === 'message-9').length, 1);
+});
 
-  await view.act(() => view.props('Messaging').onNewMessageSend({ recipientId: 'user-7', message: 'Tu as relu ?' }));
-  await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5');
+test('a stale refresh cannot replace a newly selected thread', async () => {
+  await renderLoadedPage();
+  let release;
+  let responded = false;
+  const gate = new Promise((resolve) => { release = resolve; });
+  messageBff.on('get', '/conversations', async () => {
+    await gate;
+    responded = true;
+    return { body: { conversations: bootstrap().conversations } };
+  });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
+    messages: [message(8, 5, 'Fil sélectionné', users.sophie)],
+  } }));
+  browser.focus();
+  await view.waitFor(() => messageBff.calls('/conversations').length === 2);
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy', { kind: 'direct' })));
+  release();
+  await view.waitFor(() => responded && view.props('Messaging').messages.some((item) => item.id === 'message-8'));
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.match(view.text(), /Fil sélectionné/);
+});
 
-  const [call] = messageBff.calls('/conversations/{conversationId}/messages', 'POST');
-  assert.deepEqual(call.pathParams, { conversationId: 'conversation-5' });
-  assert.deepEqual(call.body, { content: 'Tu as relu ?', attachmentIds: [], mentionIds: [] });
-  assert.equal(messageBff.calls('/direct-messages', 'POST').length, 0);
-  assert.equal(view.props('Messaging').conversations.filter((item) => item.id === 'conversation-5').length, 1);
+test('a stale refresh cannot restore a deleted conversation', async () => {
+  await renderLoadedPage();
+  let release;
+  let responded = false;
+  const gate = new Promise((resolve) => { release = resolve; });
+  messageBff.on('get', '/conversations', async () => {
+    await gate;
+    responded = true;
+    return { body: { conversations: bootstrap().conversations } };
+  });
+  messageBff.on('delete', '/conversations/{conversationId}', {
+    body: { deleted: true, conversationId: 'conversation-4' },
+  });
+  browser.focus();
+  await view.waitFor(() => messageBff.calls('/conversations').length === 2);
+  await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+  release();
+  await view.waitFor(() => responded && view.props('Messaging').conversations.length === 1);
+  assert.deepEqual(view.props('Messaging').conversations.map((item) => item.id), ['conversation-5']);
+  assert.equal(view.props('Messaging').activeConversationId, '');
+  assert.equal(view.props('MessagingComposer').disabled, true);
+  assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+});
+
+for (const [label, reply] of [
+  ['an empty 200 response', { raw: '', outOfContract: true }],
+  ['a missing acknowledgement', { body: {}, outOfContract: true }],
+  ['a false acknowledgement', { body: { deleted: false }, outOfContract: true }],
+  ['a string acknowledgement', { body: { deleted: 'true' }, outOfContract: true }],
+  ['a different conversation ID', { body: { deleted: true, conversationId: 'conversation-5' } }],
+]) {
+  test(`deletion preserves the selected conversation and messages after ${label}`, async () => {
+    await renderLoadedPage();
+    messageBff.on('delete', '/conversations/{conversationId}', reply);
+    await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+
+    assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-4', 'conversation-5']);
+    assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+    assert.match(view.text(), /Bonjour à tous/);
+    assert.match(view.html, /role="alert"[^]*?La suppression de la conversation n’a pas été confirmée/);
+    assert.equal(typeof view.props('Messaging').onConversationDelete, 'function', 'retry is available');
+  });
+}
+
+test('a confirmed deletion accepts the contract optional ID and preserves other messages', async () => {
+  await renderLoadedPage();
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
+    messages: [message(8, 5, 'Fil conservé', users.sophie)],
+  } }));
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-8'));
+  messageBff.on('delete', '/conversations/{conversationId}', { body: { deleted: true } });
+  await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.deepEqual(view.props('Messaging').messages.map(item => item.id), ['message-8']);
+  assert.match(view.text(), /Fil conservé/);
+  assert.doesNotMatch(view.text(), /La suppression de la conversation n’a pas été confirmée/);
+});
+
+test('a deletion refusal permits one guarded retry and preserves data while pending', async () => {
+  await renderLoadedPage();
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  messageBff.on('delete', '/conversations/{conversationId}', async () => {
+    await gate;
+    return { status: 503, body: apiError('UNAVAILABLE', 'Suppression momentanément refusée'), outOfContract: true };
+  });
+  const deleteHandler = view.props('Messaging').onConversationDelete;
+  let attempts;
+  await view.act(() => {
+    attempts = [deleteHandler(conversation(4, 'Équipe communication')), deleteHandler(conversation(4, 'Équipe communication'))];
+  });
+  try {
+    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}', 'DELETE').length >= 1);
+    assert.equal(messageBff.calls('/conversations/{conversationId}', 'DELETE').length, 1);
+    assert.equal(view.props('Messaging').onConversationDelete, undefined);
+    assert.match(view.html, /role="status"[^]*?Suppression de la conversation en cours/);
+    assert.match(view.text(), /Bonjour à tous/);
+    const reads = messageBff.calls('/conversations').length;
+    browser.focus();
+    browser.tickIntervals(2_000);
+    assert.equal(messageBff.calls('/conversations').length, reads, 'no refresh races a pending delete');
+  } finally {
+    release();
+    await Promise.all(attempts);
+  }
+  await view.waitFor(html => html.includes('Suppression momentanément refusée'));
+  assert.equal(view.props('Messaging').conversations.length, 2);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.equal(typeof view.props('Messaging').onConversationDelete, 'function');
+  assert.doesNotMatch(view.text(), /Suppression de la conversation en cours/);
+
+  messageBff.on('delete', '/conversations/{conversationId}', { body: { deleted: true, conversationId: 'conversation-4' } });
+  await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+  assert.equal(messageBff.calls('/conversations/{conversationId}', 'DELETE').length, 2);
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+  assert.doesNotMatch(view.text(), /Suppression momentanément refusée|Suppression de la conversation en cours/);
+});
+
+test('a delayed deletion preserves a conversation selected while it was pending', async () => {
+  await renderLoadedPage();
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  messageBff.on('delete', '/conversations/{conversationId}', async () => {
+    await gate;
+    return { body: { deleted: true, conversationId: 'conversation-4' } };
+  });
+  let pending;
+  await view.act(() => { pending = view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')); });
+  try {
+    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}', 'DELETE').length === 1);
+    messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+      conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
+      messages: [message(8, 5, 'Sélection pendant suppression', users.sophie)],
+    } }));
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-8'));
+  } finally {
+    release();
+    await pending;
+  }
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+  assert.match(view.text(), /Sélection pendant suppression/);
+});
+
+test('a newly selected thread may finish loading after another conversation is deleted', async () => {
+  await renderLoadedPage();
+  let releaseDelete;
+  let releaseSelection;
+  const deletionGate = new Promise(resolve => { releaseDelete = resolve; });
+  const selectionGate = new Promise(resolve => { releaseSelection = resolve; });
+  messageBff.on('delete', '/conversations/{conversationId}', async () => {
+    await deletionGate;
+    return { body: { deleted: true, conversationId: 'conversation-4' } };
+  });
+  messageBff.on('get', '/conversations/{conversationId}/messages', async () => {
+    await selectionGate;
+    return swappedModel({ body: {
+      conversation: conversation(5, 'Sophie Leroy', { kind: 'direct' }),
+      messages: [message(8, 5, 'Sélection chargée après suppression', users.sophie)],
+    } });
+  });
+  let pendingDelete;
+  await view.act(() => { pendingDelete = view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')); });
+  try {
+    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}', 'DELETE').length === 1);
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => /Chargement des messages de Sophie Leroy/.test(view.text()));
+    assert.equal(view.props('Messaging').activeConversationId, '');
+    releaseDelete();
+    await pendingDelete;
+  } finally {
+    releaseDelete();
+    releaseSelection();
+    await pendingDelete;
+  }
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-8'));
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.match(view.text(), /Sélection chargée après suppression/);
+});
+
+test('a confirmed numeric ID removes the last conversation and returns to the mobile list', async () => {
+  browser.setHidden(true);
+  const body = bootstrap();
+  body.conversations = [conversation(4, 'Dernier fil', { id: 4 })];
+  body.activeConversationId = 4;
+  body.messages = [message(1, 4, 'Dernier message', users.sophie, { conversationId: 4 })];
+  await renderLoadedPage(body);
+  messageBff.on('delete', '/conversations/{conversationId}', { body: { deleted: true, conversationId: '4' } });
+  await view.act(() => view.props('Messaging').onConversationDelete(body.conversations[0]));
+  assert.deepEqual(view.props('Messaging').conversations, []);
+  assert.deepEqual(view.props('Messaging').messages, []);
+  assert.equal(view.props('Messaging').activeConversationId, '');
+  assert.match(view.html, /messages-module-frame messages-list-open/);
+  assert.match(view.text(), /Aucune conversation/);
+  assert.doesNotMatch(view.text(), /Dernier message|Suppression de la conversation en cours/);
+});
+
+const fallbackThread = () => swappedModel({ body: {
+  conversation: conversation(5, 'Sophie Leroy', { kind: 'direct', unreadCount: 3 }),
+  messages: [message(20, 5, 'Historique officiel du fil suivant', users.sophie)],
+} });
+
+test('composed bootstrap recovery starts two-second reception and immediately reads a newly arrived first thread', async (t) => {
+  browser.setHidden(true);
+  messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('UNAVAILABLE', 'Lecture initiale refusée'), outOfContract: true });
+  view = mount(React.createElement(Page));
+  await view.waitFor(html => html.includes('Lecture initiale refusée'));
+  assert.equal(view.find('Messaging').length, 0);
+  const recovered = { ...bootstrap(), conversations: [], messages: [], activeConversationId: '' };
+  messageBff.on('get', '/messaging/bootstrap', { body: recovered });
+  messageBff.on('get', '/contacts', { status: 401, body: apiError('UNAUTHORIZED', 'Contacts refusés'), outOfContract: true });
+  await view.click('Réessayer');
+  await view.waitFor(() => view.find('Messaging').length > 0);
+  assert.deepEqual(view.props('Messaging').conversations, []);
+  assert.deepEqual(view.props('Messaging').contacts.map(item => item.name), ['Sophie Leroy', 'Thomas Bernard']);
+  assert.doesNotMatch(view.text(), /Lecture initiale refusée|Messagerie indisponible/);
+  messageBff.on('get', '/conversations', { body: { conversations: [] } });
+  const original = messageClient.getConversations;
+  let read;
+  t.mock.method(messageClient, 'getConversations', () => { read = original(); return read; });
+  browser.setHidden(false);
+  await read;
+  await view.settle();
+  const listsBeforeArrival = messageBff.calls('/conversations').length;
+  messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
+  browser.tickIntervals(2000);
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
+  assert.equal(messageBff.calls('/conversations').length, listsBeforeArrival + 1);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 1);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
+  assert.match(view.text(), /Historique officiel du fil suivant/);
+  assert.equal(messageBff.calls('/messaging/bootstrap').length, 2);
+  assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+});
+
+test('composed recovery skips cadence ticks through pending deletion and fallback before resuming official reads', async () => {
+  browser.setHidden(true);
+  messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('UNAVAILABLE', 'Lecture initiale refusée'), outOfContract: true });
+  view = mount(React.createElement(Page));
+  await view.waitFor(html => html.includes('Lecture initiale refusée'));
+  messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
+  await view.click('Réessayer');
+  await view.waitFor(() => view.find('Messaging').length > 0);
+  let releaseDelete;
+  let releaseThread;
+  const deleteGate = new Promise(resolve => { releaseDelete = resolve; });
+  const threadGate = new Promise(resolve => { releaseThread = resolve; });
+  let deletion;
+  messageBff.on('delete', '/conversations/{conversationId}', async () => {
+    await deleteGate;
+    return { body: { deleted: true, conversationId: 'conversation-4' } };
+  });
+  messageBff.on('get', '/conversations/{conversationId}/messages', async () => {
+    await threadGate;
+    return fallbackThread();
+  });
+  try {
+    await view.act(() => { deletion = view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')); });
+    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}', 'DELETE').length === 1);
+    browser.setHidden(false);
+    browser.tickIntervals(2000);
+    browser.tickIntervals(2000);
+    assert.equal(messageBff.calls('/conversations').length, 0);
+    assert.match(view.text(), /Bonjour à tous|Suppression de la conversation en cours/);
+    releaseDelete();
+    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages').length === 1);
+    browser.tickIntervals(2000);
+    browser.focus();
+    assert.equal(messageBff.calls('/conversations').length, 0);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 1);
+    releaseThread();
+    await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
+    assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+    assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+    assert.doesNotMatch(view.text(), /Bonjour à tous|Suppression de la conversation en cours/);
+    messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
+    messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+      ...fallbackThread().body, messages: [message(22, 5, 'Réception après reprise composée', users.sophie)],
+    } }));
+    browser.tickIntervals(2000);
+    await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-22'));
+    assert.equal(messageBff.calls('/conversations').length, 1);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 2);
+    assert.equal(messageBff.calls('/conversations/{conversationId}', 'DELETE').length, 1);
+    assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+  } finally {
+    releaseDelete();
+    releaseThread();
+    await deletion;
+    await view.settle();
+  }
+});
+
+async function renderFallbackPage(body = bootstrap()) {
+  // This helper observes bootstrap before polling; the existing helper expects zero unread.
+  body.conversations[0].unreadCount = 0;
+  return renderLoadedPage(body);
+}
+
+test('a confirmed active deletion immediately loads the fallback thread without another poll', async () => {
+  browser.setHidden(true);
+  await renderFallbackPage();
+  messageBff.on('delete', '/conversations/{conversationId}', { body: { deleted: true, conversationId: 'conversation-4' } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
+  await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+  await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+  assert.match(view.text(), /Historique officiel du fil suivant/);
+  assert.doesNotMatch(view.text(), /Bonjour à tous/);
+  assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages').map(call => call.pathParams.conversationId), ['conversation-5']);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+  assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
+});
+
+for (const label of ['disappeared active thread', 'new first conversation']) {
+  test(`one visible refresh loads the ${label} fallback immediately`, async () => {
+    browser.setHidden(true);
+    const body = bootstrap();
+    if (label === 'new first conversation') {
+      body.conversations = [];
+      body.messages = [];
+      body.activeConversationId = '';
+    }
+    messageBff.on('get', '/messaging/bootstrap', { body });
+    view = mount(React.createElement(Page));
+    await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Header').user.name !== 'Chargement…' && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('EmptyState').some(state => state.props.title === 'Aucune conversation')));
+    messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
+    messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
+    browser.setHidden(false);
+    await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
+    assert.equal(messageBff.calls('/conversations').length, 1, 'same refresh, not another two-second interval');
+    assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 1);
+    assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+    assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
+    assert.doesNotMatch(view.text(), /Bonjour à tous/);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+  });
+}
+
+for (const mode of ['delete', 'sync']) {
+  test(`a refused ${mode} fallback read preserves known remaining messages and recovers on selection`, async () => {
+    browser.setHidden(true);
+    const body = bootstrap();
+    body.messages.push(message(19, 5, 'Historique déjà connu', users.sophie));
+    await renderFallbackPage(body);
+    messageBff.on('get', '/conversations/{conversationId}/messages', { status: 503, body: apiError('UNAVAILABLE', 'Historique momentanément indisponible'), outOfContract: true });
+    if (mode === 'delete') {
+      messageBff.on('delete', '/conversations/{conversationId}', { body: { deleted: true } });
+      await view.act(() => view.props('Messaging').onConversationDelete(body.conversations[0]));
+    } else {
+      messageBff.on('get', '/conversations', { body: { conversations: [body.conversations[1]] } });
+      browser.setHidden(false);
+    }
+    await view.waitFor(html => html.includes('role="alert"') && view.props('Messaging').activeConversationId === 'conversation-5');
+    assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+    assert.match(view.text(), /Historique déjà connu/);
+    assert.doesNotMatch(view.text(), /Bonjour à tous/);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 1);
+    messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
+    await view.act(() => view.props('Messaging').onConversationSelect(body.conversations[1]));
+    await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
+    assert.doesNotMatch(view.html, /role="alert"/);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 2);
+    assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
+  });
+}
+
+test('a selected read carrying another conversation ID cannot resurrect a removed thread', async () => {
+  browser.setHidden(true);
+  await renderFallbackPage();
+  messageBff.on('delete', '/conversations/{conversationId}', { body: { deleted: true } });
+  // The default mock returns conversation-4 even though fallback requests conversation-5.
+  await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+  await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+  await view.waitFor(html => html.includes('role="alert"'));
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+  assert.doesNotMatch(view.text(), /Bonjour à tous/);
+});
+
+for (const outcome of ['success', 'refusal']) {
+  test(`a late fallback ${outcome} cannot replace a newer selected thread`, async () => {
+    browser.setHidden(true);
+    const body = bootstrap();
+    body.conversations.push(conversation(6, 'Troisième fil'));
+    await renderFallbackPage(body);
+    let release;
+    let responded = false;
+    const gate = new Promise(resolve => { release = resolve; });
+    messageBff.on('get', '/conversations', { body: { conversations: body.conversations.slice(1) } });
+    messageBff.on('get', '/conversations/{conversationId}/messages', async call => {
+      if (call.pathParams.conversationId === 'conversation-5') {
+        await gate;
+        responded = true;
+        return outcome === 'success' ? fallbackThread() : { status: 503, body: apiError('UNAVAILABLE', 'Refus tardif'), outOfContract: true };
+      }
+      return swappedModel({ body: { conversation: body.conversations[2], messages: [message(21, 6, 'Sélection plus récente', users.thomas)] } });
+    });
+    browser.setHidden(false);
+    try {
+      await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages').length === 1);
+      await view.act(() => view.props('Messaging').onConversationSelect(body.conversations[2]));
+      await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-21'));
+    } finally {
+      release();
+    }
+    await view.waitFor(() => responded);
+    assert.equal(view.props('Messaging').activeConversationId, 'conversation-6');
+    assert.match(view.text(), /Sélection plus récente/);
+    assert.doesNotMatch(view.html, /role="alert"/);
+    assert.equal(view.props('Messaging').messages.some(item => item.id === 'message-20'), false);
+  });
+}
+
+for (const action of ['send', 'delete']) {
+  test(`a fallback read of known history cannot overwrite a newer confirmed ${action} in that thread`, async () => {
+    browser.setHidden(true);
+    const body = bootstrap();
+    body.messages.push(message(19, 5, 'Historique déjà confirmé', users.sophie));
+    body.conversations.push(conversation(6, 'Troisième fil'));
+    await renderFallbackPage(body);
+    let release;
+    let responded = false;
+    const gate = new Promise(resolve => { release = resolve; });
+    messageBff.on('delete', '/conversations/{conversationId}', call => ({ body: { deleted: true, conversationId: call.pathParams.conversationId } }));
+    messageBff.on('get', '/conversations/{conversationId}/messages', async call => {
+      if (call.pathParams.conversationId === 'conversation-5') {
+        await gate;
+        responded = true;
+        return fallbackThread();
+      }
+      return swappedModel({ body: { conversation: body.conversations[2], messages: [message(21, 6, 'Troisième historique officiel')] } });
+    });
+    await view.act(() => view.props('Messaging').onConversationDelete(body.conversations[0]));
+    try {
+      await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages').length === 1);
+      if (action === 'send') {
+        messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({ status: 201, body: {
+          conversation: body.conversations[1], message: message(22, 5, 'Nouvel envoi confirmé'),
+        } }));
+        await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-5', content: 'Nouvel envoi confirmé', attachments: [], mentions: [] }));
+      } else {
+        await view.act(() => view.props('Messaging').onConversationDelete(body.conversations[1]));
+        await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-21'));
+      }
+    } finally {
+      release();
+    }
+    await view.waitFor(() => responded);
+    assert.equal(view.props('Messaging').messages.some(item => item.id === 'message-20'), false);
+    assert.equal(view.props('Messaging').activeConversationId, action === 'send' ? 'conversation-5' : 'conversation-6');
+    assert.match(view.text(), action === 'send' ? /Nouvel envoi confirmé/ : /Troisième historique officiel/);
+  });
+}
+
+test('a mismatched fallback refresh reports the failure without restoring the vanished thread', async () => {
+  browser.setHidden(true);
+  await renderFallbackPage();
+  messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
+  // Default thread response is for the vanished conversation-4.
+  browser.setHidden(false);
+  await view.waitFor(html => html.includes('Sélectionnez-la de nouveau pour réessayer'));
+  assert.equal(view.props('Messaging').activeConversationId, '');
+  assert.equal(view.props('MessagingComposer').disabled, true);
+  assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+  assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
+  assert.doesNotMatch(view.text(), /Bonjour à tous/);
+});
+
+// MAIR-370: confirm the requested send before releasing its local draft.
+test('MAIR-370: an unrelated successful receipt must not erase the active composer draft', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  const draft = 'Brouillon à conserver avant confirmation';
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: draft } });
+  const initial = view.props('Messaging').conversations;
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({
+    status: 201, body: {
+      conversation: conversation(5, 'Fil étranger renvoyé'),
+      message: message(99, 5, 'Retour étranger'),
+    },
+  }));
+  await view.fire((_props, _text, tag) => tag === 'form', 'onSubmit', { preventDefault() {} });
+  await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages', 'POST').length === 1 &&
+    view.hostElements(props => props.placeholder === 'Tapez votre message...')[0]?.props.disabled === false);
+  assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, draft,
+    'an HTTP201 for another conversation must not confirm or clear this draft');
+  assert.deepEqual(view.props('Messaging').conversations, initial);
+});
+
+const sendPath = '/conversations/{conversationId}/messages';
+const draftInput = () => view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props;
+const submitComposer = () => view.fire((_props, _text, tag) => tag === 'form', 'onSubmit', { preventDefault() {} });
+const unrelatedReceipt = () => swappedModel({ status: 201, body: {
+  conversation: conversation(5, 'Fil étranger'), message: message(99, 5, 'Retour étranger'),
+} });
+
+test('MAIR-370: a retry verifies the original receipt by GET and never posts it again', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Brouillon confirmé après lecture' } });
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  await submitComposer();
+  await view.waitFor(() => draftInput().disabled === false && view.text().includes('L’envoi reste à confirmer'));
+  const confirmed = message(99, 4, 'Brouillon confirmé après lecture');
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication'), messages: [message(1, 4, 'Bonjour à tous', users.sophie), confirmed],
+  } }));
+  await submitComposer();
+  await view.waitFor(() => draftInput().value === '');
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+  assert.equal(view.props('Messaging').messages.filter(item => item.id === confirmed.id).length, 1);
+  assert.doesNotMatch(view.text(), /L’envoi reste à confirmer|Fil étranger/);
+});
+
+test('MAIR-370: a missing receipt ID stays unconfirmed through GET-only retries', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  const send = view.props('Messaging').onSendMessage;
+  const payload = { conversationId: 'conversation-4', content: 'Ne pas republier un résultat inconnu', attachments: [], mentions: [] };
+  messageBff.on('post', sendPath, swappedModel({ status: 201, body: {} }));
+  assert.equal(await view.act(() => send(payload)), false);
+  for (let index = 0; index < 2; index++) assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+  assert.match(view.text(), /L’envoi reste à confirmer/);
+  assert.doesNotMatch(view.text(), /Ne pas republier un résultat inconnu/);
+});
+
+test('MAIR-370: verifying a previous send preserves a changed draft before a new explicit write', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Premier brouillon' } });
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  await submitComposer();
+  await view.waitFor(() => draftInput().disabled === false && view.text().includes('L’envoi reste à confirmer'));
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Nouvelle saisie indépendante' } });
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication'), messages: [message(99, 4, 'Premier brouillon')],
+  } }));
+  await submitComposer();
+  await view.waitFor(() => draftInput().disabled === false && view.text().includes('Le message initial est confirmé'));
+  assert.equal(draftInput().value, 'Nouvelle saisie indépendante');
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+  messageBff.on('post', sendPath, swappedModel({ status: 201, body: {
+    conversation: conversation(4, 'Équipe communication'), message: message(100, 4, 'Nouvelle saisie indépendante'),
+  } }));
+  await submitComposer();
+  await view.waitFor(() => draftInput().value === '');
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 2);
+  assert.deepEqual(messageBff.calls(sendPath, 'POST').map(call => call.body.content), ['Premier brouillon', 'Nouvelle saisie indépendante']);
+});
+
+test('MAIR-370: unconfirmed attachment sends verify without uploading or posting again', async t => {
+  await renderLoadedPage(bootstrap(), PageWithUploads);
+  await view.settle();
+  const revoke = t.mock.method(URL, 'revokeObjectURL');
+  const attachment = { id: 'draft-file', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:unconfirmed-agenda' };
+  await view.act(() => view.props('Messaging').onAttach([new File(['agenda'], 'agenda.txt', { type: 'text/plain' })], [attachment]));
+  messageBff.on('post', '/attachments', { status: 201, body: { attachments: [{ id: 'stored-42', name: 'agenda.txt', size: 6, type: 'text/plain' }] } });
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  const payload = { conversationId: 'conversation-4', content: 'Document conservé', attachments: [attachment], mentions: [] };
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  assert.equal(revoke.mock.callCount(), 0);
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication'), messages: [message(99, 4, 'Document conservé')],
+  } }));
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), true);
+  assert.equal(messageBff.calls('/attachments', 'POST').length, 1);
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+  assert.equal(revoke.mock.callCount(), 1);
+});
+
+test('MAIR-370: captured synchronous duplicate callbacks send one request', async t => {
+  await renderLoadedPage();
+  await view.settle();
+  const original = messageClient.sendMessage;
+  let release;
+  let received;
+  const gate = new Promise(resolve => { release = resolve; });
+  const ready = new Promise(resolve => { received = resolve; });
+  t.mock.method(messageClient, 'sendMessage', async (...args) => {
+    const result = await original(...args); received(); await gate; return result;
+  });
+  messageBff.on('post', sendPath, swappedModel({ status: 201, body: { conversation: conversation(4, 'Équipe communication'), message: message(99, 4, 'Une seule écriture') } }));
+  const send = view.props('Messaging').onSendMessage;
+  const payload = { conversationId: 'conversation-4', content: 'Une seule écriture', attachments: [], mentions: [] };
+  let first;
+  try {
+    await view.act(() => { first = send(payload); });
+    await ready;
+    assert.equal(await send(payload), false);
+    assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+    release();
+    assert.equal(await first, true);
+  } finally { release(); await first; }
+});
+
+test('MAIR-370: verification session refusal uses the existing navigation without repeating POST', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  const payload = { conversationId: 'conversation-4', content: 'Envoi à vérifier', attachments: [], mentions: [] };
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  messageBff.on('get', '/conversations/{conversationId}/messages', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  assert.equal(browser.window.location.reloads + browser.window.location.assigned.length, 1);
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+});
+test('MAIR-370: a mismatched verification preserves the confirmed history and uncertainty', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  const payload = { conversationId: 'conversation-4', content: 'Résultat à vérifier', attachments: [], mentions: [] };
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  const before = view.props('Messaging').messages;
+  messageBff.on('get', sendPath, swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication'), messages: [message(99, 5, 'Message du mauvais fil')],
+  } }));
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  assert.deepEqual(view.props('Messaging').messages, before);
+  messageBff.on('get', sendPath, swappedModel({ body: {
+    conversation: conversation(4, 'Équipe communication'), messages: [message(99, 4, payload.content)],
+  } }));
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), true);
+  assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+});
+
+for (const phase of ['upload', 'send']) {
+  test('MAIR-370: a disposed ' + phase + ' completion cannot confirm or start another write', async t => {
+    await renderLoadedPage(bootstrap(), phase === 'upload' ? PageWithUploads : Page);
+    await view.settle();
+    const attachment = { id: 'draft-file', name: 'agenda.txt', size: 6, type: 'text/plain', url: 'blob:disposed-agenda' };
+    if (phase === 'upload') {
+      await view.act(() => view.props('Messaging').onAttach([new File(['agenda'], 'agenda.txt', { type: 'text/plain' })], [attachment]));
+      messageBff.on('post', '/attachments', { status: 201, body: { attachments: [{ id: 'stored-42', name: 'agenda.txt', size: 6, type: 'text/plain' }] } });
+    }
+    messageBff.on('post', sendPath, swappedModel({ status: 201, body: {
+      conversation: conversation(4, 'Équipe communication'), message: message(99, 4, 'Ne pas confirmer après démontage'),
+    } }));
+    const method = phase === 'upload' ? 'uploadAttachments' : 'sendMessage';
+    const original = messageClient[method];
+    let release, received;
+    const gate = new Promise(resolve => { release = resolve; });
+    const ready = new Promise(resolve => { received = resolve; });
+    t.mock.method(messageClient, method, async (...args) => {
+      const result = await original(...args); received(); await gate; return result;
+    });
+    const send = view.props('Messaging').onSendMessage;
+    const payload = { conversationId: 'conversation-4', content: 'Ne pas confirmer après démontage', attachments: phase === 'upload' ? [attachment] : [], mentions: [] };
+    let pending;
+    try {
+      await view.act(() => { pending = send(payload); });
+      await ready;
+      view.unmount(); view = undefined;
+      release();
+      assert.equal(await pending, false);
+      assert.equal(await send(payload), false);
+      assert.equal(messageBff.calls(sendPath, 'POST').length, phase === 'upload' ? 0 : 1);
+      assert.equal(browser.window.location.reloads, 0);
+    } finally { release(); await pending; }
+  });
+}
+
+test('MAIR-370: a late verification cannot restore a deleted conversation', async t => {
+  await renderLoadedPage();
+  await view.settle();
+  const payload = { conversationId: 'conversation-4', content: 'Envoi avant suppression', attachments: [], mentions: [] };
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  assert.equal(await view.act(() => view.props('Messaging').onSendMessage(payload)), false);
+  const original = messageClient.getConversationMessages;
+  let release, received;
+  const gate = new Promise(resolve => { release = resolve; });
+  const ready = new Promise(resolve => { received = resolve; });
+  messageBff.on('get', sendPath, call => swappedModel({ body: {
+    conversation: conversation(call.pathParams.conversationId === 'conversation-4' ? 4 : 5, 'Fil confirmé'),
+    messages: [message(99, call.pathParams.conversationId === 'conversation-4' ? 4 : 5, payload.content)],
+  } }));
+  t.mock.method(messageClient, 'getConversationMessages', async id => {
+    const result = await original(id);
+    if (id === 'conversation-4') { received(); await gate; }
+    return result;
+  });
+  messageBff.on('delete', '/conversations/{conversationId}', call => ({ body: {
+    deleted: true, conversationId: call.pathParams.conversationId,
+  } }));
+  let pending;
+  try {
+    await view.act(() => { pending = view.props('Messaging').onSendMessage(payload); });
+    await ready;
+    await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
+    await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5');
+    release();
+    assert.equal(await pending, false);
+    await view.settle();
+    assert.equal(view.props('Messaging').conversations.some(item => item.id === 'conversation-4'), false);
+    assert.equal(view.props('Messaging').messages.some(item => item.conversationId === 'conversation-4'), false);
+    assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+  } finally { release(); await pending; }
+});
+
+test('MAIR-370: a late confirmation for another visited thread preserves the active draft', async t => {
+  await renderLoadedPage();
+  await view.settle();
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Premier fil à confirmer' } });
+  messageBff.on('post', sendPath, unrelatedReceipt());
+  await submitComposer();
+  await view.waitFor(() => draftInput().disabled === false && view.text().includes('L’envoi reste à confirmer'));
+  const original = messageClient.getConversationMessages;
+  let release, received;
+  const gate = new Promise(resolve => { release = resolve; });
+  const ready = new Promise(resolve => { received = resolve; });
+  messageBff.on('get', sendPath, call => swappedModel({ body: {
+    conversation: conversation(call.pathParams.conversationId === 'conversation-4' ? 4 : 5, 'Fil confirmé'),
+    messages: [message(99, call.pathParams.conversationId === 'conversation-4' ? 4 : 5, 'Historique confirmé')],
+  } }));
+  t.mock.method(messageClient, 'getConversationMessages', async id => {
+    const result = await original(id);
+    if (id === 'conversation-4') { received(); await gate; }
+    return result;
+  });
+  try {
+    await submitComposer();
+    await ready;
+    await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
+    await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5' && draftInput().disabled === false);
+    await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Brouillon indépendant du second fil' } });
+    release();
+    await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-99' && item.conversationId === 'conversation-4'));
+    await view.settle();
+    assert.equal(draftInput().value, 'Brouillon indépendant du second fil');
+    assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
+    assert.equal(messageBff.calls(sendPath, 'POST').length, 1);
+  } finally { release(); }
+});
+
+async function recoveryCommand(label) {
+  const button = view.hostElements((_props, text, tag) => tag === 'button' && text === label)[0];
+  assert.ok(button, 'Visible recovery command ' + label);
+  await view.act(() => button.props.onClick());
+}
+test('unconfirmed logout stays visible through polling and focus until the user returns to Login', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Brouillon conservé' } });
+  network.cookies.refreshToken = 'disposable-page-unconfirmed-refresh';
+  userBff.on('post', '/auth/logout', { body: { message: 'Unconfirmed', session_revoked: false } });
+  await view.act(() => view.props('Header').onLogout());
+  await view.waitFor(html => html.includes('La fermeture de la session serveur n’a pas pu être confirmée'));
+  assert.deepEqual(network.cookies, {});
+  const calls = network.browserCalls.length;
+  browser.tickIntervals(2000);
+  browser.focus();
+  browser.setHidden(true);
+  browser.setHidden(false);
+  await view.settle();
+  assert.equal(network.browserCalls.length, calls, 'background reads pause instead of displacing the recovery commands');
+  assert.deepEqual(browser.window.location.assigned, []);
+  assert.equal(browser.window.location.reloads, 0);
+  assert.match(view.text(), /La fermeture de la session serveur n’a pas pu être confirmée/);
+  assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
+  await recoveryCommand('Retour à la connexion');
+  assert.equal(new URL(browser.window.location.assigned[0]).searchParams.get('redirect'), browser.window.location.href);
+  assert.equal(userBff.calls('/auth/logout').length, 1);
+});
+test('a failed explicit logout pauses background reads while preserving a successful manual retry', async () => {
+  await renderLoadedPage();
+  await view.settle();
+  network.cookies.refreshToken = 'disposable-page-retry-refresh';
+  network.ownerOverride = () => Response.json({ message: 'Unavailable' }, { status: 503 });
+  await view.act(() => view.props('Header').onLogout());
+  await view.waitFor(html => html.includes('La déconnexion n’a pas abouti'));
+  const calls = network.browserCalls.length;
+  browser.tickIntervals(2000);
+  browser.focus();
+  await view.settle();
+  assert.equal(network.browserCalls.length, calls);
+  assert.deepEqual(browser.window.location.assigned, []);
+  assert.equal(network.cookies.refreshToken, 'disposable-page-retry-refresh');
+  network.ownerOverride = undefined;
+  userBff.on('post', '/auth/logout', { body: { message: 'Closed', session_revoked: true } });
+  await recoveryCommand('Réessayer');
+  await view.waitFor(() => browser.window.location.assigned.length === 1);
+  assert.deepEqual(browser.window.location.assigned, ['https://login.mairie.test/']);
+  assert.deepEqual(network.cookies, {});
+});
+test('an already pending polling401 cannot hide an unconfirmed explicit logout', async (t) => {
+  await renderLoadedPage();
+  await view.settle();
+  let rejectRead;
+  t.mock.method(messageClient, 'getConversations', () => new Promise((_resolve, reject) => { rejectRead = reject; }));
+  browser.tickIntervals(2000);
+  await view.waitFor(() => typeof rejectRead === 'function');
+  network.cookies.refreshToken = 'disposable-page-late-refresh';
+  userBff.on('post', '/auth/logout', { body: { message: 'Unconfirmed', session_revoked: false } });
+  await view.act(() => view.props('Header').onLogout());
+  await view.waitFor(html => html.includes('La fermeture de la session serveur n’a pas pu être confirmée'));
+  rejectRead(new BffRequestError('Session expirée', 401));
+  await view.settle();
+  assert.deepEqual(browser.window.location.assigned, []);
+  assert.equal(browser.window.location.reloads, 0);
+  assert.match(view.text(), /La fermeture de la session serveur n’a pas pu être confirmée/);
+  assert.equal(userBff.calls('/auth/logout').length, 1);
 });

@@ -1,0 +1,247 @@
+{
+  "module": "Messages",
+  "readyText": "Bonjour à tous",
+  "routes": {
+    "/messaging/bootstrap": {
+      "currentUser": {
+        "id": "user-2",
+        "name": "Agent Mairie",
+        "email": "agent@mairie360.fr",
+        "role": "Responsable",
+        "service": "Voirie",
+        "phone": "0102030405"
+      },
+      "conversations": [
+        {
+          "id": "conversation-4",
+          "name": "Équipe communication",
+          "kind": "group",
+          "initials": "ÉQ",
+          "unreadCount": 2
+        },
+        {
+          "id": "conversation-5",
+          "name": "Sophie Leroy",
+          "kind": "direct",
+          "initials": "SO",
+          "unreadCount": 0
+        }
+      ],
+      "contacts": [
+        {
+          "id": "user-7",
+          "name": "Sophie Leroy",
+          "email": "sophie.leroy@mairie360.fr",
+          "department": "Voirie",
+          "initials": "SL",
+          "presence": "online"
+        },
+        {
+          "id": "user-9",
+          "name": "Thomas Bernard",
+          "email": "thomas.bernard@mairie360.fr",
+          "department": "Voirie",
+          "initials": "TB",
+          "presence": "online"
+        }
+      ],
+      "messages": [
+        {
+          "id": "message-1",
+          "conversationId": "conversation-4",
+          "content": "Bonjour à tous",
+          "sentAt": "2026-09-15T09:30:00.000Z",
+          "authorId": "user-7",
+          "authorName": "Sophie Leroy",
+          "direction": "incoming"
+        }
+      ],
+      "activeConversationId": "conversation-4"
+    },
+    "/contacts": {
+      "contacts": [
+        {
+          "id": "user-7",
+          "name": "Sophie Leroy",
+          "email": "sophie.leroy@mairie360.fr",
+          "department": "Voirie",
+          "initials": "SL",
+          "presence": "online"
+        },
+        {
+          "id": "user-9",
+          "name": "Thomas Bernard",
+          "email": "thomas.bernard@mairie360.fr",
+          "department": "Voirie",
+          "initials": "TB",
+          "presence": "online"
+        }
+      ]
+    },
+    "/conversations": {
+      "conversations": [
+        {
+          "id": "conversation-4",
+          "name": "Équipe communication",
+          "kind": "group",
+          "initials": "ÉQ",
+          "unreadCount": 2
+        },
+        {
+          "id": "conversation-5",
+          "name": "Sophie Leroy",
+          "kind": "direct",
+          "initials": "SO",
+          "unreadCount": 0
+        }
+      ]
+    },
+    "/me": {
+      "currentUser": {
+        "id": "user-2",
+        "name": "Agent Mairie",
+        "email": "agent@mairie360.fr",
+        "role": "Responsable",
+        "service": "Voirie",
+        "phone": "0102030405"
+      }
+    },
+    "/business-references": {
+      "references": [
+        {
+          "id": "project:42",
+          "title": "Budget participatif",
+          "kind": "project",
+          "description": "Projet"
+        },
+        {
+          "id": "event:9",
+          "title": "Conseil municipal",
+          "kind": "event"
+        }
+      ],
+      "sources": {
+        "projects": "available",
+        "calendar": "available"
+      }
+    },
+    "/conversations/conversation-4/messages": {
+      "conversation": {
+        "id": "conversation-4",
+        "name": "Équipe communication",
+        "kind": "group",
+        "initials": "ÉQ",
+        "unreadCount": 2
+      },
+      "messages": [
+        {
+          "id": "message-1",
+          "conversationId": "conversation-4",
+          "content": "Bonjour à tous",
+          "sentAt": "2026-09-15T09:30:00.000Z",
+          "authorId": "user-7",
+          "authorName": "Sophie Leroy",
+          "direction": "incoming"
+        }
+      ]
+    },
+    "/api/user/me": {
+      "user": {
+        "id": 1,
+        "first_name": "Alice",
+        "last_name": "Recette",
+        "email": "alice@example.invalid",
+        "phone": null,
+        "status": "active"
+      },
+      "groups": [
+        {
+          "id": 1,
+          "name": "Mairie",
+          "owner_id": 1,
+          "description": null
+        }
+      ],
+      "roles": [
+        {
+          "id": 1,
+          "name": "Admin"
+        }
+      ]
+    },
+    "/api/auth/me": {
+      "user": {
+        "id": 1,
+        "first_name": "Alice",
+        "last_name": "Recette",
+        "email": "alice@example.invalid",
+        "phone": null,
+        "status": "active"
+      },
+      "groups": [
+        {
+          "id": 1,
+          "name": "Mairie",
+          "owner_id": 1,
+          "description": null
+        }
+      ],
+      "roles": [
+        {
+          "id": 1,
+          "name": "Admin"
+        }
+      ]
+    },
+    "/api/auth/session": {
+      "user": {
+        "id": 1,
+        "first_name": "Alice",
+        "last_name": "Recette",
+        "email": "alice@example.invalid",
+        "phone": null,
+        "status": "active"
+      },
+      "groups": [
+        {
+          "id": 1,
+          "name": "Mairie",
+          "owner_id": 1,
+          "description": null
+        }
+      ],
+      "roles": [
+        {
+          "id": 1,
+          "name": "Admin"
+        }
+      ]
+    },
+    "/api/auth/role": {
+      "isAdmin": true
+    },
+    "/api/auth/current-user": {
+      "id": "1"
+    },
+    "/conversations/conversation-5/messages": {
+      "conversation": {
+        "id": "conversation-5",
+        "name": "Sophie Leroy",
+        "kind": "direct",
+        "initials": "SO",
+        "unreadCount": 0
+      },
+      "messages": [
+        {
+          "id": "message-2",
+          "conversationId": "conversation-5",
+          "content": "Bonjour, où en est le projet ?",
+          "sentAt": "2026-09-15T10:00:00.000Z",
+          "authorId": "user-7",
+          "authorName": "Sophie Leroy",
+          "direction": "incoming"
+        }
+      ]
+    }
+  }
+}

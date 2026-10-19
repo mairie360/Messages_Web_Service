@@ -4,15 +4,24 @@ const { NextRequest } = require('next/server');
 const { requireSrc } = require('./support/load-ts.cjs');
 const { proxyBffRequest, forwardToBff } = requireSrc('lib/bff-proxy.ts');
 const originalFetch = global.fetch;
-afterEach(() => { global.fetch = originalFetch; });
+const bffUrlVariables = ['BFF_MESSAGE_BASE_URL', 'MESSAGE_BFF_URL', 'NEXT_PUBLIC_BFF_MESSAGE_BASE_URL'];
+const originalBffUrls = Object.fromEntries(bffUrlVariables.map((name) => [name, process.env[name]]));
+afterEach(() => {
+  global.fetch = originalFetch;
+  for (const [name, value] of Object.entries(originalBffUrls)) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+});
 
-test('proxy preserves query, authorization, data, and upstream status', async () => {
+test('proxy preserves query and status while cookie authorization overrides browser bearer', async () => {
+  process.env.BFF_MESSAGE_BASE_URL = 'http://bff.example';
   let called;
   global.fetch = async (url, init) => { called = { url: String(url), init }; return Response.json({ id: '42', value: null }, { status: 201 }); };
   const request = new NextRequest('http://localhost/health?q=a%26b', { headers: { cookie: 'accessToken=test-session', Authorization: 'Bearer explicit-session' } });
   const response = await proxyBffRequest(request, { params: Promise.resolve({ path: ['health'] }) });
   assert.equal(response.status, 201); assert.deepEqual(await response.json(), { id: '42', value: null });
-  assert.equal(new URL(called.url).search, '?q=a%26b'); assert.equal(called.init.headers.get('Authorization'), 'Bearer explicit-session');
+  assert.equal(new URL(called.url).search, '?q=a%26b'); assert.equal(called.init.headers.get('Authorization'), 'Bearer test-session');
   assert.equal(called.init.headers.get('cookie'), null); assert.equal(called.init.redirect, 'manual');
 });
 test('proxy preserves binary upload bytes and 204 responses', async () => {
@@ -20,7 +29,7 @@ test('proxy preserves binary upload bytes and 204 responses', async () => {
   let init;
   global.fetch = async (_url, options) => { init = options; return new Response(null, { status: 204 }); };
   const request = new NextRequest('http://localhost/upload', { method: 'POST', headers: { 'Content-Type': 'multipart/form-data; boundary=test', cookie: 'accessToken=test-session' }, body: bytes });
-  const response = await forwardToBff(request, 'http://bff.example', '/files');
+  const response = await forwardToBff(request, 'http://bff.example', '/attachments');
   assert.equal(response.status, 204); assert.equal(await response.text(), '');
   assert.deepEqual(new Uint8Array(init.body), bytes); assert.equal(init.headers.get('Authorization'), 'Bearer test-session');
   assert.equal(init.headers.get('Content-Type'), 'multipart/form-data; boundary=test');
@@ -32,13 +41,33 @@ test('contract rejects unknown routes and methods before contacting the BFF', as
   const wrongMethod = await proxyBffRequest(new NextRequest('http://localhost/health', { method: 'DELETE' }), { params: Promise.resolve({ path: ['health'] }) });
   assert.equal(wrongMethod.status, 405); assert.match(wrongMethod.headers.get('Allow'), /GET/);
 });
-test('BFF errors and cookie changes are preserved', async () => {
+test('BFF errors remain visible while upstream cookie changes are stripped', async () => {
   global.fetch = async () => Response.json({ message: 'Denied' }, { status: 403, headers: { 'Set-Cookie': 'accessToken=; Max-Age=0; Path=/; HttpOnly' } });
-  const result = await forwardToBff(new NextRequest('http://localhost/logout', { method: 'POST' }), 'http://bff.example', '/auth/logout');
-  assert.equal(result.status, 403); assert.deepEqual(await result.json(), { message: 'Denied' }); assert.match(result.headers.get('Set-Cookie'), /Max-Age=0/);
+  const result = await forwardToBff(new NextRequest('http://localhost/logout', { method: 'POST' }), 'http://bff.example', '/groups');
+  assert.equal(result.status, 403); assert.deepEqual(await result.json(), { message: 'Denied' }); assert.equal(result.headers.get('Set-Cookie'), null);
 });
 test('unavailable BFF produces a controlled error', async () => {
   global.fetch = async () => { throw new Error('connection refused'); };
   const result = await forwardToBff(new NextRequest('http://localhost/health'), 'http://bff.example', '/health');
   assert.equal(result.status, 502); assert.equal(result.headers.get('Cache-Control'), 'no-store');
 });
+
+for (const [name, value] of [
+  ['missing', undefined],
+  ['empty', ''],
+  ['malformed', 'not-a-url'],
+  ['unsupported protocol', 'file:///tmp/bff'],
+  ['embedded credentials', 'http://user:password@example.test'],
+]) {
+  test(`${name} BFF URL returns an uncached 503 without an upstream call`, async () => {
+    for (const variable of bffUrlVariables) delete process.env[variable];
+    if (value !== undefined) process.env.BFF_MESSAGE_BASE_URL = value;
+    global.fetch = async () => { throw new Error('must not be called'); };
+
+    const response = await proxyBffRequest(new NextRequest('http://localhost/health'), { params: Promise.resolve({ path: ['health'] }) });
+
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get('Cache-Control'), 'no-store');
+    assert.deepEqual(await response.json(), { error: { message: 'Le service n’est pas configuré.' } });
+  });
+}

@@ -1,0 +1,11 @@
+{
+  "selectedDocumentSha256": "b529ab15a9a0428934579ec77768b597338a11959548ee7c77a17b6eb0a4d4a4",
+  "authOperationSource": "Actual published User document verified for the shared session library0.7.1; refresh and logout operations unchanged",
+  "sharedLibraryGitHead": "746ad73a2cce0fd4faaeeb1d16113b2007f854d0",
+  "authOperations": [
+    "/auth/refresh",
+    "/auth/logout"
+  ],
+  "optionalReadSource": "User SDK0.5.0 GET/me and GET/session/me; no new production SDK dependency",
+  "productionBackendSourceChanged": false
+}

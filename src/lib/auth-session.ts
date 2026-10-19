@@ -1,6 +1,9 @@
 "use client";
+import { normalizeDisplayRole } from "@mairie360/front-kit/shared";
 
 import { useEffect, useState } from "react";
+import { navigateToLogin } from "./logout";
+export { logoutAndReload } from "./logout";
 import { BffRequestError, messageClient, type CurrentUserDto } from "../clients/messageClient";
 
 export type AppRole = "Admin" | "Responsable" | "Maire" | "User" | "Guest";
@@ -31,33 +34,9 @@ export type AuthSessionResult =
   | { status: "unauthorized" }
   | { status: "error"; error: string };
 
-const ROLE_ALIASES: Record<string, AppRole> = {
-  admin: "Admin",
-  administrateur: "Admin",
-  administrator: "Admin",
-  responsable: "Responsable",
-  manager: "Responsable",
-  maire: "Maire",
-  mayor: "Maire",
-  user: "User",
-  utilisateur: "User",
-  guest: "Guest",
-  invite: "Guest",
-};
-
-function normalizeRoleKey(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]+/g, "")
-    .replace(/^role/, "");
-}
-
-/** Rôle applicatif (alias FR/EN, préfixe `ROLE_`, accents) ; `Guest` si le rôle est absent ou inconnu. */
+/** One shared alias table; the BFF still owns business permissions. */
 export function normalizeAppRole(value: string | undefined): AppRole {
-  return value ? ROLE_ALIASES[normalizeRoleKey(value)] ?? "Guest" : "Guest";
+  return normalizeDisplayRole(value) ?? "Guest";
 }
 
 /** Convertit l'utilisateur courant de BFF Message (`GET /me`) en session applicative. */
@@ -114,7 +93,7 @@ export function useAuthSession() {
       if (!active) return;
 
       if (result.status === "unauthorized") {
-        await logoutAndReload();
+        if (!navigateToLogin()) setSession((current) => ({ ...current, loading: false, error: "Les informations du profil sont indisponibles." }));
         return;
       }
 
@@ -134,16 +113,4 @@ export function useAuthSession() {
   }, []);
 
   return session;
-}
-
-/** Efface le cookie de session (route locale, sans BFF) puis recharge : le middleware redirige vers Login. */
-export async function logoutAndReload() {
-  try {
-    await fetch("/api/auth/logout", {
-      method: "POST",
-      cache: "no-store",
-    });
-  } finally {
-    window.location.reload();
-  }
 }

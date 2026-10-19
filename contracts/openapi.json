@@ -1,22 +1,6 @@
 {
   "components": {
     "schemas": {
-      "ApiErrorResponse": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "details": {},
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message"
-        ],
-        "type": "object"
-      },
       "AttachmentDtoSchema": {
         "properties": {
           "id": {
@@ -121,16 +105,16 @@
         ],
         "type": "string"
       },
-      "CheckApiResponse": {
+      "CheckApisResponse": {
         "properties": {
           "core_api": {
-            "type": "string"
+            "$ref": "#/components/schemas/CheckApisResponseCoreApi"
           },
           "message_api": {
-            "type": "string"
+            "$ref": "#/components/schemas/CheckApisResponseMessageApi"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/CheckApisResponseStatus"
           }
         },
         "required": [
@@ -139,6 +123,27 @@
           "core_api"
         ],
         "type": "object"
+      },
+      "CheckApisResponseCoreApi": {
+        "enum": [
+          "Connected",
+          "Unreachable"
+        ],
+        "type": "string"
+      },
+      "CheckApisResponseMessageApi": {
+        "enum": [
+          "Connected",
+          "Unreachable"
+        ],
+        "type": "string"
+      },
+      "CheckApisResponseStatus": {
+        "enum": [
+          "OK",
+          "Error"
+        ],
+        "type": "string"
       },
       "ContactDtoSchema": {
         "properties": {
@@ -184,12 +189,12 @@
       "ContactsQuery": {
         "properties": {
           "limit": {
-            "type": [
-              "number",
-              "null"
-            ]
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
           },
           "search": {
+            "maxLength": 100,
             "type": "string"
           }
         },
@@ -256,6 +261,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -276,6 +287,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -312,8 +326,8 @@
         "properties": {
           "conversationId": {
             "type": [
-              "string",
-              "number"
+              "number",
+              "string"
             ]
           }
         },
@@ -325,15 +339,16 @@
       "ConversationsQuery": {
         "properties": {
           "cursor": {
+            "pattern": "^\\d{1,9}$",
             "type": "string"
           },
           "limit": {
-            "type": [
-              "number",
-              "null"
-            ]
+            "maximum": 30,
+            "minimum": 1,
+            "type": "number"
           },
           "search": {
+            "maxLength": 100,
             "type": "string"
           }
         },
@@ -362,6 +377,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -382,6 +403,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -417,18 +441,23 @@
       "CreateGroupBody": {
         "properties": {
           "description": {
+            "maxLength": 500,
+            "pattern": "^[^<>]*$",
             "type": "string"
           },
           "memberIds": {
             "items": {
               "type": [
-                "string",
-                "number"
+                "number",
+                "string"
               ]
             },
             "type": "array"
           },
           "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[^<>]*$",
             "type": "string"
           }
         },
@@ -454,6 +483,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -474,6 +509,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -649,6 +687,70 @@
         ],
         "type": "object"
       },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorResponseError"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "ErrorResponseError": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorResponseErrorCode"
+          },
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorResponseErrorDetailsItem"
+            },
+            "type": "array"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "details"
+        ],
+        "type": "object"
+      },
+      "ErrorResponseErrorCode": {
+        "enum": [
+          "BAD_REQUEST",
+          "UNAUTHORIZED",
+          "FORBIDDEN",
+          "NOT_FOUND",
+          "CONFLICT",
+          "PAYLOAD_TOO_LARGE",
+          "UNPROCESSABLE_ENTITY",
+          "TOO_MANY_REQUESTS",
+          "INTERNAL_ERROR",
+          "BAD_GATEWAY",
+          "SERVICE_UNAVAILABLE",
+          "GATEWAY_TIMEOUT"
+        ],
+        "type": "string"
+      },
+      "ErrorResponseErrorDetailsItem": {
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
       "GetContacts200": {
         "properties": {
           "contacts": {
@@ -704,31 +806,15 @@
         ],
         "type": "string"
       },
-      "GetContacts401": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "details": {},
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message"
-        ],
-        "type": "object"
-      },
       "GetContactsParams": {
         "properties": {
           "limit": {
-            "type": [
-              "number",
-              "null"
-            ]
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
           },
           "search": {
+            "maxLength": 100,
             "type": "string"
           }
         },
@@ -757,6 +843,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -777,6 +869,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -809,26 +904,306 @@
         ],
         "type": "string"
       },
-      "GetConversations401": {
+      "GetConversationsConversationId200": {
         "properties": {
-          "code": {
+          "conversation": {
+            "$ref": "#/components/schemas/GetConversationsConversationId200Conversation"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItem"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
             "type": "string"
           },
-          "details": {},
-          "message": {
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationId200ParticipantsItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "conversation",
+          "participants",
+          "messages",
+          "hasMore"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationId200Conversation": {
+        "properties": {
+          "avatarUrl": {
+            "type": "string"
+          },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "department": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "initials": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GetConversationsConversationId200ConversationKind"
+          },
+          "lastMessage": {
+            "type": "string"
+          },
+          "lastMessageAt": {
+            "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "presence": {
+            "$ref": "#/components/schemas/GetConversationsConversationId200ConversationPresence"
+          },
+          "unreadCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationId200ConversationKind": {
+        "enum": [
+          "direct",
+          "group"
+        ],
+        "type": "string"
+      },
+      "GetConversationsConversationId200ConversationPresence": {
+        "enum": [
+          "online",
+          "offline",
+          "away"
+        ],
+        "type": "string"
+      },
+      "GetConversationsConversationId200MessagesItem": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemAttachmentsItem"
+            },
+            "type": "array"
+          },
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "direction": {
+            "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemDirection"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "mentions": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemMentionsItem"
+            },
+            "type": "array"
+          },
+          "quoted": {
+            "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemQuoted"
+          },
+          "sentAt": {
             "type": "string"
           }
         },
         "required": [
-          "code",
-          "message"
+          "id",
+          "conversationId",
+          "content",
+          "sentAt"
         ],
         "type": "object"
+      },
+      "GetConversationsConversationId200MessagesItemAttachmentsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationId200MessagesItemDirection": {
+        "enum": [
+          "incoming",
+          "outgoing"
+        ],
+        "type": "string"
+      },
+      "GetConversationsConversationId200MessagesItemMentionsItem": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemMentionsItemKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationId200MessagesItemMentionsItemKind": {
+        "enum": [
+          "direct",
+          "group"
+        ],
+        "type": "string"
+      },
+      "GetConversationsConversationId200MessagesItemQuoted": {
+        "properties": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "excerpt"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationId200ParticipantsItem": {
+        "properties": {
+          "avatarUrl": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "initials": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "presence": {
+            "$ref": "#/components/schemas/GetConversationsConversationId200ParticipantsItemPresence"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationId200ParticipantsItemPresence": {
+        "enum": [
+          "online",
+          "offline",
+          "away"
+        ],
+        "type": "string"
       },
       "GetConversationsConversationIdMessages200": {
         "properties": {
           "conversation": {
             "$ref": "#/components/schemas/GetConversationsConversationIdMessages200Conversation"
+          },
+          "hasMore": {
+            "type": "boolean"
           },
           "messages": {
             "items": {
@@ -851,6 +1226,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -871,6 +1252,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -920,6 +1304,12 @@
           "authorName": {
             "type": "string"
           },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "content": {
             "type": "string"
           },
@@ -944,6 +1334,9 @@
             },
             "type": "array"
           },
+          "quoted": {
+            "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemQuoted"
+          },
           "sentAt": {
             "type": "string"
           }
@@ -952,8 +1345,7 @@
           "id",
           "conversationId",
           "content",
-          "sentAt",
-          "authorId"
+          "sentAt"
         ],
         "type": "object"
       },
@@ -1022,35 +1414,60 @@
         ],
         "type": "string"
       },
-      "GetConversationsConversationIdMessages401": {
+      "GetConversationsConversationIdMessages200MessagesItemQuoted": {
         "properties": {
-          "code": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
             "type": "string"
           },
-          "details": {},
-          "message": {
+          "excerpt": {
             "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
           }
         },
         "required": [
-          "code",
-          "message"
+          "id",
+          "excerpt"
         ],
         "type": "object"
       },
       "GetConversationsConversationIdMessagesParams": {
         "properties": {
-          "after": {
-            "type": "string"
-          },
           "before": {
-            "type": "string"
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "number"
           },
           "limit": {
-            "type": [
-              "number",
-              "null"
-            ]
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "GetConversationsConversationIdParams": {
+        "properties": {
+          "before": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "number"
+          },
+          "limit": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
           }
         },
         "required": [],
@@ -1059,15 +1476,16 @@
       "GetConversationsParams": {
         "properties": {
           "cursor": {
+            "pattern": "^\\d{1,9}$",
             "type": "string"
           },
           "limit": {
-            "type": [
-              "number",
-              "null"
-            ]
+            "maximum": 30,
+            "minimum": 1,
+            "type": "number"
           },
           "search": {
+            "maxLength": 100,
             "type": "string"
           }
         },
@@ -1128,22 +1546,6 @@
         "required": [
           "id",
           "name"
-        ],
-        "type": "object"
-      },
-      "GetMe401": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "details": {},
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message"
         ],
         "type": "object"
       },
@@ -1231,6 +1633,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -1251,6 +1659,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -1346,6 +1757,12 @@
           "authorName": {
             "type": "string"
           },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "content": {
             "type": "string"
           },
@@ -1370,6 +1787,9 @@
             },
             "type": "array"
           },
+          "quoted": {
+            "$ref": "#/components/schemas/GetMessagingBootstrap200MessagesItemQuoted"
+          },
           "sentAt": {
             "type": "string"
           }
@@ -1378,8 +1798,7 @@
           "id",
           "conversationId",
           "content",
-          "sentAt",
-          "authorId"
+          "sentAt"
         ],
         "type": "object"
       },
@@ -1448,19 +1867,30 @@
         ],
         "type": "string"
       },
-      "GetMessagingBootstrap401": {
+      "GetMessagingBootstrap200MessagesItemQuoted": {
         "properties": {
-          "code": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
             "type": "string"
           },
-          "details": {},
-          "message": {
+          "excerpt": {
             "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
           }
         },
         "required": [
-          "code",
-          "message"
+          "id",
+          "excerpt"
         ],
         "type": "object"
       },
@@ -1474,8 +1904,8 @@
         "properties": {
           "readUntilMessageId": {
             "type": [
-              "string",
-              "number"
+              "number",
+              "string"
             ]
           }
         },
@@ -1548,6 +1978,12 @@
           "authorName": {
             "type": "string"
           },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "content": {
             "type": "string"
           },
@@ -1572,6 +2008,9 @@
             },
             "type": "array"
           },
+          "quoted": {
+            "$ref": "#/components/schemas/MessageDtoSchemaQuoted"
+          },
           "sentAt": {
             "type": "string"
           }
@@ -1580,8 +2019,7 @@
           "id",
           "conversationId",
           "content",
-          "sentAt",
-          "authorId"
+          "sentAt"
         ],
         "type": "object"
       },
@@ -1650,19 +2088,59 @@
         ],
         "type": "string"
       },
+      "MessageDtoSchemaQuoted": {
+        "properties": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "excerpt"
+        ],
+        "type": "object"
+      },
+      "MessageStreamEvent": {
+        "properties": {
+          "conversationId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "conversationId"
+        ],
+        "type": "object"
+      },
       "MessagesQuery": {
         "properties": {
-          "after": {
-            "type": "string"
-          },
           "before": {
-            "type": "string"
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "number"
           },
           "limit": {
-            "type": [
-              "number",
-              "null"
-            ]
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
           }
         },
         "required": [],
@@ -1672,6 +2150,9 @@
         "properties": {
           "conversation": {
             "$ref": "#/components/schemas/MessagesResponseConversation"
+          },
+          "hasMore": {
+            "type": "boolean"
           },
           "messages": {
             "items": {
@@ -1694,6 +2175,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -1714,6 +2201,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -1763,6 +2253,12 @@
           "authorName": {
             "type": "string"
           },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "content": {
             "type": "string"
           },
@@ -1787,6 +2283,9 @@
             },
             "type": "array"
           },
+          "quoted": {
+            "$ref": "#/components/schemas/MessagesResponseMessagesItemQuoted"
+          },
           "sentAt": {
             "type": "string"
           }
@@ -1795,8 +2294,7 @@
           "id",
           "conversationId",
           "content",
-          "sentAt",
-          "authorId"
+          "sentAt"
         ],
         "type": "object"
       },
@@ -1864,6 +2362,33 @@
           "group"
         ],
         "type": "string"
+      },
+      "MessagesResponseMessagesItemQuoted": {
+        "properties": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "excerpt"
+        ],
+        "type": "object"
       },
       "MessagingBootstrapResponse": {
         "properties": {
@@ -1949,6 +2474,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -1969,6 +2500,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -2064,6 +2598,12 @@
           "authorName": {
             "type": "string"
           },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "content": {
             "type": "string"
           },
@@ -2088,6 +2628,9 @@
             },
             "type": "array"
           },
+          "quoted": {
+            "$ref": "#/components/schemas/MessagingBootstrapResponseMessagesItemQuoted"
+          },
           "sentAt": {
             "type": "string"
           }
@@ -2096,8 +2639,7 @@
           "id",
           "conversationId",
           "content",
-          "sentAt",
-          "authorId"
+          "sentAt"
         ],
         "type": "object"
       },
@@ -2166,15 +2708,45 @@
         ],
         "type": "string"
       },
+      "MessagingBootstrapResponseMessagesItemQuoted": {
+        "properties": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "excerpt"
+        ],
+        "type": "object"
+      },
       "NewDirectMessageBody": {
         "properties": {
           "message": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "pattern": "^[^<>]*$",
             "type": "string"
           },
           "recipientId": {
             "type": [
-              "string",
-              "number"
+              "number",
+              "string"
             ]
           }
         },
@@ -2204,6 +2776,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -2224,6 +2802,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -2273,6 +2854,12 @@
           "authorName": {
             "type": "string"
           },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "content": {
             "type": "string"
           },
@@ -2297,6 +2884,9 @@
             },
             "type": "array"
           },
+          "quoted": {
+            "$ref": "#/components/schemas/NewDirectMessageResponseMessageQuoted"
+          },
           "sentAt": {
             "type": "string"
           }
@@ -2305,8 +2895,7 @@
           "id",
           "conversationId",
           "content",
-          "sentAt",
-          "authorId"
+          "sentAt"
         ],
         "type": "object"
       },
@@ -2375,29 +2964,18 @@
         ],
         "type": "string"
       },
-      "PatchMe200": {
+      "NewDirectMessageResponseMessageQuoted": {
         "properties": {
-          "currentUser": {
-            "$ref": "#/components/schemas/PatchMe200CurrentUser"
-          }
-        },
-        "required": [
-          "currentUser"
-        ],
-        "type": "object"
-      },
-      "PatchMe200CurrentUser": {
-        "properties": {
-          "address": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
             "type": "string"
           },
-          "avatarUrl": {
-            "type": "string"
-          },
-          "city": {
-            "type": "string"
-          },
-          "email": {
+          "excerpt": {
             "type": "string"
           },
           "id": {
@@ -2405,129 +2983,30 @@
               "string",
               "number"
             ]
-          },
-          "lastConnection": {
-            "type": "string"
-          },
-          "name": {
-            "maxLength": 100,
-            "type": "string"
-          },
-          "phone": {
-            "type": "string"
-          },
-          "position": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string"
-          },
-          "service": {
-            "type": "string"
           }
         },
         "required": [
           "id",
-          "name"
-        ],
-        "type": "object"
-      },
-      "PatchMe400": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "details": {},
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message"
-        ],
-        "type": "object"
-      },
-      "PatchMeBody": {
-        "properties": {
-          "address": {
-            "type": "string"
-          },
-          "city": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          },
-          "phone": {
-            "type": "string"
-          }
-        },
-        "required": [],
-        "type": "object"
-      },
-      "PostAttachments201": {
-        "properties": {
-          "attachments": {
-            "items": {
-              "$ref": "#/components/schemas/PostAttachments201AttachmentsItem"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "attachments"
-        ],
-        "type": "object"
-      },
-      "PostAttachments201AttachmentsItem": {
-        "properties": {
-          "id": {
-            "type": [
-              "string",
-              "number"
-            ]
-          },
-          "name": {
-            "type": "string"
-          },
-          "size": {
-            "type": "number"
-          },
-          "type": {
-            "type": "string"
-          },
-          "url": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name"
-        ],
-        "type": "object"
-      },
-      "PostAttachments401": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "details": {},
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message"
+          "excerpt"
         ],
         "type": "object"
       },
       "PostAttachmentsBody": {
         "properties": {
-          "files": {}
+          "files": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Blob"
+              },
+              {
+                "$ref": "#/components/schemas/File"
+              }
+            ]
+          }
         },
-        "required": [],
+        "required": [
+          "files"
+        ],
         "type": "object"
       },
       "PostConversationsConversationIdMessages201": {
@@ -2549,6 +3028,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -2569,6 +3054,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -2618,6 +3106,12 @@
           "authorName": {
             "type": "string"
           },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "content": {
             "type": "string"
           },
@@ -2642,6 +3136,9 @@
             },
             "type": "array"
           },
+          "quoted": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageQuoted"
+          },
           "sentAt": {
             "type": "string"
           }
@@ -2650,8 +3147,7 @@
           "id",
           "conversationId",
           "content",
-          "sentAt",
-          "authorId"
+          "sentAt"
         ],
         "type": "object"
       },
@@ -2720,19 +3216,30 @@
         ],
         "type": "string"
       },
-      "PostConversationsConversationIdMessages401": {
+      "PostConversationsConversationIdMessages201MessageQuoted": {
         "properties": {
-          "code": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
             "type": "string"
           },
-          "details": {},
-          "message": {
+          "excerpt": {
             "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
           }
         },
         "required": [
-          "code",
-          "message"
+          "id",
+          "excerpt"
         ],
         "type": "object"
       },
@@ -2741,20 +3248,23 @@
           "attachmentIds": {
             "items": {
               "type": [
-                "string",
-                "number"
+                "number",
+                "string"
               ]
             },
             "type": "array"
           },
           "content": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "pattern": "^[^<>]*$",
             "type": "string"
           },
           "mentionIds": {
             "items": {
               "type": [
-                "string",
-                "number"
+                "number",
+                "string"
               ]
             },
             "type": "array"
@@ -2787,8 +3297,8 @@
         "properties": {
           "readUntilMessageId": {
             "type": [
-              "string",
-              "number"
+              "number",
+              "string"
             ]
           }
         },
@@ -2815,6 +3325,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -2835,6 +3351,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -2884,6 +3403,12 @@
           "authorName": {
             "type": "string"
           },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "content": {
             "type": "string"
           },
@@ -2908,6 +3433,9 @@
             },
             "type": "array"
           },
+          "quoted": {
+            "$ref": "#/components/schemas/PostDirectMessages201MessageQuoted"
+          },
           "sentAt": {
             "type": "string"
           }
@@ -2916,8 +3444,7 @@
           "id",
           "conversationId",
           "content",
-          "sentAt",
-          "authorId"
+          "sentAt"
         ],
         "type": "object"
       },
@@ -2986,31 +3513,45 @@
         ],
         "type": "string"
       },
-      "PostDirectMessages401": {
+      "PostDirectMessages201MessageQuoted": {
         "properties": {
-          "code": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
             "type": "string"
           },
-          "details": {},
-          "message": {
+          "excerpt": {
             "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
           }
         },
         "required": [
-          "code",
-          "message"
+          "id",
+          "excerpt"
         ],
         "type": "object"
       },
       "PostDirectMessagesBody": {
         "properties": {
           "message": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "pattern": "^[^<>]*$",
             "type": "string"
           },
           "recipientId": {
             "type": [
-              "string",
-              "number"
+              "number",
+              "string"
             ]
           }
         },
@@ -3036,6 +3577,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -3056,6 +3603,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -3088,37 +3638,26 @@
         ],
         "type": "string"
       },
-      "PostGroups401": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "details": {},
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message"
-        ],
-        "type": "object"
-      },
       "PostGroupsBody": {
         "properties": {
           "description": {
+            "maxLength": 500,
+            "pattern": "^[^<>]*$",
             "type": "string"
           },
           "memberIds": {
             "items": {
               "type": [
-                "string",
-                "number"
+                "number",
+                "string"
               ]
             },
             "type": "array"
           },
           "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[^<>]*$",
             "type": "string"
           }
         },
@@ -3133,20 +3672,23 @@
           "attachmentIds": {
             "items": {
               "type": [
-                "string",
-                "number"
+                "number",
+                "string"
               ]
             },
             "type": "array"
           },
           "content": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "pattern": "^[^<>]*$",
             "type": "string"
           },
           "mentionIds": {
             "items": {
               "type": [
-                "string",
-                "number"
+                "number",
+                "string"
               ]
             },
             "type": "array"
@@ -3176,6 +3718,12 @@
           "avatarUrl": {
             "type": "string"
           },
+          "contactId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "department": {
             "type": "string"
           },
@@ -3196,6 +3744,9 @@
           },
           "lastMessageAt": {
             "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -3245,6 +3796,12 @@
           "authorName": {
             "type": "string"
           },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
           "content": {
             "type": "string"
           },
@@ -3269,6 +3826,9 @@
             },
             "type": "array"
           },
+          "quoted": {
+            "$ref": "#/components/schemas/SendMessageResponseMessageQuoted"
+          },
           "sentAt": {
             "type": "string"
           }
@@ -3277,8 +3837,7 @@
           "id",
           "conversationId",
           "content",
-          "sentAt",
-          "authorId"
+          "sentAt"
         ],
         "type": "object"
       },
@@ -3347,47 +3906,18 @@
         ],
         "type": "string"
       },
-      "UpdateCurrentUserBody": {
+      "SendMessageResponseMessageQuoted": {
         "properties": {
-          "address": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
             "type": "string"
           },
-          "city": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          },
-          "phone": {
-            "type": "string"
-          }
-        },
-        "required": [],
-        "type": "object"
-      },
-      "UpdateCurrentUserResponse": {
-        "properties": {
-          "currentUser": {
-            "$ref": "#/components/schemas/UpdateCurrentUserResponseCurrentUser"
-          }
-        },
-        "required": [
-          "currentUser"
-        ],
-        "type": "object"
-      },
-      "UpdateCurrentUserResponseCurrentUser": {
-        "properties": {
-          "address": {
-            "type": "string"
-          },
-          "avatarUrl": {
-            "type": "string"
-          },
-          "city": {
-            "type": "string"
-          },
-          "email": {
+          "excerpt": {
             "type": "string"
           },
           "id": {
@@ -3395,38 +3925,23 @@
               "string",
               "number"
             ]
-          },
-          "lastConnection": {
-            "type": "string"
-          },
-          "name": {
-            "maxLength": 100,
-            "type": "string"
-          },
-          "phone": {
-            "type": "string"
-          },
-          "position": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string"
-          },
-          "service": {
-            "type": "string"
           }
         },
         "required": [
           "id",
-          "name"
+          "excerpt"
         ],
         "type": "object"
       },
       "UploadAttachmentBody": {
         "properties": {
-          "files": {}
+          "files": {
+            "$ref": "#/components/schemas/Blob"
+          }
         },
-        "required": [],
+        "required": [
+          "files"
+        ],
         "type": "object"
       },
       "UploadAttachmentResponse": {
@@ -3475,7 +3990,7 @@
   "info": {
     "title": "bff_message",
     "version": "1.0.0",
-    "x-source-package": "@mairie360/bff-message-openapi@0.4.0"
+    "x-source-package": "@mairie360/bff-message-openapi@1.0.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3494,22 +4009,10 @@
           "required": true
         },
         "responses": {
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PostAttachments401"
-                }
-              }
-            },
-            "description": "Réponse 401 (modèle orval PostAttachments401)"
-          },
           "2XX": {
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PostAttachments201"
-                }
+                "schema": {}
               }
             },
             "description": "Succès (seul statut typé par orval)"
@@ -3544,7 +4047,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CheckApiResponse"
+                  "$ref": "#/components/schemas/CheckApisResponse"
                 }
               }
             },
@@ -3562,6 +4065,7 @@
             "name": "search",
             "required": false,
             "schema": {
+              "maxLength": 100,
               "type": "string"
             }
           },
@@ -3570,24 +4074,13 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "type": [
-                "number",
-                "null"
-              ]
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
             }
           }
         ],
         "responses": {
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetContacts401"
-                }
-              }
-            },
-            "description": "Réponse 401 (modèle orval GetContacts401)"
-          },
           "2XX": {
             "content": {
               "application/json": {
@@ -3610,6 +4103,7 @@
             "name": "search",
             "required": false,
             "schema": {
+              "maxLength": 100,
               "type": "string"
             }
           },
@@ -3618,10 +4112,9 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "type": [
-                "number",
-                "null"
-              ]
+              "maximum": 30,
+              "minimum": 1,
+              "type": "number"
             }
           },
           {
@@ -3629,21 +4122,12 @@
             "name": "cursor",
             "required": false,
             "schema": {
+              "pattern": "^\\d{1,9}$",
               "type": "string"
             }
           }
         ],
         "responses": {
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetConversations401"
-                }
-              }
-            },
-            "description": "Réponse 401 (modèle orval GetConversations401)"
-          },
           "2XX": {
             "content": {
               "application/json": {
@@ -3667,8 +4151,8 @@
             "required": true,
             "schema": {
               "type": [
-                "string",
-                "number"
+                "number",
+                "string"
               ]
             }
           }
@@ -3679,6 +4163,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DeleteConversationsConversationId200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      },
+      "get": {
+        "operationId": "getConversationsConversationId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetConversationsConversationId200"
                 }
               }
             },
@@ -3697,8 +4229,8 @@
             "required": true,
             "schema": {
               "type": [
-                "string",
-                "number"
+                "number",
+                "string"
               ]
             }
           },
@@ -3707,10 +4239,9 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "type": [
-                "number",
-                "null"
-              ]
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
             }
           },
           {
@@ -3718,29 +4249,13 @@
             "name": "before",
             "required": false,
             "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "after",
-            "required": false,
-            "schema": {
-              "type": "string"
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "number"
             }
           }
         ],
         "responses": {
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetConversationsConversationIdMessages401"
-                }
-              }
-            },
-            "description": "Réponse 401 (modèle orval GetConversationsConversationIdMessages401)"
-          },
           "2XX": {
             "content": {
               "application/json": {
@@ -3762,8 +4277,8 @@
             "required": true,
             "schema": {
               "type": [
-                "string",
-                "number"
+                "number",
+                "string"
               ]
             }
           }
@@ -3779,16 +4294,6 @@
           "required": true
         },
         "responses": {
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PostConversationsConversationIdMessages401"
-                }
-              }
-            },
-            "description": "Réponse 401 (modèle orval PostConversationsConversationIdMessages401)"
-          },
           "2XX": {
             "content": {
               "application/json": {
@@ -3812,8 +4317,8 @@
             "required": true,
             "schema": {
               "type": [
-                "string",
-                "number"
+                "number",
+                "string"
               ]
             }
           }
@@ -3826,7 +4331,7 @@
               }
             }
           },
-          "required": true
+          "required": false
         },
         "responses": {
           "2XX": {
@@ -3857,16 +4362,6 @@
           "required": true
         },
         "responses": {
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PostDirectMessages401"
-                }
-              }
-            },
-            "description": "Réponse 401 (modèle orval PostDirectMessages401)"
-          },
           "2XX": {
             "content": {
               "application/json": {
@@ -3895,16 +4390,6 @@
           "required": true
         },
         "responses": {
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PostGroups401"
-                }
-              }
-            },
-            "description": "Réponse 401 (modèle orval PostGroups401)"
-          },
           "2XX": {
             "content": {
               "application/json": {
@@ -3934,57 +4419,11 @@
         "operationId": "getMe",
         "parameters": [],
         "responses": {
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetMe401"
-                }
-              }
-            },
-            "description": "Réponse 401 (modèle orval GetMe401)"
-          },
           "2XX": {
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetMe200"
-                }
-              }
-            },
-            "description": "Succès (seul statut typé par orval)"
-          }
-        }
-      },
-      "patch": {
-        "operationId": "patchMe",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PatchMeBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PatchMe400"
-                }
-              }
-            },
-            "description": "Réponse 400 (modèle orval PatchMe400)"
-          },
-          "2XX": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PatchMe200"
                 }
               }
             },
@@ -3998,21 +4437,29 @@
         "operationId": "getMessagingBootstrap",
         "parameters": [],
         "responses": {
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetMessagingBootstrap401"
-                }
-              }
-            },
-            "description": "Réponse 401 (modèle orval GetMessagingBootstrap401)"
-          },
           "2XX": {
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetMessagingBootstrap200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      }
+    },
+    "/stream": {
+      "get": {
+        "operationId": "getStream",
+        "parameters": [],
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageStreamEvent"
                 }
               }
             },

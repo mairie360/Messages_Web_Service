@@ -1,10 +1,70 @@
 # Messages_Web_Service — Technical documentation
 
+## Shared footer — MAIR-180
+
+The unchanged CI audit exposed the transitive tooling dependency
+`brace-expansion@1.1.18`. Its lock entry now resolves to the compatible patched
+`1.1.21`, with registry-verified integrity, as documented in
+[the upstream advisory](https://github.com/advisories/GHSA-qhr7-859c-m2p7).
+No audit threshold, workflow or security policy is relaxed.
+
+The package is pinned to published `@mairie360/lib-components@0.6.8` from
+[the successful 0.6.8 publication](https://github.com/mairie360/lib-components/actions/runs/36836970818), including the sidebar-footer correction #388.
+AppShell now places copyright in the dark sidebar, outside scrolling navigation.
+The mobile drawer retains focus management. No content-footer band reduces the
+main viewport; only supplied information is shown, with no invented version.
+Contracts, APIs/BFFs and deployment approvals are unchanged. Consumer adoption
+is tracked in [shared issue #387](https://github.com/mairie360/lib-components/issues/387).
+
+## Timestamp presentation — MAIR-303
+
+`src/lib/message-timestamps.ts` adapts only `sentAt` and `lastMessageAt` to
+French display labels in the browser timezone before rendering `Messaging`.
+Presentation arrays are derived with `useMemo`; raw BFF state, ordering,
+identifiers, content and network payloads stay intact. Only valid ISO date-time
+values are converted; date-only and unknown labels remain unchanged. Valid
+standalone legacy times such as `9 h 05` become `9:05`. There is no current-time
+or demo-data fallback. Responses arrive after client mount, so the server's
+timezone does not determine their browser display. Coverage includes
+`message-timestamps.test.cjs` (UTC, Réunion and Paris daylight-saving changes)
+and page loading/selection/refresh/send scenarios. No contract, dependency or
+environment change is required.
+
+## Shared application shell — MAIR-180
+
+The Messages page uses the shared `AppShell` for desktop/mobile navigation,
+header and footer. Its thin adapter keeps the existing BFF-backed session and
+the bounded, independently scrolling conversation viewport. Only runtime URLs
+of active modules are supplied; invalid frontend destinations are omitted.
+No BFF call or contract changes. This frontend requires a published
+`@mairie360/lib-components` release exporting `AppShell` before deployment.
+
+## Settings account destination — MAIR-180 slice
+
+Authenticated requests to `/profile` and its subpaths redirect (307) in
+middleware to `SETTINGS_FRONT_URL`, resolved on each request; no business profile
+is fetched by this module. Missing, invalid, credential-bearing or legacy
+`profile` path destinations return an uncached HTTP 503. Old bookmark query
+parameters are not forwarded. The existing authentication gate runs first.
+No new BFF contract, secret or runtime variable is introduced.
+
+## Explicit frontend destinations (MAIR-177)
+
+Frontend redirects use only explicitly configured HTTP(S) URLs without embedded
+credentials. There is no implicit localhost destination. Set the existing
+`LOGIN_FRONT_URL` (protected fronts) and `PROJECT_FRONT_URL` (Login default)
+at runtime, including local development. A valid configured return destination
+may still be used by Login when its default is absent. Invalid or missing
+Login destinations produce an uncached HTTP 503 message in the middleware;
+Login itself displays an unavailable state without a form when no destination
+can be resolved. No BFF/API contract or deployment variable is added.
+
+
 [Module overview](module.md) · [Français](../fr/technical.md) · [README](../../README.md)
 
 ## Architecture and request handling
 
-Next.js 15.5.25, React 19 and TypeScript application using the App Router. The browser calls same-origin routes; the Next.js server forwards data to **BFF_Message**.
+Next.js 16.3.6, React 19 and TypeScript application using the App Router. The browser calls same-origin routes; the Next.js server forwards data to **BFF_Message**.
 
 ```mermaid
 flowchart LR
@@ -12,7 +72,32 @@ flowchart LR
   Next --> BFF["BFF_Message"]
 ```
 
-The page uses the messaging client to load bootstrap, then messages and contacts on demand. It maps responses for the shared `Messaging` component. The explicit `/business-references` route forwards the BFF Message response.
+The page uses the messaging client to load bootstrap, then messages and contacts on demand. It maps responses for the shared `Messaging` component. After bootstrap, it fetches `/conversations` and the active thread every two seconds while the tab is visible, and when focus resumes. Responses arriving after a selection or mutation are ignored so they cannot overwrite newer state; a temporary sync failure preserves the last known thread and shows an alert. The explicit `/business-references` route forwards the BFF Message response.
+
+For synchronization reads only, `redirect: "manual"` exposes browser redirects as
+`opaqueredirect`; the client raises `BffNavigationRequiredError` without reading
+Location, status or body. A current visible polling or explicit thread-selection response reloads the protected
+page, leaving the Login target and return path to the unchanged middleware. A
+genuine401 calls the existing `logoutAndReload()` once instead, clearing the
+apparently unexpired rejected cookie through the existing local route; its finally
+reload is preserved even if transport fails.403/503/network failures do not log
+out. A shared page navigation guard suppresses further polling and thread reads,
+including duplicate selection while local cleanup is pending. Stale selections,
+hidden-page refusals and unmounted responses do not initiate navigation. No token
+is decoded or stored by this code. Bootstrap/mutation recovery is not widened;
+durable drafts and server revocation remain unproven.
+
+The page tracks confirmed thread IDs separately from the requested selection:
+bootstrap's selected ID and supplied message histories, successful matching
+thread reads, and confirmed newly created conversations. Unseen pending/refused
+threads use the existing controlled empty selection and `emptyStateLabel` instead
+of the library's hard-coded empty-message result; `Messaging`/its composer remain
+mounted, with writing disabled for unconfirmed histories. Known histories retain
+their messages through failed reads. Pending state has `role="status"` and
+`aria-busy`; stale callbacks cannot send to a former/unconfirmed thread. No DOM
+patch, component key reset, fake message, changed package or endpoint is added.
+
+Business suggestions load independently through `messageClient.getBusinessReferences()` on mount and on focus/visibility changes while the page is visible. A per-effect in-flight guard coalesces simultaneous events; no additional polling interval is created. Successful responses replace the list, including an empty list. Transient failures keep the last successful suggestions, while HTTP 401/403 clears them. Unmount removes both listeners and ignores pending responses. `tests/messages-page.contract-mocks.test.cjs` covers this lifecycle through the real frontend client and proxy with contract-driven mocks; this does not add persistence for sent references, attachments or read acknowledgements.
 
 The generic proxy reads the versioned OpenAPI contract to allow paths and methods. It preserves query parameters, binary bodies, statuses and useful headers, filters transport headers, disables caching and does not automatically follow redirects. Its timeout is 15 seconds.
 
@@ -22,7 +107,13 @@ The following sources and limitations describe the associated BFF, which determi
 
 Conversations and messages use Message API. Contacts are read directly from the SQL `users` table, including the current user (token `sub` identifier). Business references are aggregated from BFF Project and BFF Calendar. Local profile edits, attachment metadata and the read acknowledgement do not provide complete persistence.
 
-Attachment upload currently creates metadata and does not provide durable binary storage. Mark-as-read returns a zero counter without writing to Message API. Conversation groups use the API, while some profile data remains local to the process.
+Attachments are not available yet (MAIR-512): the BFF answers 503 to `POST /attachments` and refuses any non-empty `attachmentIds`. The page therefore uses the default `pendingAttachmentPort` (`src/lib/attachment-features.ts`), which has no `upload` capability: the shared composer still shows "Joindre un fichier" (its button does not depend on `onAttach`), but the files are not registered and a draft carrying attachments is refused locally in French, without any network call. `messageAttachmentPort` keeps the upload path (`messageClient.uploadAttachments`) ready for the day the BFF stores files. Only user ids (`user-<n>` or integer, the BFF rule) are sent in `mentionIds`: group mention options stay highlighted but are not transmitted. A BFF 400 on a send, a direct message or a group creation is translated per refused field from `error.details[]` (`src/lib/bff-error-messages.ts`); other refusals keep the BFF message. Mark-as-read returns a zero counter without writing to Message API; the page therefore does not call that route or locally clear unread counts. Conversation groups use the API, while some profile data remains local to the process.
+
+The group callback returns the actual `messageClient.createGroup()` promise and a
+boolean confirmation: `true` after the returned conversation is integrated, or
+`false` after the service error is displayed. The shared frontend library uses
+that result to retain a failed form instead of closing it optimistically. The
+existing `POST /groups` payload and contract are unchanged (MAIR-377).
 
 React state manages display and pending operations. This repository defines no business database of its own; save guarantees come from the BFF and its sources described above.
 
@@ -57,11 +148,13 @@ npm run start -- --port 5003
 
 ## Configuration
 
+On a missing or expired session, the middleware sends `redirect` to Login. It builds the destination from the runtime `MESSAGE_FRONT_URL` plus the requested path and query, never from the internal ingress host. Without a valid public URL, Login uses its default Projects destination.
+
 Values below are local examples or explicitly described behavior, not production credentials.
 
 | Variable or precedence | Example / stated fallback | Purpose |
 | --- | --- | --- |
-| `BFF_MESSAGE_BASE_URL` → `MESSAGE_BFF_URL` → `NEXT_PUBLIC_BFF_MESSAGE_BASE_URL` | http://localhost:4003 | Left-to-right proxy precedence; the URL shown is the local fallback. |
+| `BFF_MESSAGE_BASE_URL` → `MESSAGE_BFF_URL` → `NEXT_PUBLIC_BFF_MESSAGE_BASE_URL` | http://localhost:4003 | Left-to-right proxy precedence; configure an HTTP(S) URL explicitly. Missing or invalid configuration returns an uncached 503 without contacting an upstream. |
 | `COOKIE_DOMAIN` | — | Domain of the `accessToken` cookie, set by Login and cleared by the local logout; keep it consistent with Login. |
 | `ADMINISTRATION_FRONT_URL` | — | Navigation destination; see the source file that reads it. Variables injected by `next.config.ts` or prefixed `NEXT_PUBLIC_` are public and consumed at build time. |
 | `CALENDAR_FRONT_URL` | — | Navigation destination; see the source file that reads it. Variables injected by `next.config.ts` or prefixed `NEXT_PUBLIC_` are public and consumed at build time. |
@@ -82,7 +175,7 @@ These data paths are exposed at the same origin through the proxy; Next.js pages
 
 | Method | Path | Declared body | Declared statuses |
 | --- | --- | --- | --- |
-| POST | `/attachments` | multipart/form-data | 401, 2XX |
+| POST | `/attachments` | multipart/form-data | 401, 2XX (always 503 today: not called by the page) |
 | GET | `/business-references` | — | 2XX |
 | GET | `/check_apis` | — | 2XX |
 | GET | `/contacts` | — | 401, 2XX |
@@ -103,7 +196,7 @@ These data paths are exposed at the same origin through the proxy; Next.js pages
 | Page | Source |
 | --- | --- |
 | `/` | [src/app/page.tsx](../../src/app/page.tsx) |
-| `/profile` | [src/app/profile/page.tsx](../../src/app/profile/page.tsx) |
+| `/profile` and subpaths | [src/middleware.ts](../../src/middleware.ts) redirects to Settings |
 
 | Method | Local route | Source |
 | --- | --- | --- |
@@ -123,19 +216,19 @@ Every response carries `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff
 The contract source is the published `@mairie360/bff-message-openapi` package, pinned to an exact version in `package.json`. Never copy the contract from a **BFF_Message** checkout: the local repository can be ahead of the last published release. After a version bump:
 
 ```bash
-npm install --save-exact @mairie360/bff-message-openapi@X.Y.Z   # published releases only, never 0.0.0-dev/staging
+npm install --save-exact @mairie360/bff-message-openapi@<version>   # a release X.Y.Z or a published 0.0.0-dev.<sha40> of BFF_Message main, never staging
 npm run contracts:sync      # rebuild contracts/openapi.json from the installed package
-npm run contracts:check     # fail if the version isn't exact, if a second bff-*-openapi package exists, or if the snapshot is stale
+npm run contracts:check     # fail if the version isn't an accepted exact version, if a second bff-*-openapi package exists, or if the snapshot is stale
 npm test
 npm run lint
 npm run build
 ```
 
-These commands run offline. Move the `bff-message` image tags in the `docker-compose*.yml` files to the same version as well (`tests/package-contract.test.cjs` enforces it). `contracts/openapi.json` is the committed rebuild of the package, read by the proxy at build time and by the tests: never hand-edit it. Route types come straight from the package (`@mairie360/bff-message-openapi/model`); there is no generated `.d.ts` any more. `test:contracts` runs the Node tests without coverage; `npm test` runs them with 60% coverage thresholds (lines, branches, functions) reported on the original TypeScript.
+These commands run offline. Move the `bff-message` image tags in the `docker-compose*.yml` files to the image built from the same commit as well (`X.Y.Z`, or `dev-<sha7>` for a dev package; `tests/package-contract.test.cjs` enforces it through `scripts/contract-version.mjs`). The dev BFF_Message also needs `JWT_SECRET`, `PROJECT_API_URL` and `CALENDAR_API_URL` at startup (the stacks point the last two at an unreachable sentinel, like BFF_Message's own stacks), the dev APIs need `JWT_ALLOW_WEAK_SECRET`, `RATE_LIMIT_ENABLED=false` and `RATE_LIMIT_PER_SECOND=0`, the dev Liquibase `-Dallow_template_admin=true`, and `init-test.sql` argon2id hashes. `contracts/openapi.json` is the committed rebuild of the package, read by the proxy at build time and by the tests: never hand-edit it. Route types come straight from the package (`@mairie360/bff-message-openapi/model`); there is no generated `.d.ts` any more. `test:contracts` runs the Node tests without coverage; `npm test` runs them with 60% coverage thresholds (lines, branches, functions) reported on the original TypeScript.
 
-Orval output only types successes, exposed under the `2XX` range, plus the error statuses carried by a `<OperationId><status>` model: any other error reply mocked in the tests must be declared with `outOfContract: true`.
+Orval output only types successes, exposed under the `2XX` range, plus the error statuses carried by a `<OperationId><status>` model; the dev package references the shared `ErrorResponse` model instead, so no error status is documented and every error reply mocked in the tests must be declared with `outOfContract: true`.
 
-The `tests/*.contract-mocks.test.cjs` tests run the real browser client (`messageClient`, `fetchAuthSession`, `useAuthSession`) through the real Next.js handlers (contract catch-all, `/business-references`, local logout) up to a local HTTP server simulating BFF Message, driven by `contracts/openapi.json`. Every request (path, method, parameters, body) and every mocked response is validated against that contract, and any call to another host fails: BFF Message is the only reachable BFF. The proxy block replays **every** contract operation with requests and replies built by `contract.sample`, so a package bump covers new routes automatically. `tests/network-contract.test.cjs` scans `src/` to check that only `messageClient`, `auth-session` and `bff-proxy` call the network, that a single BFF URL is read, and that every path called by the browser matches a declared operation or a local route with no network. `tests/package-contract.test.cjs` checks the exact package pin, that only one `bff-*-openapi` package is used, that the snapshot is fresh, and the `bff-message` image versions. A new `messageClient` method fails the tests until it has a contract scenario.
+The `tests/*.contract-mocks.test.cjs` tests run the real browser client (`messageClient`, `fetchAuthSession`, `useAuthSession`) through the real Next.js handlers (contract catch-all, `/business-references`, local logout) up to a local HTTP server simulating BFF Message, driven by `contracts/openapi.json`. Every request (path, method, parameters, body) and every mocked response is validated against that contract, and any call to another host fails: BFF Message is the only reachable BFF. The proxy block replays **every** contract operation with requests and replies built by `contract.sample`, so a package bump covers new routes automatically. `tests/network-contract.test.cjs` scans `src/` to check that only `lib/bff-client`, `auth-session` and `bff-proxy` call the network, that axios is only imported by `lib/bff-client`, that `messageClient` only calls operations of the generated client and writes no path, that a single BFF URL is read, and that every literal path called by the browser matches a local route with no network. `tests/package-contract.test.cjs` checks the exact package pin, that only one `bff-*-openapi` package is used, that the snapshot is fresh, and the `bff-message` image versions. A new `messageClient` method fails the tests until it has a contract scenario.
 
 For documentation-only changes, check links, accuracy in both languages and `git diff --check`; do not regenerate contracts without changing their source.
 

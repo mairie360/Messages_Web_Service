@@ -53,7 +53,7 @@ const clientScenarios = {
   async getBootstrap() {
     const body = bootstrap();
     messageBff.on('get', '/messaging/bootstrap', { body });
-    assert.deepEqual(await messageClient.getBootstrap(), body);
+    assert.deepEqual(await messageClient.getBootstrap(), { ...body, currentUser: { id: body.currentUser.id, name: body.currentUser.name } });
     assert.deepEqual(upstream(), ['GET /messaging/bootstrap']);
   },
   async getContacts() {
@@ -69,11 +69,35 @@ const clientScenarios = {
     assert.equal(network.resolve('/business-references').route, '/business-references', 'servi par la route explicite');
     assert.deepEqual(upstream(), ['GET /business-references']);
   },
+  async getConversations() {
+    const body = { conversations: [conversation(4, 'Équipe communication', { unreadCount: 2 })] };
+    messageBff.on('get', '/conversations', { body });
+    assert.deepEqual(await messageClient.getConversations(), body);
+    assert.deepEqual(upstream(), ['GET /conversations']);
+  },
   async getConversationMessages() {
     const body = { conversation: conversation(4, 'Équipe communication'), messages: [message(1, 4, 'Bonjour', users.sophie), message(2, 4, 'Salut')] };
     messageBff.on('get', '/conversations/{conversationId}/messages', { body });
     assert.deepEqual(await messageClient.getConversationMessages('conversation-4'), body);
     assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages')[0].pathParams, { conversationId: 'conversation-4' });
+  },
+  async uploadAttachments() {
+    const body = { attachments: [{ id: 'stored-1', name: 'agenda.txt', size: 6, type: 'text/plain' }] };
+    messageBff.on('post', '/attachments', { status: 201, body });
+    const file = new File(['agenda'], 'agenda.txt', { type: 'text/plain' });
+    assert.deepEqual(await messageClient.uploadAttachments([file]), body);
+    const [call] = messageBff.calls('/attachments', 'post');
+    assert.match(call.headers['content-type'], /^multipart\/form-data; boundary=/);
+    assert.match(call.rawBody.toString('utf8'), /name="files"; filename="agenda\.txt"/);
+    assert.match(call.rawBody.toString('utf8'), /agenda/);
+  },
+  async acknowledgeVisibleMessages() {
+    const body = { conversationId: 'conversation-4', unreadCount: 2 };
+    messageBff.on('post', '/conversations/{conversationId}/read', { body });
+    assert.deepEqual(await messageClient.acknowledgeVisibleMessages('conversation-4', 'message-1'), body);
+    const [call] = messageBff.calls('/conversations/{conversationId}/read', 'post');
+    assert.deepEqual(call.body, { readUntilMessageId: 'message-1' });
+    assert.equal(call.pathParams.conversationId, 'conversation-4');
   },
   async sendMessage() {
     const body = { message: message(3, 4, 'Réunion à 14h'), conversation: conversation(4, 'Équipe communication', { lastMessage: 'Réunion à 14h' }) };
@@ -125,17 +149,45 @@ describe('messageClient through the Next.js routes against the BFF_Message contr
 });
 
 describe('BFF_Message errors surfaced by messageClient', () => {
-  test('documented 401 ApiErrorResponse bodies become a BffRequestError with their message', async () => {
-    messageBff.on('get', '/messaging/bootstrap', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée') });
-    await assert.rejects(messageClient.getBootstrap(), (error) => error instanceof BffRequestError && error.status === 401 && error.message === 'Session expirée');
-
-    messageBff.on('post', '/groups', { status: 401, body: apiError('UNAUTHORIZED', 'Authentification requise') });
-    await assert.rejects(messageClient.createGroup({ name: 'Groupe', memberIds: [] }), { message: 'Authentification requise' });
+  test('synchronization reads expose opaque redirects without reading or following them', async (t) => {
+    const { BffNavigationRequiredError } = requireSrc('clients/messageClient.ts');
+    const paths = [];
+    t.mock.method(global, 'fetch', async (path, init) => {
+      paths.push(path);
+      assert.equal(init.redirect, 'manual');
+      return {
+        type: 'opaqueredirect',
+        get ok() { throw new Error('Opaque status must not be inspected'); },
+        text() { throw new Error('Opaque body must not be read'); },
+      };
+    });
+    await assert.rejects(messageClient.getConversations(), BffNavigationRequiredError);
+    await assert.rejects(messageClient.getConversationMessages('conversation-4'), BffNavigationRequiredError);
+    assert.deepEqual(paths, ['/conversations', '/conversations/conversation-4/messages']);
   });
 
-  test('an undocumented non-JSON failure falls back to a status message', async () => {
+  test('a synchronization transport failure remains a transport failure, not a guessed 401', async (t) => {
+    const failure = new TypeError('Failed to fetch');
+    t.mock.method(global, 'fetch', async () => { throw failure; });
+    await assert.rejects(messageClient.getConversations(), error => error === failure);
+  });
+
+  test('a rejected session becomes a controlled BffRequestError without preserving upstream cookie changes', async () => {
+    messageBff.on('get', '/messaging/bootstrap', { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
+    await assert.rejects(messageClient.getBootstrap(), (error) => error instanceof BffRequestError && error.status === 401 && error.message === 'Votre session a expiré.');
+
+    messageBff.on('post', '/groups', { status: 401, body: apiError('UNAUTHORIZED', 'Authentification requise'), outOfContract: true });
+    await assert.rejects(messageClient.createGroup({ name: 'Groupe', memberIds: [] }), { message: 'Votre session a expiré.' });
+  });
+
+  test('an undocumented non-JSON failure uses a readable fallback', async () => {
     messageBff.on('get', '/contacts', { status: 500, raw: 'Internal Server Error', contentType: 'text/plain', outOfContract: true });
-    await assert.rejects(messageClient.getContacts(), { status: 500, message: 'Erreur BFF messages (500)' });
+    await assert.rejects(messageClient.getContacts(), { status: 500, message: 'Le service de messagerie est temporairement indisponible.' });
+  });
+
+  test('an empty 400 response does not expose a raw status', async () => {
+    messageBff.on('get', '/contacts', { status: 400, raw: '', outOfContract: true });
+    await assert.rejects(messageClient.getContacts(), { status: 400, message: 'La demande n’a pas pu aboutir.' });
   });
 
   test('an unreachable BFF becomes the controlled 502 error of the proxy', async () => {
@@ -175,7 +227,10 @@ describe('same-origin proxy only forwards operations declared by the BFF_Message
     for (const operation of contract.operations()) {
       const [method, template] = operation.split(' ');
       const { schema } = contract.responseSchema(contract.match(method, concrete(template)), 200);
-      messageBff.on(method, template, { status: 200, body: schema ? contract.sample(schema, 'reply') : undefined });
+      messageBff.on(method, template, template === '/stream'
+        ? { status: 200, raw: ': keep-alive\n\n', contentType: 'text/event-stream' }
+        : template === '/me' ? { status: 200, body: currentUser() }
+        : { status: 200, body: schema ? contract.sample(schema, 'reply') : undefined });
     }
     for (const operation of contract.operations()) {
       const [method, template] = operation.split(' ');
@@ -183,10 +238,10 @@ describe('same-origin proxy only forwards operations declared by the BFF_Message
       const response = await fetch(url, init);
       assert.equal(response.status, 200, operation);
     }
-    assert.deepEqual(upstream().sort(), contract.operations().map((operation) => {
+    assert.deepEqual(upstream().sort(), ['GET /me', ...contract.operations().map((operation) => {
       const [method, template] = operation.split(' ');
       return `${method} ${concrete(template)}`;
-    }).sort());
+    })].sort());
 
     messageBff.reset();
     messageBff.on('get', '/contacts', { body: { contacts: [] } });
@@ -235,4 +290,19 @@ describe('same-origin proxy only forwards operations declared by the BFF_Message
     assert.deepEqual(network.violations, ['appel réseau hors contrat vers http://localhost:4000/me']);
     network.violations.length = 0;
   });
+});
+
+// MAIR-512: the ErrorResponse envelope is exposed for field-level messages.
+test('a BFF refusal exposes its code and details next to the unchanged message and status', async () => {
+  const details = [{ path: 'body.content', message: 'Must not contain < or >' }, { message: 'Context only' }, { path: 'ignored' }, 'junk'];
+  messageBff.on('post', '/conversations/{conversationId}/messages', { status: 400, body: { error: { code: 'BAD_REQUEST', message: 'Validation failed', details } }, outOfContract: true });
+  const error = await messageClient.sendMessage(4, { content: 'x' }).catch((reason) => reason);
+  assert.ok(error instanceof BffRequestError);
+  assert.deepEqual([error.message, error.status, error.code], ['Validation failed', 400, 'BAD_REQUEST']);
+  assert.deepEqual(error.details, [{ path: 'body.content', message: 'Must not contain < or >' }, { path: undefined, message: 'Context only' }]);
+
+  messageBff.on('get', '/contacts', { status: 503, raw: 'down', contentType: 'text/plain', outOfContract: true });
+  const unreadable = await messageClient.getContacts().catch((reason) => reason);
+  assert.ok(unreadable instanceof BffRequestError);
+  assert.deepEqual([unreadable.status, unreadable.code, unreadable.details], [503, undefined, []]);
 });

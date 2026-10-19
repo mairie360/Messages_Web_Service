@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { describe, test } = require('node:test');
 const ts = require('typescript');
+const policy = require('./support/source-policy.cjs');
 const { ContractMockServer } = require('./support/contract-mock-server.cjs');
 const { messageBffContract } = require('./support/fixtures.cjs');
 const { appRoutes } = require('./support/front-network.cjs');
@@ -25,23 +26,26 @@ const visit = (node, callback) => { callback(node); ts.forEachChild(node, (child
 
 /** Fichiers autorisés à appeler `fetch`, et l'identifiant non littéral qu'ils peuvent lui passer. */
 const FETCH_CALLERS = {
-  'clients/messageClient.ts': { side: 'browser', dynamicArgument: 'path' },
-  'lib/auth-session.ts': { side: 'browser' },
-  'lib/bff-proxy.ts': { side: 'server', dynamicArgument: 'target' },
+  'lib/bff-client.ts': { side: 'browser', dynamicArgument: 'path' },
+  'lib/logout.ts': { side: 'browser' },
+  'lib/message-stream.ts': { side: 'browser', dynamicArgument: 'url' },
+  'lib/message-stream-proxy.ts': { side: 'server', dynamicArgument: 'target' },
 };
 /** Fonctions navigateur dont le 1er argument est un chemin same-origin. */
-const BROWSER_REQUESTERS = new Set(['fetch', 'bffRequest']);
-const FORBIDDEN_MODULES = /^(axios|openapi-fetch|undici|got|ky|superagent|node-fetch|cross-fetch|(node:)?https?|(node:)?net|@mairie360\/bff-.*-openapi)$/;
+const BROWSER_REQUESTERS = new Set(['fetch', 'sessionFetch']);
+const FORBIDDEN_MODULES = /^(openapi-fetch|undici|got|ky|superagent|node-fetch|cross-fetch|(node:)?https?|(node:)?net|@mairie360\/bff-.*-openapi)$/;
 const FORBIDDEN_CONSTRUCTORS = new Set(['XMLHttpRequest', 'WebSocket', 'EventSource']);
 
 function scan(file) {
   const source = parse(file);
   const findings = { fetchCalls: [], browserRequests: [], forbidden: [] };
   visit(source, (node) => {
-    if (ts.isImportDeclaration(node) && FORBIDDEN_MODULES.test(node.moduleSpecifier.text) && !node.importClause?.isTypeOnly) {
+    // axios only carries the generated operations through the fetch of the BFF client.
+    const axiosOutsideClient = (name) => name === 'axios' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/bff-client.ts' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/message-stream.ts' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/server-messaging-page.ts';
+    if (ts.isImportDeclaration(node) && (FORBIDDEN_MODULES.test(node.moduleSpecifier.text) || axiosOutsideClient(node.moduleSpecifier.text)) && !node.importClause?.isTypeOnly) {
       findings.forbidden.push(`import ${node.moduleSpecifier.text}`);
     }
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'require' && node.arguments[0] && ts.isStringLiteral(node.arguments[0]) && FORBIDDEN_MODULES.test(node.arguments[0].text)) {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'require' && node.arguments[0] && ts.isStringLiteral(node.arguments[0]) && (FORBIDDEN_MODULES.test(node.arguments[0].text) || axiosOutsideClient(node.arguments[0].text))) {
       findings.forbidden.push(`require ${node.arguments[0].text}`);
     }
     if (ts.isNewExpression(node) && ts.isIdentifier(node.expression) && FORBIDDEN_CONSTRUCTORS.has(node.expression.text)) {
@@ -52,11 +56,11 @@ function scan(file) {
     }
     if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) return;
     const callee = node.expression.text;
-    if (callee === 'fetch') findings.fetchCalls.push(node.arguments[0]?.getText());
+    if (['fetch', 'sessionFetch'].includes(callee)) findings.fetchCalls.push(node.arguments[0]?.getText());
     if (!BROWSER_REQUESTERS.has(callee) || !node.arguments[0]) return;
     const [target, init] = node.arguments;
     const methodProperty = init && ts.isObjectLiteralExpression(init)
-      ? init.properties.find((property) => ts.isPropertyAssignment(property) && property.name.getText() === 'method')
+      ? init.properties.find((property) => ts.isPropertyAssignment(property) && policy.propertyName(property.name) === 'method')
       : undefined;
     const method = methodProperty && ts.isStringLiteral(methodProperty.initializer) ? methodProperty.initializer.text : 'GET';
     if (ts.isStringLiteral(target) || ts.isNoSubstitutionTemplateLiteral(target)) {
@@ -80,6 +84,16 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
     assert.deepEqual(forbidden, []);
   });
 
+  test('the server reader calls only the two published GET operations through its proxy adapter', () => {
+    const source = fs.readFileSync(path.join(SRC, 'lib/server-messaging-page.ts'), 'utf8');
+    assert.equal(scans['lib/server-messaging-page.ts'].fetchCalls.length, 0);
+    assert.match(source, /proxyBffRequest\(/);
+    const operations = [...source.matchAll(/api\.(\w+)\(/g)].map(([, name]) => name);
+    assert.deepEqual(operations, ['getMessagingBootstrap', 'getConversationsConversationIdMessages']);
+    const sdk = fs.readFileSync(path.join(path.dirname(require.resolve('@mairie360/bff-message-openapi/package.json')), 'endpoints/bffMessage.ts'), 'utf8');
+    for (const name of operations) assert.match(sdk, new RegExp(`const ${name} = \\(`));
+  });
+
   test('fetch is only called by the contract-tested modules', () => {
     const callers = Object.entries(scans).filter(([, { fetchCalls }]) => fetchCalls.length > 0).map(([file]) => file);
     assert.deepEqual(callers.sort(), Object.keys(FETCH_CALLERS).sort());
@@ -100,7 +114,7 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
     const requests = Object.entries(FETCH_CALLERS)
       .filter(([, { side }]) => side === 'browser')
       .flatMap(([file]) => scans[file].browserRequests.filter((request) => !request.dynamic).map((request) => ({ file, ...request })));
-    assert.ok(requests.length >= 10, 'les appels du client et de la session sont détectés');
+    assert.ok(requests.length >= 1, 'la déconnexion locale est détectée');
 
     for (const { file, method, path: pathname } of requests) {
       const label = `${file}: ${method} ${pathname}`;
@@ -116,22 +130,53 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
     }
   });
 
+  test('messageClient only calls operations of the generated client and writes no path literal', () => {
+    const generated = fs.readFileSync(require.resolve('@mairie360/bff-message-openapi/endpoints/bffMessage', { paths: [path.join(SRC, '..')] }).replace(/\.js$/, '.ts'), 'utf8');
+    const operations = new Set([...generated.matchAll(/^const (\w+) = \(/gm)].map(([, name]) => name));
+    const ast = policy.parse('src/clients/messageClient.ts');
+    const called = policy.nodes(ast, (node) => ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.expression.getText() === 'bffMessage')
+      .map((node) => node.expression.name.text);
+    assert.ok(called.length >= 10, 'the client calls the generated operations');
+    assert.deepEqual(called.filter((name) => !operations.has(name)), []);
+    assert.deepEqual(policy.nodes(ast, (node) => ts.isStringLiteralLike(node) && node.text.startsWith('/')).map((node) => node.text), []);
+    assert.deepEqual(policy.calls(ast, 'fetch'), []);
+    assert.deepEqual(policy.calls(ast, 'bffRequest'), []);
+  });
+
   test('BFF Message is the only BFF: one base URL, relayed only by the contract routes', () => {
     const bffEnv = new Set();
     const relays = [];
     for (const file of sourceFiles()) {
-      const text = fs.readFileSync(file, 'utf8');
-      for (const [, name] of text.matchAll(/process\.env\.(\w*BFF\w*)/g)) bffEnv.add(`${relative(file)}: ${name}`);
-      if (/\bforwardToBff\(/.test(text) && relative(file) !== 'lib/bff-proxy.ts') relays.push(relative(file));
+      const ast = policy.parse('src/' + relative(file));
+      for (const name of policy.envNames(ast).filter(name => name?.includes('BFF'))) bffEnv.add(`${relative(file)}: ${name}`);
+      if (policy.calls(ast, 'forwardToBff').length && relative(file) !== 'lib/bff-proxy.ts') relays.push(relative(file));
     }
     assert.deepEqual([...bffEnv].sort(), [
       'lib/bff-proxy.ts: BFF_MESSAGE_BASE_URL', 'lib/bff-proxy.ts: MESSAGE_BFF_URL', 'lib/bff-proxy.ts: NEXT_PUBLIC_BFF_MESSAGE_BASE_URL',
     ]);
     assert.deepEqual(relays, ['app/business-references/route.ts']);
-    assert.match(fs.readFileSync(path.join(SRC, 'app/business-references/route.ts'), 'utf8'), /forwardToBff\(request, configuredBffUrl\(\), '\/business-references'\)/);
+    const forwards = policy.calls(policy.parse('src/app/business-references/route.ts'), 'forwardToBff');
+    assert.equal(forwards.length, 1);
+    assert.ok(policy.parameterReference(forwards[0].arguments[0]));
+    assert.ok(policy.configuredUrl(forwards[0].arguments[1]));
+    assert.ok(policy.ts.isStringLiteralLike(forwards[0].arguments[2]));
+    assert.equal(forwards[0].arguments[2].text, '/business-references');
     // Les routes /api/** sont locales : ni fetch, ni relais vers un BFF.
     for (const { file, route } of appRoutes().filter(({ route: name }) => name.startsWith('/api/'))) {
-      assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /bff-proxy|fetch\(/, route);
+      const ast = policy.parse('src/' + relative(file));
+      if (route === '/[...path]') {
+        assert.deepEqual(policy.imports(ast), ['../../../../lib/bff-proxy'], route);
+        const handlers = requireSrc(path.relative(SRC, file));
+        for (const method of ['GET','HEAD','POST','PUT','PATCH','DELETE']) assert.equal(handlers[method], requireSrc('lib/bff-proxy.ts').proxyBffRequest);
+      } else {
+        assert.equal(policy.imports(ast).some(name => name.includes('bff-proxy')), false, route);
+        if (route === '/api/auth/logout') {
+          assert.deepEqual(policy.imports(ast), ['@mairie360/front-kit/next']);
+          assert.equal(policy.calls(ast, 'createSessionLogoutProxy').length, 1);
+        }
+      }
+      assert.equal(policy.calls(ast, 'fetch').length, 0, route);
+      assert.equal(policy.calls(ast, 'forwardToBff').length, 0, route);
     }
   });
 
@@ -146,7 +191,7 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
   });
 
   test('the browser cannot reach another origin and Next.js does not rewrite to one', () => {
-    const { buildContentSecurityPolicy } = requireSrc('lib/content-security-policy.ts');
+    const { buildContentSecurityPolicy } = require('@mairie360/front-kit/shared');
     const directives = Object.fromEntries(buildContentSecurityPolicy('nonce').split('; ').map((directive) => {
       const [name, ...values] = directive.split(' ');
       return [name, values.join(' ')];

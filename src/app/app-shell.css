@@ -1,105 +1,214 @@
+/* Match the local reference without changing the shared small-text tokens. */
+html {
+  font-size: 17px;
+}
+
+/* More specific than the library's body rule, regardless of CSS chunk order. */
+html body {
+  font-family: system-ui, sans-serif;
+}
+
 .messages-app-root {
-  min-height: 100vh;
-  background: #f5f3f0;
-  color: #172033;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--mairie-background);
+  color: var(--mairie-text);
 }
 
-.messages-shell {
-  display: flex;
-  min-height: 100vh;
+.messages-app-root > .flex {
+  height: 100%;
+  min-height: 0;
 }
 
-.messages-desktop-sidebar {
-  display: none;
+.messages-app-root > .flex > .flex {
+  min-height: 0;
+}
+
+/* Keep the published navigation, restoring only the reference presentation. */
+.messages-app-root [aria-label="Navigation principale"] {
+  position: relative;
+  z-index: 20;
+  box-shadow: 8px 0 24px rgb(12 28 48 / 28%);
+}
+
+.messages-app-root [aria-label="Navigation principale"] nav button {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+/* The published drawer Close button is z-10; keep it above its sidebar. */
+.messages-app-root [aria-label="Navigation mobile"] [aria-label="Navigation principale"] {
+  z-index: 0;
+}
+
+.messages-app-root > .flex > .flex > header,
+.messages-app-root > .flex > .flex > footer {
   flex-shrink: 0;
 }
 
-.messages-mobile-sidebar {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-}
-
-.messages-mobile-sidebar-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgb(0 0 0 / 45%);
-}
-
-.messages-mobile-sidebar-panel {
-  position: relative;
-  z-index: 10;
-}
-
-.messages-content {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-}
-
-.messages-main {
+.messages-app-root > .flex > .flex > main {
   display: flex;
   min-height: 0;
   flex: 1;
   overflow: hidden;
-  background: #f5f3f0;
-  padding: 24px 16px;
+  background: var(--mairie-background);
+  padding: 20px;
 }
 
 .messages-main-inner {
   display: flex;
+  flex-direction: column;
   width: 100%;
+  min-width: 0;
   min-height: 0;
-  max-width: 1534px;
+  max-width: none;
   margin: 0 auto;
 }
 
-.messages-main--scroll {
-  overflow: auto;
-}
-
-.messages-main-inner--profile {
-  display: block;
-  max-width: 980px;
-}
-
-.messages-module {
+.messages-module-frame > .messages-module {
   width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  grid-template-rows: minmax(0, 1fr);
+  box-shadow: 0 5px 15px rgb(23 32 51 / 14%), 0 1px 3px rgb(23 32 51 / 12%);
+}
+
+.messages-module-frame {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
 }
 
 .messages-module-stack {
   display: flex;
   width: 100%;
+  min-width: 0;
   min-height: 0;
+  flex: 1;
   flex-direction: column;
   gap: 12px;
+  /* The module clips its own content; clipping this same-size stack also
+     hides the card's outer shadow. The padded main bounds the viewport. */
+  overflow: visible;
+}
+
+@media (min-width: 1024px) {
+  .messages-module-frame > .messages-module {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+}
+
+.messages-pane-switch {
+  display: none;
+}
+
+.messages-module > aside {
+  min-width: 0;
+}
+
+.messages-module > aside > div:last-child,
+.messages-module > div:nth-child(2) > .flex-1 {
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+.messages-module [role="region"]:focus-visible {
+  outline: 2px solid var(--mairie-accent);
+  outline-offset: -2px;
+}
+
+.messages-module > div:nth-child(2) {
+  min-width: 0;
+}
+
+.messages-module > div:nth-child(2) > div:first-child h3 {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.messages-module > div:nth-child(2) > .flex-1 {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.messages-module > div:nth-child(2) > :not(.flex-1) {
+  flex-shrink: 0;
 }
 
 .messages-error {
   margin: 0;
-  border: 1px solid #fecaca;
+  flex-shrink: 0;
+  border: 1px solid var(--mairie-error-text);
   border-radius: 8px;
-  background: #fef2f2;
+  background: var(--mairie-error-surface);
   padding: 10px 12px;
-  color: #991b1b;
+  color: var(--mairie-error-text);
   font-size: 14px;
   line-height: 20px;
 }
 
-@media (min-width: 640px) {
-  .messages-main {
-    padding: 32px 24px;
-  }
+.messages-operation-status {
+  margin: 0;
+  flex-shrink: 0;
+  border: 1px solid var(--mairie-control-border);
+  border-radius: 8px;
+  background: var(--mairie-surface);
+  padding: 10px 12px;
+  color: var(--mairie-text);
+  font-size: 14px;
+  line-height: 20px;
 }
 
-@media (min-width: 1024px) {
-  .messages-desktop-sidebar {
+@media (max-width: 1023px) {
+  .messages-pane-switch {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    min-height: 36px;
+    flex-shrink: 0;
+    border: 1px solid var(--mairie-control-border);
+    border-radius: 8px;
+    background: var(--mairie-surface);
+    padding: 6px 12px;
+    color: var(--mairie-text);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .messages-pane-switch:focus-visible {
+    outline: 2px solid var(--mairie-accent);
+    outline-offset: 2px;
+  }
+
+  .messages-module > aside {
+    display: none;
+  }
+
+  .messages-list-open .messages-module > aside {
     display: flex;
   }
 
-  .messages-mobile-sidebar {
+  .messages-list-open .messages-module > div:nth-child(2) {
     display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .messages-app-root > .flex > .flex > main {
+    padding: 10px;
+  }
+
+  .messages-module > aside {
+    padding: 12px;
+  }
+
+  .messages-module > aside > label {
+    margin-top: 8px;
   }
 }

@@ -1,10 +1,72 @@
 # Messages_Web_Service — Documentation technique
 
+## Pied de page partagé — MAIR-180
+
+L’audit CI inchangé a détecté la dépendance d’outillage transitive
+`brace-expansion@1.1.18`. Son entrée verrouillée passe à la version corrigée
+compatible `1.1.21`, avec l’intégrité vérifiée sur le registre, conformément à
+[l’avis amont](https://github.com/advisories/GHSA-qhr7-859c-m2p7).
+Aucun seuil d’audit, workflow ou contrôle de sécurité n’est assoupli.
+
+Le paquet est épinglé à `@mairie360/lib-components@0.6.8`, publié par
+[la publication réussie de 0.6.8](https://github.com/mairie360/lib-components/actions/runs/36836970818), qui inclut la correction du pied de page #388.
+L’AppShell affiche désormais le copyright dans la sidebar sombre, hors de la
+navigation défilante. Le tiroir mobile conserve sa gestion du focus. Aucun bandeau
+de pied de page ne réduit la zone de contenu ; seules les informations fournies
+par le service sont affichées (pas de version fictive).
+Les contrats, les API/BFF et les approbations de déploiement sont inchangés.
+Le suivi de l’adoption reste dans [l’issue partagée #387](https://github.com/mairie360/lib-components/issues/387).
+
+## Présentation des horodatages — MAIR-303
+
+`src/lib/message-timestamps.ts` adapte uniquement `sentAt` et `lastMessageAt`
+au format français du navigateur, avant le rendu du composant `Messaging`.
+Les tableaux de présentation sont dérivés avec `useMemo` ; l'état BFF brut,
+l'ordre, les identifiants, les contenus et les payloads réseau restent intacts.
+Seules les dates-heures ISO valides sont converties ; une date seule ou un
+libellé inconnu reste inchangé. Les heures textuelles valides telles que
+`9 h 05` deviennent `9:05`. Aucun instant courant ni valeur de démonstration
+n'est utilisé comme repli. Les réponses arrivent après le montage côté client,
+donc le fuseau du serveur ne détermine pas leur affichage dans le navigateur.
+Tests : `message-timestamps.test.cjs` (dont UTC, Réunion et changement d'heure
+à Paris) et scénarios de page chargement/sélection/actualisation/envoi.
+Aucune modification de contrat, dépendance ou environnement.
+
+## Structure applicative partagée — MAIR-180
+
+La page Messages utilise l’`AppShell` partagé pour la navigation ordinateur et
+mobile, l’en-tête et le pied de page. Son adaptateur léger conserve la session
+issue du BFF et la zone de conversations bornée, à défilement interne. Seules
+les URL runtime des modules actifs sont transmises ; les destinations invalides
+sont omises. Aucun changement d’appel ni de contrat BFF. Un paquet publié de
+`@mairie360/lib-components` exportant `AppShell` est nécessaire avant déploiement.
+
+## Profil centralisé dans Settings — lot MAIR-180
+
+Les requêtes authentifiées vers `/profile` et ses sous-chemins redirigent (307)
+dans le middleware vers `SETTINGS_FRONT_URL`, lue à chaque requête ; aucun profil
+métier n’est chargé ici. Une destination absente, invalide, avec identifiants
+intégrés ou contenant un segment `profile` renvoie HTTP 503 sans cache. Les
+paramètres de l’ancien favori ne sont pas transmis. Le contrôle d’authentification
+existant s’applique d’abord. Aucun nouveau contrat BFF, secret ni variable runtime.
+
+## Destinations frontend explicites (MAIR-177)
+
+Les redirections utilisent uniquement des URL HTTP(S) configurées, sans
+identifiants intégrés. Aucun repli implicite vers localhost. Renseigner à
+l’exécution les variables existantes `LOGIN_FRONT_URL` (fronts protégés) et
+`PROJECT_FRONT_URL` (destination par défaut de Login), même en local. Login
+accepte toujours un retour vers un front autorisé si sa destination par défaut
+manque. Sans destination Login valide, le middleware répond 503 sans cache ;
+Login affiche un état indisponible sans formulaire si aucune destination ne
+peut être résolue. Aucun contrat API/BFF ni variable de déploiement ajouté.
+
+
 [Présentation du module](module.md) · [English](../en/technical.md) · [README](../../README.md)
 
 ## Architecture et traitement des requêtes
 
-Application Next.js 15.5.25, React 19 et TypeScript avec App Router. Le navigateur appelle les routes de la même origine; le serveur Next.js relaie les données vers **BFF_Message**.
+Application Next.js 16.3.6, React 19 et TypeScript avec App Router. Le navigateur appelle les routes de la même origine; le serveur Next.js relaie les données vers **BFF_Message**.
 
 ```mermaid
 flowchart LR
@@ -12,7 +74,44 @@ flowchart LR
   Next --> BFF["BFF_Message"]
 ```
 
-La page utilise le client de messagerie pour charger le bootstrap puis les messages et contacts à la demande. Elle transforme les réponses pour le composant partagé `Messaging`. La route explicite `/business-references` relaie la réponse de BFF Message.
+La page utilise le client de messagerie pour charger le bootstrap puis les messages et contacts à la demande. Elle transforme les réponses pour le composant partagé `Messaging`. Après le bootstrap, elle relit `/conversations` et le fil actif toutes les deux secondes lorsque l’onglet est visible, ainsi qu’à la reprise du focus. Les réponses arrivées après une sélection ou une mutation sont ignorées pour ne pas écraser l’état récent ; un échec temporaire de synchronisation conserve le dernier fil connu et affiche une alerte. La route explicite `/business-references` relaie la réponse de BFF Message.
+
+Pour les lectures de synchronisation uniquement, `redirect: "manual"` expose une
+redirection comme `opaqueredirect` ; le client lève `BffNavigationRequiredError`
+sans lire Location, statut ni corps. Une réponse de polling ou de sélection explicite courante et visible
+recharge la page protégée ; le middleware inchangé décide de Login et du retour.
+Un vrai401 appelle plutôt une seule fois `logoutAndReload()` existant pour effacer
+le cookie refusé qui semble encore valide, via la route locale existante ; son
+rechargement finally est conservé même si le transport échoue.403/503/panne réseau
+ne déconnectent pas. Un garde partagé par page empêche les autres pollings et
+lectures de fil, y compris une sélection répétée pendant la déconnexion locale.
+Une sélection obsolète, un refus reçu lorsque la page est masquée ou une réponse
+après démontage ne déclenchent pas de navigation. Ce code ne décode ni ne stocke
+de jeton. La reprise du bootstrap et des mutations n'est pas généralisée ;
+brouillons durables et révocation serveur restent non prouvés.
+
+La page distingue les identifiants de fils confirmés de la sélection demandée :
+fil choisi et historiques fournis par bootstrap, lectures réussies avec le bon
+identifiant et conversations nouvellement créées confirmées. Un fil inconnu en
+attente/refus utilise la sélection contrôlée vide et `emptyStateLabel` existants,
+pas le résultat vide codé par la bibliothèque. `Messaging` et sa rédaction restent
+montés, sans écriture sur un historique non confirmé ; les messages connus restent
+visibles en cas de refus. L'attente expose `role="status"` et `aria-busy` ; un ancien
+callback ne peut envoyer vers un fil passé/non confirmé. Aucun patch DOM, reset de
+clé/composant, faux message, paquet ou endpoint modifié.
+
+La suppression conserve le fil et ses messages jusqu’à une réponse conforme
+`deleted: true` ; l’identifiant facultatif, lorsqu’il est renvoyé, doit correspondre
+au fil demandé (identifiants numériques et chaînes équivalentes acceptés). Un
+refus ou une confirmation absente/invalide affiche une erreur sans effacer les
+données connues. Un verrou immédiat empêche les doubles appels avant le prochain
+rendu React ; un statut accessible remplace l’action pendant la requête et le
+verrou est libéré pour réessayer après un échec. Le jeton de sélection distingue
+les rafraîchissements obsolètes d’un autre fil sélectionné pendant la suppression,
+qui peut encore finir de charger après sa confirmation. Le contrat, les routes,
+les API/BFF et le paquet partagé ne sont pas modifiés (suivi MAIR-212 / issue144).
+
+Les suggestions métier se chargent indépendamment via `messageClient.getBusinessReferences()` au montage et lors des changements de focus/visibilité si la page est visible. Un verrou de requête en cours, propre à l’effet, regroupe les événements simultanés ; aucun intervalle supplémentaire n’est créé. Chaque succès remplace la liste, y compris une liste vide. Les erreurs temporaires conservent les dernières suggestions reçues, tandis qu’un HTTP 401/403 les efface. Le démontage retire les deux écouteurs et ignore les réponses en attente. `tests/messages-page.contract-mocks.test.cjs` couvre ce cycle avec le vrai client et le proxy frontend, devant des mocks pilotés par contrat ; cela n’ajoute pas de persistance aux références envoyées, pièces jointes ou accusés de lecture.
 
 Le proxy générique lit le contrat OpenAPI versionné pour autoriser chemins et méthodes. Il conserve paramètres de requête, corps binaire, statuts et en-têtes utiles, filtre les en-têtes de transport, désactive le cache et n’effectue pas de suivi automatique des redirections. Son délai est de 15 secondes.
 
@@ -22,7 +121,14 @@ Les sources et limites suivantes concernent le BFF associé, dont dépend la sau
 
 Conversations et messages passent par Message API. Les contacts proviennent directement de la table SQL `users`, y compris l’utilisateur courant (identifiant `sub` du jeton). Les références métier sont agrégées depuis BFF Project et BFF Calendar. La modification locale du profil, les métadonnées de pièces jointes et l’accusé de lecture ne constituent pas une persistance complète.
 
-L’upload de pièces jointes fabrique actuellement des métadonnées et ne fournit pas un stockage binaire durable. Le marquage lu renvoie un compteur nul sans écrire dans Message API. Les groupes de conversation passent par l’API, tandis que certaines données de profil restent locales au processus.
+Les pièces jointes ne sont pas encore disponibles (MAIR-512) : le BFF répond 503 à `POST /attachments` et refuse tout `attachmentIds` non vide. La page utilise donc le port par défaut `pendingAttachmentPort` (`src/lib/attachment-features.ts`), sans capacité `upload` : le composer partagé affiche toujours « Joindre un fichier » (son bouton ne dépend pas de `onAttach`), mais les fichiers ne sont pas enregistrés et un brouillon qui en contient est refusé localement en français, sans appel réseau. `messageAttachmentPort` garde le chemin d’upload (`messageClient.uploadAttachments`) prêt pour le jour où le BFF stockera les fichiers. Seuls les identifiants d’utilisateurs (`user-<n>` ou entier, la règle du BFF) sont envoyés dans `mentionIds` : les mentions de groupe restent mises en évidence mais ne sont pas transmises. Un 400 du BFF à l’envoi, au message direct ou à la création de groupe est traduit champ par champ depuis `error.details[]` (`src/lib/bff-error-messages.ts`) ; les autres refus gardent le message du BFF. Le marquage lu renvoie un compteur nul sans écrire dans Message API ; la page n’appelle donc pas cette route et n’efface pas localement les compteurs de non-lus. Les groupes de conversation passent par l’API, tandis que certaines données de profil restent locales au processus.
+
+Le callback de groupe retourne la promesse réelle de `messageClient.createGroup()`
+et une confirmation booléenne : `true` après intégration de la conversation reçue,
+ou `false` après affichage de l’erreur du service. La bibliothèque frontend partagée
+utilise ce résultat pour conserver le formulaire en échec plutôt que le fermer
+avant confirmation. Le corps et le contrat de `POST /groups` restent inchangés
+(MAIR-377).
 
 L’état React gère l’affichage et les opérations en cours. Ce dépôt ne définit pas de base métier propre; les garanties de sauvegarde sont celles du BFF et de ses sources décrites ci-dessus.
 
@@ -57,11 +163,13 @@ npm run start -- --port 5003
 
 ## Configuration
 
+Si la session manque ou a expiré, le middleware transmet `redirect` à Login. Il construit la destination avec `MESSAGE_FRONT_URL` lu à l’exécution, puis le chemin et la query demandés, jamais avec l’hôte interne de l’ingress. Sans URL publique valide, Login utilise sa destination Projets par défaut.
+
 Les valeurs ci-dessous sont des exemples locaux ou des comportements explicitement indiqués, pas des identifiants de production.
 
 | Variable ou priorité | Exemple / repli indiqué | Rôle |
 | --- | --- | --- |
-| `BFF_MESSAGE_BASE_URL` → `MESSAGE_BFF_URL` → `NEXT_PUBLIC_BFF_MESSAGE_BASE_URL` | http://localhost:4003 | Priorité de gauche à droite dans le proxy; l’URL indiquée est le repli local. |
+| `BFF_MESSAGE_BASE_URL` → `MESSAGE_BFF_URL` → `NEXT_PUBLIC_BFF_MESSAGE_BASE_URL` | http://localhost:4003 | Priorité de gauche à droite dans le proxy ; configurer explicitement une URL HTTP(S). Une configuration absente ou invalide renvoie un 503 non mis en cache, sans appel réseau. |
 | `COOKIE_DOMAIN` | — | Domaine du cookie `accessToken`, posé par Login et effacé par la déconnexion locale; vérifier sa cohérence avec Login. |
 | `ADMINISTRATION_FRONT_URL` | — | Destination de navigation; voir le fichier source qui la lit. Les variables injectées par `next.config.ts` ou préfixées `NEXT_PUBLIC_` sont publiques et prises en compte lors du build. |
 | `CALENDAR_FRONT_URL` | — | Destination de navigation; voir le fichier source qui la lit. Les variables injectées par `next.config.ts` ou préfixées `NEXT_PUBLIC_` sont publiques et prises en compte lors du build. |
@@ -82,7 +190,7 @@ Ces chemins de données sont exposés à la même origine par le proxy; les page
 
 | Méthode | Chemin | Corps déclaré | Statuts déclarés |
 | --- | --- | --- | --- |
-| POST | `/attachments` | multipart/form-data | 401, 2XX |
+| POST | `/attachments` | multipart/form-data | 401, 2XX (toujours 503 aujourd’hui : non appelé par la page) |
 | GET | `/business-references` | — | 2XX |
 | GET | `/check_apis` | — | 2XX |
 | GET | `/contacts` | — | 401, 2XX |
@@ -103,7 +211,7 @@ Ces chemins de données sont exposés à la même origine par le proxy; les page
 | Page | Source |
 | --- | --- |
 | `/` | [src/app/page.tsx](../../src/app/page.tsx) |
-| `/profile` | [src/app/profile/page.tsx](../../src/app/profile/page.tsx) |
+| `/profile` et sous-chemins | [src/middleware.ts](../../src/middleware.ts) redirige vers Settings |
 
 | Méthode | Route locale | Source |
 | --- | --- | --- |
@@ -123,19 +231,19 @@ Toutes les réponses portent `X-Frame-Options: DENY`, `X-Content-Type-Options: n
 La source du contrat est le paquet publié `@mairie360/bff-message-openapi`, épinglé à une version exacte dans `package.json`. Ne jamais copier le contrat depuis un checkout de **BFF_Message**: le dépôt local peut être en avance sur la dernière version publiée. Après une montée de version:
 
 ```bash
-npm install --save-exact @mairie360/bff-message-openapi@X.Y.Z   # versions publiées uniquement, jamais 0.0.0-dev/staging
+npm install --save-exact @mairie360/bff-message-openapi@<version>   # release X.Y.Z ou paquet 0.0.0-dev.<sha40> publié du main de BFF_Message, jamais staging
 npm run contracts:sync      # reconstruit contracts/openapi.json depuis le paquet installé
-npm run contracts:check     # échoue si la version n'est pas exacte, si un second paquet bff-*-openapi existe ou si le snapshot est périmé
+npm run contracts:check     # échoue si la version n'est pas une version exacte acceptée, si un second paquet bff-*-openapi existe ou si le snapshot est périmé
 npm test
 npm run lint
 npm run build
 ```
 
-Ces commandes fonctionnent hors ligne. Reporter aussi la même version sur les images `bff-message` des fichiers `docker-compose*.yml` (`tests/package-contract.test.cjs` le vérifie). `contracts/openapi.json` est la reconstruction versionnée du paquet, lue par le proxy au build et par les tests: ne jamais l'éditer à la main. Les types des routes viennent directement du paquet (`@mairie360/bff-message-openapi/model`); il n'y a plus de `.d.ts` généré. `test:contracts` exécute les tests Node sans couverture; `npm test` les exécute avec des seuils de couverture de 60 % (lignes, branches, fonctions) rapportés sur le TypeScript d'origine.
+Ces commandes fonctionnent hors ligne. Reporter aussi l’image `bff-message` construite depuis le même commit sur les fichiers `docker-compose*.yml` (`X.Y.Z`, ou `dev-<sha7>` pour un paquet dev ; `tests/package-contract.test.cjs` le vérifie via `scripts/contract-version.mjs`). Le BFF_Message dev exige aussi `JWT_SECRET`, `PROJECT_API_URL` et `CALENDAR_API_URL` au démarrage (les stacks pointent ces deux URL vers une sentinelle injoignable, comme les stacks de BFF_Message), les APIs dev `JWT_ALLOW_WEAK_SECRET`, `RATE_LIMIT_ENABLED=false` et `RATE_LIMIT_PER_SECOND=0`, le Liquibase dev `-Dallow_template_admin=true`, et `init-test.sql` des hash argon2id. `contracts/openapi.json` est la reconstruction versionnée du paquet, lue par le proxy au build et par les tests: ne jamais l'éditer à la main. Les types des routes viennent directement du paquet (`@mairie360/bff-message-openapi/model`); il n'y a plus de `.d.ts` généré. `test:contracts` exécute les tests Node sans couverture; `npm test` les exécute avec des seuils de couverture de 60 % (lignes, branches, fonctions) rapportés sur le TypeScript d'origine.
 
-La sortie orval ne type que les succès, exposés sous la plage `2XX`, plus les statuts d'erreur portés par un modèle `<OperationId><statut>`: toute autre réponse d'erreur simulée dans les tests doit être déclarée `outOfContract: true`.
+La sortie orval ne type que les succès, exposés sous la plage `2XX`, plus les statuts d'erreur portés par un modèle `<OperationId><statut>` ; le paquet dev référence le modèle commun `ErrorResponse` à la place, donc aucun statut d'erreur n'est documenté et toute réponse d'erreur simulée dans les tests doit être déclarée `outOfContract: true`.
 
-Les tests `tests/*.contract-mocks.test.cjs` exécutent le vrai client navigateur (`messageClient`, `fetchAuthSession`, `useAuthSession`) à travers les vrais handlers Next.js (catch-all contractuel, `/business-references`, déconnexion locale) jusqu'à un serveur HTTP local simulant BFF Message, piloté par `contracts/openapi.json`. Chaque requête (chemin, méthode, paramètres, corps) et chaque réponse simulée est validée contre ce contrat, et tout appel vers un autre hôte échoue: BFF Message est le seul BFF joignable. Le bloc de proxy rejoue **toutes** les opérations du contrat avec des requêtes et des réponses construites par `contract.sample`, donc une montée de version du paquet couvre automatiquement les nouvelles routes. `tests/network-contract.test.cjs` analyse `src/` pour vérifier que seuls `messageClient`, `auth-session` et `bff-proxy` appellent le réseau, qu'une seule URL de BFF est lue et que chaque chemin appelé par le navigateur correspond à une opération déclarée ou à une route locale sans réseau. `tests/package-contract.test.cjs` vérifie l'épinglage exact du paquet, l'unicité du paquet `bff-*-openapi`, la fraîcheur du snapshot et la version des images `bff-message`. Une nouvelle méthode de `messageClient` fait échouer les tests tant qu'elle n'a pas de scénario contractuel.
+Les tests `tests/*.contract-mocks.test.cjs` exécutent le vrai client navigateur (`messageClient`, `fetchAuthSession`, `useAuthSession`) à travers les vrais handlers Next.js (catch-all contractuel, `/business-references`, déconnexion locale) jusqu'à un serveur HTTP local simulant BFF Message, piloté par `contracts/openapi.json`. Chaque requête (chemin, méthode, paramètres, corps) et chaque réponse simulée est validée contre ce contrat, et tout appel vers un autre hôte échoue: BFF Message est le seul BFF joignable. Le bloc de proxy rejoue **toutes** les opérations du contrat avec des requêtes et des réponses construites par `contract.sample`, donc une montée de version du paquet couvre automatiquement les nouvelles routes. `tests/network-contract.test.cjs` analyse `src/` pour vérifier que seuls `lib/bff-client`, `auth-session` et `bff-proxy` appellent le réseau, qu'axios n'est importé que par `lib/bff-client`, que `messageClient` n'appelle que des opérations du client généré sans écrire de chemin, qu'une seule URL de BFF est lue et que chaque chemin littéral appelé par le navigateur correspond à une route locale sans réseau. `tests/package-contract.test.cjs` vérifie l'épinglage exact du paquet, l'unicité du paquet `bff-*-openapi`, la fraîcheur du snapshot et la version des images `bff-message`. Une nouvelle méthode de `messageClient` fait échouer les tests tant qu'elle n'a pas de scénario contractuel.
 
 Pour une modification uniquement documentaire, vérifier les liens, l’exactitude des deux langues et `git diff --check`; ne pas régénérer les contrats sans modification de leur source.
 

@@ -7,8 +7,8 @@ const { requireSrc } = require('./support/load-ts.cjs');
 // d'abord validées contre les schémas des réponses qui les portent).
 
 const {
-  appendMessage, findDirectConversation, getPayloadIds, idsMatch, isPlaceholderConversationName, replaceConversationMessages,
-  toMessagingContacts, toMessagingUserId, upsertConversation,
+  appendMessage, getPayloadIds, idsMatch, isPlaceholderConversationName, isUserId, replaceConversationMessages,
+  toMentionIds, toMessagingContacts, toMessagingUserId, upsertConversation,
 } = requireSrc('lib/messaging-state.ts');
 
 const contract = messageBffContract();
@@ -83,5 +83,18 @@ describe('messaging state helpers', () => {
     const updated = appendMessage(appended, message(4, 4, 'D modifié'));
     assert.deepEqual([updated.length, updated[2].content], [3, 'D modifié']);
     assert.equal(appendMessage(current, undefined), current);
+  });
+});
+
+describe('mention ids sent to the BFF (MAIR-512)', () => {
+  test('isUserId follows the BFF rule: a positive integer or user-<n>', () => {
+    for (const id of ['user-3', 'user-12', 3, '7']) assert.equal(isUserId(id), true, String(id));
+    for (const id of ['conversation-4', 'user-0', 0, -1, 'user-', 'user-3 AND 1=2', '3.5', '']) assert.equal(isUserId(id), false, String(id));
+  });
+
+  test('toMentionIds keeps the users and drops group conversations and unknown ids', () => {
+    assert.deepEqual(toMentionIds([{ id: 'user-7' }, { id: 'conversation-4' }, { id: 12 }, { id: 'user-x' }]), ['user-7', 12]);
+    assert.deepEqual(toMentionIds([]), []);
+    assert.deepEqual(toMentionIds(undefined), []);
   });
 });

@@ -26,8 +26,8 @@ Les chemins sont relatifs au BFF. Les proxies web conservent méthode, paramètr
 
 ## Mise à jour et validation
 
-Après la publication d'une nouvelle version du BFF, installer le paquet correspondant (`npm install --save-exact @mairie360/bff-message-openapi@X.Y.Z`), puis exécuter `npm run contracts:sync`, `npm run contracts:check` et `npm test`. Ces commandes fonctionnent hors ligne et ne dépendent d'aucun checkout voisin ; la CI rejoue la vérification.
+Le paquet est épinglé à une version exacte : une release `X.Y.Z` de BFF_Message, ou, tant qu’aucune release n’est coupée, le paquet `0.0.0-dev.<sha>` publié par la CICD pour le commit courant de son `main` (MAIR-509 ; jamais une pré-version `staging`). Après une nouvelle version, installer le paquet (`npm install --save-exact @mairie360/bff-message-openapi@<version>`), aligner l’image `bff-message` des `docker-compose*.yml` sur le même commit (`X.Y.Z` ou `dev-<sha7>`, `scripts/contract-version.mjs`), puis exécuter `npm run contracts:sync`, `npm run contracts:check` et `npm test`. Ces commandes fonctionnent hors ligne et ne dépendent d'aucun checkout voisin ; la CI rejoue la vérification.
 
 ## Références métier
 
-`/business-references` est agrégé dans BFF Message depuis `PROJECT_BFF_URL` et `CALENDAR_BFF_URL`. Le web service relaie la même réponse. Les pièces jointes, groupes ou profils déjà gérés en mémoire par le BFF ne deviennent pas persistants par cet alignement.
+`/business-references` est agrégé dans BFF Message depuis Project API et Calendar API (`PROJECT_API_URL`, `CALENDAR_API_URL`, MAIR-525). Le web service relaie la même réponse. Les pièces jointes, groupes ou profils déjà gérés en mémoire par le BFF ne deviennent pas persistants par cet alignement.

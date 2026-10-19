@@ -11,10 +11,44 @@ permissions:
   id-token: write
 
 jobs:
+  # MAIR-230 / #205: execute real blocking scanners under the required legacy name.
+  # Keep the shared audit too; never synthesize success or bypass protection.
+  required_security_scan:
+    name: CICD / Code Security Audit (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout frontend history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout reviewed scanner actions
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mairie360/CICD
+          ref: 5b7d127d46f95d8951935b6209ca7c2ca857a21d # main 2026-10-15 (validated frontend coverage upload)
+          path: cicd-repo
+          persist-credentials: false
+      - name: Run blocking Semgrep scan
+        uses: ./cicd-repo/actions/frontend-semgrep-pypi
+        with:
+          config: p/typescript p/react p/owasp-top-ten p/secrets p/dockerfile p/github-actions
+          fail_on_findings: "true"
+          artifact_name: semgrep-required-check-sarif
+      - name: Run blocking redacted Gitleaks scan
+        uses: ./cicd-repo/actions/frontend-gitleaks
+        with:
+          fail_on_findings: "true"
+
   CICD:
-    uses: mairie360/CICD/.github/workflows/frontend-cicd.yml@v2.3.3
+    uses: mairie360/CICD/.github/workflows/frontend-cicd.yml@5b7d127d46f95d8951935b6209ca7c2ca857a21d
     with:
       package_name: "message-front"
-      node_version: "22"
-      cicd_version: "v2.3.3"
-    secrets: inherit
+      node_version: "24.21.0"
+      cicd_version: "5b7d127d46f95d8951935b6209ca7c2ca857a21d"
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      N8N_WEBHOOK_SECRET: ${{ secrets.N8N_WEBHOOK_SECRET }}

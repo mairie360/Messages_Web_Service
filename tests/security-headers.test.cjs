@@ -1,9 +1,17 @@
 const assert = require('node:assert/strict');
-const { test } = require('node:test');
+const { test, beforeEach, afterEach } = require('node:test');
+const savedLoginUrl = process.env.LOGIN_FRONT_URL;
+const savedFrontUrl = process.env.MESSAGE_FRONT_URL;
+beforeEach(() => { process.env.LOGIN_FRONT_URL = 'https://login.mairie.test/'; process.env.MESSAGE_FRONT_URL = 'https://messages.mairie.test'; });
+afterEach(() => {
+  if (savedFrontUrl === undefined) delete process.env.MESSAGE_FRONT_URL; else process.env.MESSAGE_FRONT_URL = savedFrontUrl;
+  if (savedLoginUrl === undefined) delete process.env.LOGIN_FRONT_URL;
+  else process.env.LOGIN_FRONT_URL = savedLoginUrl;
+});
 const { NextRequest } = require('next/server');
 const { requireSrc } = require('./support/load-ts.cjs');
 const { middleware } = requireSrc('middleware.ts');
-const { buildContentSecurityPolicy } = requireSrc('lib/content-security-policy.ts');
+const { buildContentSecurityPolicy } = require('@mairie360/front-kit/shared');
 const nextConfig = requireSrc('../next.config.ts').default;
 
 const b64url = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -25,12 +33,13 @@ test('authenticated pages get a per-request nonce CSP forwarded to Next.js', () 
   assert.notEqual(second.headers.get('x-middleware-request-x-nonce'), nonce);
 });
 
-test('missing or expired sessions are redirected to Login without a CSP', () => {
+test('missing or expired sessions are redirected to the configured local resume route without a CSP', () => {
   for (const token of [undefined, jwt(1)]) {
     const response = middleware(pageRequest(token));
     assert.equal(response.status, 307);
     assert.equal(response.headers.get('content-security-policy'), null);
-    assert.match(response.headers.get('set-cookie'), /accessToken=;/);
+    assert.equal(response.headers.get('set-cookie'), null);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
   }
 });
 
