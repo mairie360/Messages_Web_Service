@@ -58,6 +58,12 @@ est refusée. Les contrôles Nouveau message/Créer un groupe sont disponibles a
 reprise. La correction dédiée au focus des dialogues (MAIR-318, #212) est reportée
 avec le RGAA ; elle ne fait pas partie de cette composition fonctionnelle seule.
 
+Nouveau message à un contact (MAIR-204) : si une conversation directe existe déjà
+avec ce contact (`kind: 'direct'` et son `contactId`), le message y est publié
+(`POST /conversations/{id}/messages`) et cette conversation s'ouvre ; seul un
+contact sans conversation directe obtient un nouveau fil via `POST /direct-messages`.
+Un envoi refusé conserve le brouillon et ne crée jamais un autre fil à la place.
+
 Une suppression/disparition confirmée lit immédiatement le fil de remplacement,
 y compris la première arrivée dans une liste vide. La réception visible tourne
 toutes les deux secondes sans chevaucher lecture, sélection ou mutation en attente.

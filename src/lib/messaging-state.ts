@@ -83,6 +83,23 @@ export function appendMessage(
   return [...currentMessages, nextMessage];
 }
 
+// The BFF_Message contract gives direct conversations `kind: 'direct'` and the contact's `contactId`
+// (MAIR-204); the shared `Messaging` conversation type does not declare `contactId`.
+type ConversationWithContact = MessagingConversation & { contactId?: MessageId };
+
+// The existing direct conversation with `recipientId`, if any: a new message to that contact is
+// posted there instead of creating another chat. Ids are compared in the `user-<n>` form.
+export function findDirectConversation(
+  conversations: MessagingConversation[],
+  recipientId: MessageId,
+): MessagingConversation | undefined {
+  const recipient = toMessagingUserId(recipientId);
+  return conversations.find((conversation) => {
+    const { kind, contactId } = conversation as ConversationWithContact;
+    return kind === "direct" && contactId !== undefined && toMessagingUserId(contactId) === recipient;
+  });
+}
+
 export function getPayloadIds(items?: Array<{ id: MessageId }>) {
   return items?.map((item) => item.id);
 }
