@@ -4,7 +4,7 @@ const { NextRequest } = require('next/server');
 const { requireSrc } = require('./support/load-ts.cjs');
 const { proxyBffRequest } = requireSrc('lib/bff-proxy.ts');
 const { POST: refreshOwnSession } = requireSrc('app/api/auth/refresh/route.ts');
-const { createSessionFetch } = require('@mairie360/front-kit/browser');
+const { createSessionFetch } = require('@mairie360/lib-components/browser');
 const originalFetch=global.fetch;
 const originalUrl=process.env.BFF_MESSAGE_BASE_URL;
 afterEach(()=>{global.fetch=originalFetch;if(originalUrl===undefined)delete process.env.BFF_MESSAGE_BASE_URL;else process.env.BFF_MESSAGE_BASE_URL=originalUrl;});

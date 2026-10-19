@@ -1,5 +1,5 @@
 "use client";
-import { normalizeDisplayRole } from "@mairie360/front-kit/shared";
+import { normalizeDisplayRole } from "@mairie360/lib-components/shared";
 
 import { useEffect, useState } from "react";
 import { navigateToLogin } from "./logout";

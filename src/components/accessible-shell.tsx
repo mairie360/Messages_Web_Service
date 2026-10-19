@@ -1,5 +1,5 @@
 "use client";
-import { useInstanceRole, useModalFocusScope } from '@mairie360/front-kit/react';
+import { useInstanceRole, useModalFocusScope } from '@mairie360/lib-components/react';
 
 import { AppShell } from "@mairie360/lib-components/shell";
 import { useEffect, useRef, useState, type CSSProperties, type ComponentProps } from "react";

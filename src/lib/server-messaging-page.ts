@@ -1,7 +1,7 @@
 import axios, { type AxiosAdapter } from 'axios';
 import { NextRequest } from 'next/server';
 import { getBffMessage } from '@mairie360/bff-message-openapi/endpoints/bffMessage';
-import { isExpiredJwt, publicOrigin } from '@mairie360/front-kit/shared';
+import { isExpiredJwt, publicOrigin } from '@mairie360/lib-components/shared';
 import { proxyBffRequest } from './bff-proxy';
 import { parseMessagingBootstrapReceipt, parseMessagingThreadReceipt, MESSAGES_INITIAL_UNAVAILABLE, type InitialMessagingPage } from './messaging-bootstrap-receipt';
 

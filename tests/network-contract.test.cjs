@@ -171,7 +171,7 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
       } else {
         assert.equal(policy.imports(ast).some(name => name.includes('bff-proxy')), false, route);
         if (route === '/api/auth/logout') {
-          assert.deepEqual(policy.imports(ast), ['@mairie360/front-kit/next']);
+          assert.deepEqual(policy.imports(ast), ['@mairie360/lib-components/next']);
           assert.equal(policy.calls(ast, 'createSessionLogoutProxy').length, 1);
         }
       }
@@ -191,7 +191,7 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
   });
 
   test('the browser cannot reach another origin and Next.js does not rewrite to one', () => {
-    const { buildContentSecurityPolicy } = require('@mairie360/front-kit/shared');
+    const { buildContentSecurityPolicy } = require('@mairie360/lib-components/shared');
     const directives = Object.fromEntries(buildContentSecurityPolicy('nonce').split('; ').map((directive) => {
       const [name, ...values] = directive.split(' ');
       return [name, values.join(' ')];

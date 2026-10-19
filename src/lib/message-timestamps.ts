@@ -1,4 +1,4 @@
-import { getInstanceTimeZone } from '@mairie360/front-kit/shared';
+import { getInstanceTimeZone } from '@mairie360/lib-components/shared';
 import type { MessagingConversation, MessagingMessage } from "./messaging-state";
 
 const frenchTimestamp = () => new Intl.DateTimeFormat("fr-FR", {
