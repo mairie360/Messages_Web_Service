@@ -6,6 +6,7 @@ import type { Messaging } from "@mairie360/lib-components/messages";
 import { BffNavigationRequiredError, BffRequestError, messageClient, type CurrentUserDto, type MessageId } from "@/clients/messageClient";
 import {
   appendMessage,
+  findDirectConversation,
   getPayloadIds,
   idsMatch,
   replaceConversationMessages,
@@ -712,10 +713,19 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     beginMutation();
     const identity = senderIdentityRef.current;
 
+    // MAIR-204: a new message to a contact goes into the existing direct conversation with them;
+    // only a contact without one gets a new chat from POST /direct-messages.
+    const existing = findDirectConversation(conversations, payload.recipientId);
+
     try {
-      const response = await messageClient.createDirectMessage(payload);
-      if (!hasServerId(response?.conversation?.id) || !hasServerId(response?.message?.id) || !idsMatch(response.message.conversationId, response.conversation.id)) {
-        throw new Error("La création du message direct n’a pas été confirmée. Le brouillon est conservé.");
+      const response = existing
+        ? await messageClient.sendMessage(existing.id, { content: payload.message, attachmentIds: [], mentionIds: [] })
+        : await messageClient.createDirectMessage(payload);
+      if (!hasServerId(response?.conversation?.id) || !hasServerId(response?.message?.id) || !idsMatch(response.message.conversationId, response.conversation.id) ||
+          (existing && !idsMatch(response.conversation.id, existing.id))) {
+        throw new Error(existing
+          ? "L’envoi reste à confirmer. Le brouillon est conservé ; réessayez pour vérifier la conversation."
+          : "La création du message direct n’a pas été confirmée. Le brouillon est conservé.");
       }
 
       setConversations((currentConversations) =>
@@ -730,10 +740,10 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       confirmThread(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
       setShowConversationList(false);
-      if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback('Message direct créé.');
+      if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback(existing ? 'Message envoyé dans la conversation existante.' : 'Message direct créé.');
       return true;
     } catch (sendError) {
-      setError(describeBffError(sendError, "Le message direct n’a pas pu être créé."));
+      setError(describeBffError(sendError, existing ? "Le message n’a pas pu être envoyé." : "Le message direct n’a pas pu être créé."));
       return false;
     } finally {
       endMutation();

@@ -2218,3 +2218,64 @@ test('an already pending polling401 cannot hide an unconfirmed explicit logout',
   assert.match(view.text(), /La fermeture de la session serveur n’a pas pu être confirmée/);
   assert.equal(userBff.calls('/auth/logout').length, 1);
 });
+
+// MAIR-204: BFF_Message marks direct conversations with `kind: 'direct'` and the contact's `contactId`.
+function withSophieDirectConversation() {
+  const sophie = conversation(5, 'Sophie Leroy', { kind: 'direct', contactId: `user-${users.sophie.id}` });
+  const conversations = [conversation(4, 'Équipe communication', { unreadCount: 2 }), sophie];
+  messageBff.on('get', '/conversations', { body: { conversations: [conversation(4, 'Équipe communication'), sophie] } });
+  return { ...bootstrap(), conversations };
+}
+
+test('MAIR-204: a new message to a contact goes into the existing direct conversation with them', async () => {
+  await renderLoadedPage(withSophieDirectConversation());
+  messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({ status: 201, body: {
+    message: message(7, 5, 'Re bonjour Sophie', users.agent),
+    conversation: conversation(5, 'Sophie Leroy', { kind: 'direct', contactId: `user-${users.sophie.id}`, lastMessage: 'Re bonjour Sophie' }),
+  } }));
+
+  const result = await view.act(() => view.props('Messaging').onNewMessageSend({
+    recipientId: `user-${users.sophie.id}`, message: 'Re bonjour Sophie',
+  }));
+
+  assert.equal(result, true);
+  await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5');
+  assert.equal(messageBff.calls('/direct-messages', 'POST').length, 0);
+  const [call] = messageBff.calls('/conversations/{conversationId}/messages', 'POST');
+  assert.equal(call.pathParams.conversationId, 'conversation-5');
+  assert.deepEqual(call.body, { content: 'Re bonjour Sophie', attachmentIds: [], mentionIds: [] });
+  assert.equal(view.props('Messaging').conversations.filter((item) => item.name === 'Sophie Leroy').length, 1, 'no second chat with the same contact');
+  assert.ok(view.props('Messaging').messages.some((item) => item.id === 'message-7'));
+  assert.match(view.text(), /Message envoyé dans la conversation existante\./);
+});
+
+test('MAIR-204: a contact without a direct conversation still gets one from POST /direct-messages', async () => {
+  await renderLoadedPage(withSophieDirectConversation());
+  messageBff.on('post', '/direct-messages', { status: 201, body: {
+    conversation: conversation(6, 'Thomas Bernard', { kind: 'direct', contactId: `user-${users.thomas.id}` }),
+    message: message(8, 6, 'Bonjour Thomas', users.agent),
+  } });
+
+  assert.equal(await view.act(() => view.props('Messaging').onNewMessageSend({
+    recipientId: `user-${users.thomas.id}`, message: 'Bonjour Thomas',
+  })), true);
+  await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-6');
+
+  assert.deepEqual(messageBff.calls('/direct-messages', 'POST').map((call) => call.body), [{ recipientId: `user-${users.thomas.id}`, message: 'Bonjour Thomas' }]);
+  assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'POST').length, 0);
+  assert.match(view.text(), /Message direct créé\./);
+});
+
+test('MAIR-204: a refused send into the existing direct conversation never falls back to a new chat', async () => {
+  await renderLoadedPage(withSophieDirectConversation());
+  messageBff.on('post', '/conversations/{conversationId}/messages', { status: 403, body: apiError('FORBIDDEN', 'Envoi refusé'), outOfContract: true });
+
+  assert.equal(await view.act(() => view.props('Messaging').onNewMessageSend({
+    recipientId: `user-${users.sophie.id}`, message: 'Re bonjour Sophie',
+  })), false);
+  await view.waitFor((html) => html.includes('role="alert"'));
+
+  assert.equal(messageBff.calls('/direct-messages', 'POST').length, 0);
+  assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
+  assert.match(view.text(), /Envoi refusé/);
+});

@@ -7,7 +7,7 @@ const { requireSrc } = require('./support/load-ts.cjs');
 // d'abord validées contre les schémas des réponses qui les portent).
 
 const {
-  appendMessage, getPayloadIds, idsMatch, isPlaceholderConversationName, isUserId, replaceConversationMessages,
+  appendMessage, findDirectConversation, getPayloadIds, idsMatch, isPlaceholderConversationName, isUserId, replaceConversationMessages,
   toMentionIds, toMessagingContacts, toMessagingUserId, upsertConversation,
 } = requireSrc('lib/messaging-state.ts');
 
@@ -19,8 +19,7 @@ const validResponse = (method, pathname, status, body) => {
 };
 
 describe('messaging state helpers', () => {
-  // `contactId` comes with BFF_Message#146 (MAIR-204), not in the pinned contract yet: these
-  // conversations are built by hand instead of being validated against it.
+  // MAIR-204: direct conversations carry `kind: 'direct'` and the contact's `contactId`.
   test('finds the existing direct conversation with a recipient', () => {
     const direct = { id: 'conversation-9', name: 'Sophie Leroy', kind: 'direct', contactId: 'user-7' };
     const group = { id: 'conversation-3', name: 'Voirie', kind: 'group' };

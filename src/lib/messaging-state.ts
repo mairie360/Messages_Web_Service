@@ -83,9 +83,8 @@ export function appendMessage(
   return [...currentMessages, nextMessage];
 }
 
-// TEMPORARY (MAIR-204): `contactId` is added to the Conversation schema by BFF_Message#146 but is
-// not in the pinned `@mairie360/bff-message-openapi` yet. Delete this type once the package is
-// bumped and read `conversation.contactId` from the contract type instead.
+// The BFF_Message contract gives direct conversations `kind: 'direct'` and the contact's `contactId`
+// (MAIR-204); the shared `Messaging` conversation type does not declare `contactId`.
 type ConversationWithContact = MessagingConversation & { contactId?: MessageId };
 
 // The existing direct conversation with `recipientId`, if any: a new message to that contact is

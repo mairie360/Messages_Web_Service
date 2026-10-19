@@ -51,6 +51,12 @@ Initial pending or refused bootstrap is not an empty conversation list. Write
 controls become available only after confirmation; an explicit, single-flight
 Retry preserves an allowed deep link and bootstrap contacts when the contacts
 read is refused. New message/group controls become available after recovery.
+
+New message to a contact (MAIR-204): when a direct conversation with that contact
+already exists (`kind: 'direct'` with the contact's `contactId`), the message is
+posted into it (`POST /conversations/{id}/messages`) and that conversation opens;
+only a contact without one gets a new chat from `POST /direct-messages`. A refused
+send keeps the draft and never falls back to creating another chat.
 The dedicated dialog-focus correction (MAIR-318, #212) is postponed with RGAA;
 it is not included in this functional-only composition.
 
