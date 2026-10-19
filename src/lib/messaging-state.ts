@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import type { Messaging } from "@mairie360/lib-components";
+import type { Messaging } from "@mairie360/lib-components/messages";
 import type { ContactDto, MessageId } from "../clients/messageClient";
 
 // Mise à jour de l'état de la page de messagerie à partir des réponses du BFF (DTO du contrat)

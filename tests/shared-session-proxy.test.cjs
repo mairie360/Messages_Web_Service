@@ -45,7 +45,7 @@ function rejectedRead() {
 test('three simultaneous message reads share one published User refresh and rotated cookie pair', async () => {
   renewed(); rejectedRead();
   const replies = await Promise.all([messageClient.getBootstrap(), messageClient.getBootstrap(), messageClient.getBootstrap()]);
-  assert.equal(replies.length, 3); assert.equal(network.ownerCalls.length, 3);
+  assert.equal(replies.length, 3); assert.equal(network.ownerCalls.length, 1);
   assert.equal(user.calls('/auth/refresh').length, 1);
   assert.deepEqual(user.calls('/auth/refresh')[0].body, { refresh_token: refresh });
   assert.equal(user.calls('/auth/refresh')[0].headers.authorization, undefined);
@@ -55,7 +55,8 @@ test('three simultaneous message reads share one published User refresh and rota
 });
 test('missing access ignores a forged browser bearer and renews using the HttpOnly refresh cookie', async () => {
   delete network.cookies.accessToken; renewed(); rejectedRead();
-  const reply = await fetch('/messaging/bootstrap', { headers: { Authorization: 'Bearer forged-browser' } });
+  const { sessionFetch } = require('@mairie360/front-kit/browser');
+  const reply = await sessionFetch('/messaging/bootstrap', { headers: { Authorization: 'Bearer forged-browser' } });
   assert.equal(reply.status, 200);
   assert.equal(business.requests[0].headers.authorization, undefined);
   assert.equal(business.requests[1].headers.authorization, `Bearer ${access}`);
@@ -104,8 +105,13 @@ test('multipart attachment bytes survive one rejected upload and one replay', as
     : { status: 401, body: apiError('UNAUTHORIZED', 'Session expirée'), outOfContract: true });
   await messageClient.uploadAttachments([new File(['agenda'], 'agenda.txt', { type: 'text/plain' })]);
   assert.equal(business.requests.length, 2);
-  assert.deepEqual(business.requests[0].rawBody, business.requests[1].rawBody);
-  assert.equal(business.requests[0].headers['content-type'], business.requests[1].headers['content-type']);
+  const uploaded = await Promise.all(business.requests.map(async call => {
+    const form = await new Response(call.rawBody, { headers: { 'content-type': call.headers['content-type'] } }).formData();
+    const files = []; for (const [field, file] of form) files.push([field, file.name, file.type, Buffer.from(await file.arrayBuffer())]);
+    return files;
+  }));
+  assert.deepEqual(uploaded[0], uploaded[1]);
+  assert.deepEqual(uploaded[0], [['files', 'agenda.txt', 'text/plain', Buffer.from('agenda')]]);
 });
 test('foreign business reads and explicit logout cannot reach an owner or modify cookies', async () => {
   for (const [url, init] of [

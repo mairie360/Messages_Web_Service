@@ -1,3 +1,4 @@
+import { parseMessagingBootstrapReceipt } from '../lib/messaging-bootstrap-receipt';
 import type {
   GetContacts200,
   GetMe200,
@@ -33,7 +34,7 @@ export const messageClient = {
   },
 
   async getBootstrap() {
-    return (await bffMessage.getMessagingBootstrap()).data;
+    return parseMessagingBootstrapReceipt((await bffMessage.getMessagingBootstrap()).data);
   },
 
   async getContacts() {
@@ -64,12 +65,22 @@ export const messageClient = {
 
   async uploadAttachments(files: File[]) {
     // The generated operation uploads one file per call (multipart part `files`); the replies are merged.
-    const attachments: UploadAttachmentResponse["attachments"] = [];
-    for (const file of files) {
-      const { data } = await bffMessage.postAttachments({ files: file });
-      attachments.push(...(data as UploadAttachmentResponse).attachments);
-    }
-    return { attachments } as UploadAttachmentResponse;
+    const results: UploadAttachmentResponse["attachments"][] = [];
+    let next = 0;
+    let failed = false;
+    // Independent uploads overlap within three workers. Keep selection order
+    // and stop scheduling on failure; already-dispatched requests may settle.
+    const uploadNext = async (): Promise<void> => {
+      if (failed || next >= files.length) return;
+      const index = next++;
+      try {
+        const { data } = await bffMessage.postAttachments({ files: files[index] });
+        results[index] = (data as UploadAttachmentResponse).attachments;
+      } catch (error) { failed = true; throw error; }
+      return uploadNext();
+    };
+    await Promise.all(Array.from({ length: Math.min(3, files.length) }, uploadNext));
+    return { attachments: results.flat() } as UploadAttachmentResponse;
   },
 
   async sendMessage(conversationId: MessageId, payload: PostConversationsConversationIdMessagesBody) {

@@ -1,3 +1,4 @@
+@import "@mairie360/lib-components/styles.css";
 @import "tailwindcss";
 
 @plugin "daisyui";
@@ -10,8 +11,8 @@ body {
 }
 
 body {
-  background: #f5f3f0;
-  color: #172033;
+  background: var(--mairie-background);
+  color: var(--mairie-text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }

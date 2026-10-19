@@ -49,7 +49,7 @@ async function messagesDom(t, { unavailable = false } = {}) {
   dom.window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
   dom.window.ResizeObserver = global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
   const style = dom.window.document.createElement('style');
-  style.textContent = fs.readFileSync(path.join(ROOT, 'src/app/app-shell.css'), 'utf8');
+  style.textContent = require('./shared-theme-css.cjs').sharedThemeCss() + '\n' + fs.readFileSync(path.join(ROOT, 'src/app/app-shell.css'), 'utf8');
   dom.window.document.head.append(style);
   await upstream.start(); process.env.BFF_MESSAGE_BASE_URL = upstream.url;
   network.install(); network.cookies.accessToken = fixtures.tokenFor(fixtures.users.agent.id);
@@ -75,9 +75,9 @@ async function messagesDom(t, { unavailable = false } = {}) {
     ADMINISTRATION_FRONT_URL: 'https://admin.example/', SETTINGS_FRONT_URL: 'https://settings.example/' });
   t.after(() => setBrowserFrontUrls({}));
   React = require('react');
-  const { createRoot } = require('react-dom/client'), Page = requireSrc('app/page.tsx').default;
+  const { createRoot } = require('react-dom/client'), Page = requireSrc('app/messages-client.tsx').default;
   reactRoot = createRoot(dom.window.document.getElementById('root'));
-  await React.act(async () => reactRoot.render(React.createElement(Page)));
+  await React.act(async () => reactRoot.render(React.createElement(require('@mairie360/front-kit/react').InstanceProvider, { role: 'Admin', timeZone: 'UTC' }, React.createElement(Page))));
   async function waitFor(predicate) {
     for (let attempt = 0; attempt < 100 && !predicate(); attempt += 1) {
       await React.act(async () => new Promise((resolve) => setTimeout(resolve, 10)));

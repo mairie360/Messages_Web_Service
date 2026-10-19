@@ -94,7 +94,8 @@ test('actual unavailable bootstrap keeps the reference error presentation and ex
   const dom = await messagesDom(t, { unavailable: true }), error = dom.document.querySelector('.messages-error');
   assert.ok(error.textContent.includes('Lecture initiale refusée')); assert.equal(dom.style(error).flexShrink, '0');
   assert.equal(dom.style(error).fontSize, '14px'); assert.equal(dom.style(error).lineHeight, '20px');
-  assert.equal(dom.style(error).color, 'rgb(153, 27, 27)'); assert.ok(dom.button('Réessayer'));
+  assert.equal(dom.style(error).color, 'var(--mairie-error-text)');
+  assert.equal(dom.style(dom.document.documentElement).getPropertyValue('--mairie-error-text').trim(), '#a40e26'); assert.ok(dom.button('Réessayer'));
   assert.equal(dom.document.querySelector('.messages-module'), null);
   assert.ok(dom.upstream.requests.every((request) => request.method === 'GET'));
   assert.ok(dom.fixtureExceptions.includes('Existing bootstrap503 fixture absent from published response statuses'));

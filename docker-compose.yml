@@ -24,7 +24,7 @@ x-db-env: &db-env
 
 services:
   postgres:
-    image: ghcr.io/mairie360/database:dev-90c22bb
+    image: ghcr.io/mairie360/database:3.2.0
     restart: always
     container_name: mairie360-db-message-front
     environment:
@@ -44,7 +44,7 @@ services:
       retries: 5
 
   liquibase:
-    image: ghcr.io/mairie360/liquibase-migrations:dev-90c22bb
+    image: ghcr.io/mairie360/liquibase-migrations:3.2.0
     container_name: mairie360-liquibase-message-front
     depends_on:
       postgres:
@@ -81,7 +81,7 @@ services:
 
   message-api:
     container_name: message-api-front-message-developpement
-    image: ghcr.io/mairie360/message-api:dev-d33e731
+    image: ghcr.io/mairie360/message-api:2.0.0
     ports:
       - "3003:3003"
     networks:
@@ -109,7 +109,7 @@ services:
 
   bff-message:
     container_name: bff-message-message-front
-    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:dev-ad5339c}
+    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:1.0.0}
     ports:
       - "4003:4003"
     networks:

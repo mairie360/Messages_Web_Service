@@ -32,7 +32,7 @@ const FETCH_CALLERS = {
   'lib/message-stream-proxy.ts': { side: 'server', dynamicArgument: 'target' },
 };
 /** Fonctions navigateur dont le 1er argument est un chemin same-origin. */
-const BROWSER_REQUESTERS = new Set(['fetch']);
+const BROWSER_REQUESTERS = new Set(['fetch', 'sessionFetch']);
 const FORBIDDEN_MODULES = /^(openapi-fetch|undici|got|ky|superagent|node-fetch|cross-fetch|(node:)?https?|(node:)?net|@mairie360\/bff-.*-openapi)$/;
 const FORBIDDEN_CONSTRUCTORS = new Set(['XMLHttpRequest', 'WebSocket', 'EventSource']);
 
@@ -41,7 +41,7 @@ function scan(file) {
   const findings = { fetchCalls: [], browserRequests: [], forbidden: [] };
   visit(source, (node) => {
     // axios only carries the generated operations through the fetch of the BFF client.
-    const axiosOutsideClient = (name) => name === 'axios' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/bff-client.ts' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/message-stream.ts';
+    const axiosOutsideClient = (name) => name === 'axios' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/bff-client.ts' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/message-stream.ts' && path.relative(SRC, file).split(path.sep).join('/') !== 'lib/server-messaging-page.ts';
     if (ts.isImportDeclaration(node) && (FORBIDDEN_MODULES.test(node.moduleSpecifier.text) || axiosOutsideClient(node.moduleSpecifier.text)) && !node.importClause?.isTypeOnly) {
       findings.forbidden.push(`import ${node.moduleSpecifier.text}`);
     }
@@ -56,7 +56,7 @@ function scan(file) {
     }
     if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) return;
     const callee = node.expression.text;
-    if (callee === 'fetch') findings.fetchCalls.push(node.arguments[0]?.getText());
+    if (['fetch', 'sessionFetch'].includes(callee)) findings.fetchCalls.push(node.arguments[0]?.getText());
     if (!BROWSER_REQUESTERS.has(callee) || !node.arguments[0]) return;
     const [target, init] = node.arguments;
     const methodProperty = init && ts.isObjectLiteralExpression(init)
@@ -82,6 +82,16 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
   test('no HTTP client, socket or beacon other than fetch is used in src/', () => {
     const forbidden = Object.entries(scans).flatMap(([file, { forbidden: found }]) => found.map((item) => `${file}: ${item}`));
     assert.deepEqual(forbidden, []);
+  });
+
+  test('the server reader calls only the two published GET operations through its proxy adapter', () => {
+    const source = fs.readFileSync(path.join(SRC, 'lib/server-messaging-page.ts'), 'utf8');
+    assert.equal(scans['lib/server-messaging-page.ts'].fetchCalls.length, 0);
+    assert.match(source, /proxyBffRequest\(/);
+    const operations = [...source.matchAll(/api\.(\w+)\(/g)].map(([, name]) => name);
+    assert.deepEqual(operations, ['getMessagingBootstrap', 'getConversationsConversationIdMessages']);
+    const sdk = fs.readFileSync(path.join(path.dirname(require.resolve('@mairie360/bff-message-openapi/package.json')), 'endpoints/bffMessage.ts'), 'utf8');
+    for (const name of operations) assert.match(sdk, new RegExp(`const ${name} = \\(`));
   });
 
   test('fetch is only called by the contract-tested modules', () => {
@@ -161,7 +171,7 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
       } else {
         assert.equal(policy.imports(ast).some(name => name.includes('bff-proxy')), false, route);
         if (route === '/api/auth/logout') {
-          assert.deepEqual(policy.imports(ast), ['@mairie360/lib-components/next']);
+          assert.deepEqual(policy.imports(ast), ['@mairie360/front-kit/next']);
           assert.equal(policy.calls(ast, 'createSessionLogoutProxy').length, 1);
         }
       }
@@ -181,7 +191,7 @@ describe('front network calls are confined to the OpenAPI contracts', () => {
   });
 
   test('the browser cannot reach another origin and Next.js does not rewrite to one', () => {
-    const { buildContentSecurityPolicy } = requireSrc('lib/content-security-policy.ts');
+    const { buildContentSecurityPolicy } = require('@mairie360/front-kit/shared');
     const directives = Object.fromEntries(buildContentSecurityPolicy('nonce').split('; ').map((directive) => {
       const [name, ...values] = directive.split(' ');
       return [name, values.join(' ')];

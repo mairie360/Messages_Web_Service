@@ -1,6 +1,6 @@
 "use client";
 
-import { defaultSidebarItems, mairie360LogoSrc, type AppShellProps } from '@mairie360/lib-components';
+import { defaultSidebarItems, mairie360LogoSrc, type AppShellProps } from '@mairie360/lib-components/shell';
 import { useEffect, useId, useRef, useState, type CSSProperties, type MouseEvent, type FocusEvent } from 'react';
 import { readSidebarPreference, sidebarPreferenceCookie } from '@/lib/sidebar-preference';
 
@@ -15,7 +15,7 @@ function safeDestination(value: string | undefined) {
   return /^[a-z][a-z\d+.-]*:/i.test(href) ? undefined : href;
 }
 
-/** Compatibility with published UI 0.8.0 until the shared library release. */
+/** Trusted consumer navigation adapter using the published shell contract. */
 export default function DesktopNavigation({ activeItem = 'dashboard', isAdmin = false, hrefs, onNavigate, onPageChange, sidebarProps, onCollapsedChange, inactive = false }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);

@@ -1,6 +1,8 @@
+import { getInstanceTimeZone } from '@mairie360/front-kit/shared';
 import type { MessagingConversation, MessagingMessage } from "./messaging-state";
 
-const frenchTimestamp = new Intl.DateTimeFormat("fr-FR", {
+const frenchTimestamp = () => new Intl.DateTimeFormat("fr-FR", {
+  timeZone: getInstanceTimeZone(),
   day: "2-digit",
   month: "2-digit",
   hour: "2-digit",
@@ -31,7 +33,7 @@ export function formatMessageTimestamp(value: string | undefined): string | unde
       Number(minuteText) > 59 || Number(secondText ?? 0) > 59) return value;
 
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : frenchTimestamp.format(date);
+  return Number.isNaN(date.getTime()) ? value : frenchTimestamp().format(date);
 }
 
 export function presentConversationTimestamps(conversations: MessagingConversation[]) {

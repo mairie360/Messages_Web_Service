@@ -15,7 +15,7 @@ const { apiError, bootstrap, businessReferences, contact, conversation, currentU
 const { FrontNetwork } = require('./support/front-network.cjs');
 const { ContractMockServer } = require('./support/contract-mock-server.cjs');
 const { OpenApiContract } = require('./support/openapi-contract.cjs');
-const Page = requireSrc('app/page.tsx').default;
+const Page = requireSrc('app/messages-client.tsx').default;
 const { MessagesWorkspace } = requireSrc('app/_components/messages-workspace.tsx');
 const { useMessagingController } = requireSrc('app/_components/use-messaging-controller.ts');
 const { ATTACHMENTS_UNAVAILABLE_MESSAGE, messageAttachmentPort } = requireSrc('lib/attachment-features.ts');
@@ -84,13 +84,13 @@ const upstream = () => messageBff.requests.map((call) => `${call.method} ${call.
 async function renderLoadedPage(body = bootstrap(), Component = Page) {
   messageBff.on('get', '/messaging/bootstrap', { body });
   view = mount(React.createElement(Component));
-  return view.waitFor(() => view.find('Messaging').length > 0 && view.props('Messaging').emptyStateLabel === 'Aucune conversation' &&
+  return view.waitFor(() => view.find('Messaging').length > 0 && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('EmptyState').some(state => state.props.title === 'Aucune conversation')) &&
     view.props('Header').user.name !== 'Chargement…' &&
     view.props('Messaging').conversations[0]?.unreadCount === 0);
 }
 
 const frenchTime = (value) => new Intl.DateTimeFormat('fr-FR', {
-  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
 }).format(new Date(value));
 
 for (const status of [403, 503]) {
@@ -573,7 +573,7 @@ test('failed or unregistered file uploads never send a message with a local atta
     conversationId: 'conversation-4', content: 'Sans fichier enregistré', attachments: [attachment], mentions: [],
   }));
   assert.equal(refusedUploadResult, false);
-  await view.waitFor((html) => html.includes('Votre session a expiré. Veuillez vous reconnecter.'));
+  await view.waitFor((html) => html.includes('Votre session a expiré.'));
   assert.equal(messageBff.calls('/attachments', 'post').length, 1);
   assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'post').length, 0);
   assert.equal(revokePreview.mock.callCount(), 0);
@@ -632,7 +632,7 @@ test('business suggestions wait for visibility and do not add periodic backgroun
   browser.setHidden(true);
   messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
   view = mount(React.createElement(Page));
-  await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Messaging').emptyStateLabel === 'Aucune conversation');
+  await view.waitFor(() => view.find('Messaging').length > 0 && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('EmptyState').some(state => state.props.title === 'Aucune conversation')));
   browser.focus();
   browser.tickIntervals(2_000);
   assert.equal(pending.length, 0);
@@ -934,7 +934,8 @@ test('a confirmed empty bootstrap is distinct from refusal and enables the norma
   await view.waitFor(() => view.find('Messaging').length > 0);
   assert.deepEqual(view.props('Messaging').conversations, []);
   assert.deepEqual(view.props('Messaging').contacts, []);
-  assert.equal(view.props('Messaging').emptyStateLabel, 'Aucune conversation');
+  assert.equal(view.find('EmptyState').some(state => state.props.title === 'Aucune conversation'), true);
+  assert.match(view.text(), /Créez un message ou un groupe pour commencer/);
   assert.equal(typeof view.props('Messaging').onCreateGroup, 'function');
   assert.doesNotMatch(view.text(), /Messagerie indisponible|Réessayer/);
   assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
@@ -989,7 +990,7 @@ test('bootstrap effect cleanup and replay ignores the older response after the r
   t.mock.method(React, 'useEffect', (effect, deps) => {
     // Identify the load callback dependency without assuming the bootstrap
     // effect's source position relative to other effects.
-    if (!bootstrapEffect && deps?.length === 1 && typeof deps[0] === 'function') {
+    if (!bootstrapEffect && deps?.length === 2 && typeof deps[0] === 'function' && deps[1] === null) {
       bootstrapEffect = effect;
       bootstrapDependencies = deps;
     }
@@ -1003,7 +1004,7 @@ test('bootstrap effect cleanup and replay ignores the older response after the r
   view = mount(React.createElement(Page));
   await view.waitFor(() => releases.length === 1);
   // Replay only this effect lifecycle; this is not a full browser StrictMode test.
-  const bootstrapSlot = view.find('Page')[0].slots.find(slot => slot?.effect && slot.deps === bootstrapDependencies);
+  const bootstrapSlot = view.find('MessagesClient')[0].slots.find(slot => slot?.effect && slot.deps === bootstrapDependencies);
   assert.equal(typeof bootstrapSlot?.cleanup, 'function');
   bootstrapSlot.cleanup();
   const cleanup = bootstrapEffect();
@@ -1740,7 +1741,7 @@ for (const label of ['disappeared active thread', 'new first conversation']) {
     }
     messageBff.on('get', '/messaging/bootstrap', { body });
     view = mount(React.createElement(Page));
-    await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Header').user.name !== 'Chargement…' && view.props('Messaging').emptyStateLabel === 'Aucune conversation');
+    await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Header').user.name !== 'Chargement…' && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('EmptyState').some(state => state.props.title === 'Aucune conversation')));
     messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
     messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
     browser.setHidden(false);
