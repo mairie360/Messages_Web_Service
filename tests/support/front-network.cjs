@@ -74,7 +74,7 @@ class FrontNetwork {
 
   setOwner(userBff) {
     this.userBff = userBff;
-    const { createSessionRefreshHandler, createSessionLogoutHandler } = require('@mairie360/front-kit/next');
+    const { createSessionRefreshHandler, createSessionLogoutHandler } = require('@mairie360/lib-components/next');
     const config = { userBffUrl: () => userBff.url, cookieOptions: () => ({ secure: false }), allowedOrigins: () => [FRONT_ORIGIN] };
     this.ownerHandlers = { '/api/auth/refresh': createSessionRefreshHandler(config), '/api/auth/logout': createSessionLogoutHandler(config) };
   }
@@ -116,7 +116,7 @@ class FrontNetwork {
   }
 
   reset() {
-    if (this.userBff) require('@mairie360/front-kit/next').forgetUserSession(this.userBff.url, this.cookies.refreshToken);
+    if (this.userBff) require('@mairie360/lib-components/next').forgetUserSession(this.userBff.url, this.cookies.refreshToken);
     this.ownerCalls.length = 0;
     this.ownerOverride = undefined;
     this.browserCalls.length = 0;

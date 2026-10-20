@@ -1,4 +1,4 @@
-import { sessionFetch } from '@mairie360/front-kit/browser';
+import { sessionFetch } from '@mairie360/lib-components/browser';
 import axios, { type AxiosAdapter } from 'axios';
 import { getBffMessage } from '@mairie360/bff-message-openapi/endpoints/bffMessage';
 import type { MessageStreamEvent } from '@mairie360/bff-message-openapi/model';

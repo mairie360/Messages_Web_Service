@@ -1,1 +1,1 @@
-export { settingsProfileUrl } from '@mairie360/front-kit/shared';
+export { settingsProfileUrl } from '@mairie360/lib-components/shared';

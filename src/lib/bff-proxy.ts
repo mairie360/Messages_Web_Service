@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { proxyPublishedBffRequest } from '@mairie360/front-kit/next';
+import { proxyPublishedBffRequest } from '@mairie360/lib-components/next';
 import contract from '../../contracts/openapi.json';
 import { proxyMessageStream } from './message-stream-proxy';
 

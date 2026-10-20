@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { proxyPublishedBffRequest, readSessionCookies, validSessionToken, type SessionProxyConfig } from '@mairie360/front-kit/next';
+import { proxyPublishedBffRequest, readSessionCookies, validSessionToken, type SessionProxyConfig } from '@mairie360/lib-components/next';
 
 function failure(status: number, message: string, cookies: string[] = []) {
   const response = NextResponse.json({ error: { message } }, { status, headers: { 'Cache-Control': 'no-store' } });
