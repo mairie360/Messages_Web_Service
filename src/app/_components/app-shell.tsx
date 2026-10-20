@@ -1,6 +1,6 @@
 'use client';
 
-import SharedAppShell from "@/components/accessible-shell";
+import { AccessibleShell as SharedAppShell } from "@mairie360/lib-components/shell";
 
 import { Alert } from "@mairie360/lib-components/primitives";
 import { useState, type ReactNode } from "react";

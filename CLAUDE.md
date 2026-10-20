@@ -49,7 +49,13 @@ These commands run offline. After a bump, also move the `bff-message` image tags
 
 **Resolved at `0.4.0`:** `0.3.0` published the schemas of `/conversations/{conversationId}/messages` inverted (the `GET` reply typed as `SendMessageBody`, the `POST` body as the messages response). The fix landed in BFF_Message's `mair-121` release; `0.4.0` has the corrected contract, which is what `src/` is written for. After bumping the package, always run `contracts:sync` and commit the regenerated `contracts/openapi.json` in the same change — a version bump without a re-sync leaves the committed snapshot stale, which fails `contracts:check` in CI and, since it still carries the inverted schema, also fails the `sendMessage` network-contract test.
 
+## Figma mockup
+
+Figma is the source of truth: design and agree any UI change on **Mairie360 – Messages_Web_Service** (https://www.figma.com/design/aZKHSHhAj0NQnutKdS82jk) first, then code it. Shared components come from the lib mockup https://www.figma.com/design/T7vetUfuzPEXk5TxjHRiO2 and are instantiated, never redrawn.
+
 ## Architecture
+
+- **Shell from the lib (MAIR-578)** — `src/app/_components/app-shell.tsx` wraps the lib `AccessibleShell` (`@mairie360/lib-components/shell`) with the session/logout binding; `src/lib/front-urls-provider.tsx` uses the lib `configureSidebarCookieDomain`. No local `accessible-shell.tsx`, `desktop-navigation.tsx` or `sidebar-preference.ts` (pinned by `tests/lib-shell-adoption.test.cjs`).
 
 - **Shared shell and profile routing (MAIR-180)** — the frontend adapter in
   `src/app/_components/app-shell.tsx` binds the BFF-backed session and bounded

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { setBrowserFrontUrls, type FrontUrls } from "./front-urls";
-import { configureSidebarCookieDomain } from "./sidebar-preference";
+import { configureSidebarCookieDomain } from "@mairie360/lib-components/shell";
 
 // Stores the URLs before any child renders, so navigation helpers called during
 // render or on click see the runtime values of this instance.
