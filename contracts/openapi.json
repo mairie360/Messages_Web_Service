@@ -3990,7 +3990,7 @@
   "info": {
     "title": "bff_message",
     "version": "1.0.0",
-    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-dev.9cb0aa6787d556b57b2e858ee6f9bdbe355d42e3"
+    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-staging.815c7323097815c25416a17fb667b635af10c22c"
   },
   "openapi": "3.1.0",
   "paths": {

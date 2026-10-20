@@ -4,7 +4,7 @@ const path = require('node:path');
 const { test } = require('node:test');
 
 // Le contrat du front est celui de BFF Message publié dans @mairie360/bff-message-openapi, épinglé à une version
-// exacte (release X.Y.Z ou paquet dev 0.0.0-dev.<sha> du main du BFF, scripts/contract-version.mjs) :
+// exacte (release X.Y.Z ou paquet dev/staging d'un commit du main du BFF, scripts/contract-version.mjs) :
 // contracts/openapi.json doit en être la reconstruction exacte (scripts/orval-contract.mjs), et BFF Message est
 // le seul BFF, dans l'image construite depuis le même commit, partout où ce dépôt le démarre.
 
@@ -16,7 +16,7 @@ const pinned = manifest.dependencies[PACKAGE_NAME];
 
 test('the BFF Message contract package is pinned to an exact published version, installed as locked', async () => {
   const { isAcceptedContractVersion } = await import('../scripts/contract-version.mjs');
-  assert.ok(isAcceptedContractVersion(pinned), `${PACKAGE_NAME} doit être épinglé à une version exacte X.Y.Z ou 0.0.0-dev.<sha> (pas de plage ni de pré-version staging)`);
+  assert.ok(isAcceptedContractVersion(pinned), `${PACKAGE_NAME} must be pinned to an exact version X.Y.Z, 0.0.0-dev.<sha> or 0.0.0-staging.<sha> (no range)`);
   assert.equal(readJson(`node_modules/${PACKAGE_NAME}/package.json`).version, pinned);
   assert.equal(readJson('package-lock.json').packages[`node_modules/${PACKAGE_NAME}`].version, pinned);
 });
@@ -82,11 +82,13 @@ test('MAIR-553: every Docker stack gives BFF Message the upstream URLs it requir
   }
 });
 
-test('the contract version policy accepts releases and dev packages and maps them to image tags', async () => {
+test('the contract version policy accepts releases, dev and staging packages and maps them to image tags', async () => {
   const { isAcceptedContractVersion, imageTagForContractVersion } = await import('../scripts/contract-version.mjs');
   assert.equal(imageTagForContractVersion('0.4.0'), '0.4.0');
   assert.equal(imageTagForContractVersion('0.0.0-dev.0f3838b81c6fa6e66b938c35ef211cf2ed862ad3'), 'dev-0f3838b');
-  for (const rejected of ['^0.4.0', '0.4', '0.0.0-staging.0f3838b81c6fa6e66b938c35ef211cf2ed862ad3', '0.0.0-dev.0f3838b', 'latest']) {
+  assert.equal(isAcceptedContractVersion('0.0.0-staging.0f3838b81c6fa6e66b938c35ef211cf2ed862ad3'), true);
+  assert.equal(imageTagForContractVersion('0.0.0-staging.0f3838b81c6fa6e66b938c35ef211cf2ed862ad3'), 'staging-0f3838b');
+  for (const rejected of ['^0.4.0', '0.4', '0.0.0-staging.0f3838b', '0.0.0-dev.0f3838b', 'latest']) {
     assert.equal(isAcceptedContractVersion(rejected), false, rejected);
   }
 });

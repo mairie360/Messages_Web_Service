@@ -109,7 +109,7 @@ services:
 
   bff-message:
     container_name: bff-message-message-front
-    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:dev-9cb0aa6}
+    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:staging-815c732}
     ports:
       - "4003:4003"
     networks:

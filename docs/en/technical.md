@@ -216,7 +216,7 @@ Every response carries `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff
 The contract source is the published `@mairie360/bff-message-openapi` package, pinned to an exact version in `package.json`. Never copy the contract from a **BFF_Message** checkout: the local repository can be ahead of the last published release. After a version bump:
 
 ```bash
-npm install --save-exact @mairie360/bff-message-openapi@<version>   # a release X.Y.Z or a published 0.0.0-dev.<sha40> of BFF_Message main, never staging
+npm install --save-exact @mairie360/bff-message-openapi@<version>   # a release X.Y.Z, or a published 0.0.0-dev.<sha40> or 0.0.0-staging.<sha40> of BFF_Message main (MAIR-600)
 npm run contracts:sync      # rebuild contracts/openapi.json from the installed package
 npm run contracts:check     # fail if the version isn't an accepted exact version, if a second bff-*-openapi package exists, or if the snapshot is stale
 npm test
@@ -224,7 +224,7 @@ npm run lint
 npm run build
 ```
 
-These commands run offline. Move the `bff-message` image tags in the `docker-compose*.yml` files to the image built from the same commit as well (`X.Y.Z`, or `dev-<sha7>` for a dev package; `tests/package-contract.test.cjs` enforces it through `scripts/contract-version.mjs`). The dev BFF_Message also needs `JWT_SECRET`, `PROJECT_API_URL` and `CALENDAR_API_URL` at startup (the stacks point the last two at an unreachable sentinel, like BFF_Message's own stacks), the dev APIs need `JWT_ALLOW_WEAK_SECRET`, `RATE_LIMIT_ENABLED=false` and `RATE_LIMIT_PER_SECOND=0`, the dev Liquibase `-Dallow_template_admin=true`, and `init-test.sql` argon2id hashes. `contracts/openapi.json` is the committed rebuild of the package, read by the proxy at build time and by the tests: never hand-edit it. Route types come straight from the package (`@mairie360/bff-message-openapi/model`); there is no generated `.d.ts` any more. `test:contracts` runs the Node tests without coverage; `npm test` runs them with 60% coverage thresholds (lines, branches, functions) reported on the original TypeScript.
+These commands run offline. Move the `bff-message` image tags in the `docker-compose*.yml` files to the image built from the same commit as well (`X.Y.Z`, `dev-<sha7>` for a dev package, or `staging-<sha7>` for a staging package; `tests/package-contract.test.cjs` enforces it through `scripts/contract-version.mjs`). The dev BFF_Message also needs `JWT_SECRET`, `PROJECT_API_URL` and `CALENDAR_API_URL` at startup (the stacks point the last two at an unreachable sentinel, like BFF_Message's own stacks), the dev APIs need `JWT_ALLOW_WEAK_SECRET`, `RATE_LIMIT_ENABLED=false` and `RATE_LIMIT_PER_SECOND=0`, the dev Liquibase `-Dallow_template_admin=true`, and `init-test.sql` argon2id hashes. `contracts/openapi.json` is the committed rebuild of the package, read by the proxy at build time and by the tests: never hand-edit it. Route types come straight from the package (`@mairie360/bff-message-openapi/model`); there is no generated `.d.ts` any more. `test:contracts` runs the Node tests without coverage; `npm test` runs them with 60% coverage thresholds (lines, branches, functions) reported on the original TypeScript.
 
 Orval output only types successes, exposed under the `2XX` range, plus the error statuses carried by a `<OperationId><status>` model; the dev package references the shared `ErrorResponse` model instead, so no error status is documented and every error reply mocked in the tests must be declared with `outOfContract: true`.
 

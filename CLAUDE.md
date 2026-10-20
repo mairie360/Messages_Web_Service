@@ -34,13 +34,13 @@ Contract mocks follow the BFFs' `tests/support` pattern, ported to CJS:
 
 ### OpenAPI contract
 
-The only contract is **BFF_Message's, as published in `@mairie360/bff-message-openapi`**, pinned to an exact version in `package.json`: a release `X.Y.Z`, or the `0.0.0-dev.<sha40>` package the CICD publishes for each commit of BFF_Message `main` (used since MAIR-509 while no release is cut; `scripts/contract-version.mjs` is the policy, `staging` prereleases are refused). Never copy it from a BFF checkout: the local `BFFs/BFF_Message` can be ahead of what is published. The package is orval output (`endpoints/bffMessage.ts` + `model/*.ts`, no `openapi.json`, `main` pointing at a missing `index.ts`), so:
+The only contract is **BFF_Message's, as published in `@mairie360/bff-message-openapi`**, pinned to an exact version in `package.json`: a release `X.Y.Z`, or the `0.0.0-dev.<sha40>` package the CICD publishes for each commit of BFF_Message `main` (used since MAIR-509 while no release is cut), or, once that commit is released on staging, the `0.0.0-staging.<sha40>` package of the same commit, preferred on a staging release for readability, with the `staging-<sha7>` image (MAIR-600; `scripts/contract-version.mjs` is the policy, `0.0.0-staging.<short sha>` and ranges are refused). Never copy it from a BFF checkout: the local `BFFs/BFF_Message` can be ahead of what is published. The package is orval output (`endpoints/bffMessage.ts` + `model/*.ts`, no `openapi.json`, `main` pointing at a missing `index.ts`), so:
 
 - `scripts/orval-contract.mjs` rebuilds an OpenAPI document from it with the TypeScript compiler API (same reader as `Login_Web_Service`, plus literal types and multipart bodies). It writes the committed `contracts/openapi.json`, which the proxy imports at build time and the tests load. Never hand-edit it.
 - Route types come straight from the package (`import type { GetMe200 } from '@mairie360/bff-message-openapi/model'`). Only top-level model names are stable across contract fixes, so derive the rest with indexed access (`GetContacts200['contacts'][number]`). There is no generated `.d.ts` any more.
 
 ```bash
-npm install --save-exact @mairie360/bff-message-openapi@<version>   # bump: a release X.Y.Z or a published 0.0.0-dev.<sha40>, never staging
+npm install --save-exact @mairie360/bff-message-openapi@<version>   # bump: a release X.Y.Z, a published 0.0.0-dev.<sha40> or 0.0.0-staging.<sha40> (MAIR-600)
 npm run contracts:sync      # (= contracts:generate) rebuild contracts/openapi.json from the installed package
 npm run contracts:check     # fail if the version isn't an accepted exact version, installed != package.json, a second bff-*-openapi exists, or the snapshot is stale
 ```
