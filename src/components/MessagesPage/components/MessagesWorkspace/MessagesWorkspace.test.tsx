@@ -10,9 +10,9 @@ import { MessagesWorkspace } from './MessagesWorkspace';
 
 describe('MessagesWorkspace', () => {
   it('shows the bootstrap state while loading, then the unavailable wording with the error', () => {
-    const { rerender } = render(<MessagesWorkspace {...(controller as object)} />);
+    const { rerender } = render(<MessagesWorkspace {...(controller as unknown as React.ComponentProps<typeof MessagesWorkspace>)} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Chargement de la messagerie' })).toBeInTheDocument();
-    rerender(<MessagesWorkspace {...(controller as object)} loading={false} bootstrapError="BFF injoignable" />);
+    rerender(<MessagesWorkspace {...(controller as unknown as React.ComponentProps<typeof MessagesWorkspace>)} loading={false} bootstrapError="BFF injoignable" />);
     expect(screen.getByRole('heading', { level: 1, name: 'Messagerie indisponible' })).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('BFF injoignable');
   });
