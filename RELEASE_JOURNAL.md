@@ -1,66 +1,68 @@
 # Journal des releases — Messages_Web_Service
 
-<!-- release-journal-state {"dev": "7f2b8a1d72959931543390298430d93045843206", "prod": "d950efef13cf04bf526892c50bc7efb61a5529a3", "prod_tag": "v0.4.0", "staging": "500ac41961953f47094cebad88e0fd4ecdb2a3fb", "updated": {"dev": "2026-10-21 01:41 UTC", "staging": "2026-10-20 19:02 UTC"}} -->
+<!-- release-journal-state {"dev": "7e2e0beec4de3b0535feca7910cc82b95a63e6f2", "prod": "d950efef13cf04bf526892c50bc7efb61a5529a3", "prod_tag": "v0.4.0", "staging": "500ac41961953f47094cebad88e0fd4ecdb2a3fb", "updated": {"dev": "2026-10-21 10:50 UTC", "staging": "2026-10-20 19:02 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v0.4.0 | `d950efe` | — |
 | staging | — | `500ac41` | 2026-10-20 19:02 UTC |
-| dev | — | `7f2b8a1` | 2026-10-21 01:41 UTC |
+| dev | — | `7e2e0be` | 2026-10-21 10:50 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v0.4.0)
 
 #### Nouveautés
-- Bandeau de confirmation fermable après la création d’un message direct (« Message direct créé. »), d’un groupe (« Groupe « … » créé. ») et après la suppression d’une conversation (« Conversation « … » supprimée. »). Il disparaît dès qu’une nouvelle action démarre. (#267)
-- Liste de conversations vide : l’état « Aucune conversation » s’accompagne de la description « Créez un message ou un groupe pour commencer. » Pendant le chargement, un squelette remplace la liste. (#267)
-- Lien d’évitement unique placé avant la navigation répétée. (#267)
+- Les conversations sans contenu affichent désormais un état vide explicite « Aucune conversation » avec la description « Créez un message ou un groupe pour commencer. » (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267))
+- Un message de confirmation réussi s'affiche après la création d'un message direct « Message direct créé. », la création d'un groupe « Groupe « nom » créé. » et la suppression d'une conversation « Conversation « nom » supprimée. ». Il se ferme à la demande et disparaît à l'action suivante ou au changement de compte. (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267))
+- Un squelette de chargement s'affiche pendant la lecture des conversations (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267))
+- Un lien d'évitement unique précède la navigation répétée et mène à la zone principale (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267))
 
 #### Changements de comportement
-- Nouveau message à un contact : si une conversation directe existe déjà avec lui (`kind: 'direct'` et son `contactId`), le message est publié dans cette conversation par `POST /conversations/{id}/messages` et elle s’ouvre. Avant, `POST /direct-messages` créait toujours un nouveau fil. Seul un contact sans conversation directe passe par `POST /direct-messages`. Un envoi refusé conserve le brouillon et ne crée pas d’autre fil. (MAIR-204, [#140](https://github.com/mairie360/Messages_Web_Service/pull/140))
-- Création d’un message direct ou d’un groupe : une réponse sans identifiant de conversation ou de message confirmé provoque désormais une erreur et conserve le brouillon (« La création du message direct n’a pas été confirmée. Le brouillon est conservé. », « La création du groupe n’a pas été confirmée. Le brouillon est conservé. »). (#267)
-- Les couleurs de fond et de texte viennent des variables du thème partagé (`--mairie-*`). (#267)
+- « Nouveau message » vers un contact qui a déjà une conversation directe (`kind: 'direct'` avec son `contactId`) publie dans cette conversation via `POST /conversations/{id}/messages` et l'ouvre. Seul un contact sans conversation directe crée un fil via `POST /direct-messages`. Un envoi refusé ou non confirmé conserve le brouillon et ne crée jamais un autre fil. (MAIR-204, [#140](https://github.com/mairie360/Messages_Web_Service/pull/140))
+- Si la conversation existante n'est pas confirmée, l'erreur affichée est « L’envoi reste à confirmer. Le brouillon est conservé ; réessayez pour vérifier la conversation. » et l'échec standard est « Le message n’a pas pu être envoyé. » (MAIR-204, [#140](https://github.com/mairie360/Messages_Web_Service/pull/140))
+- Avant : une réponse de création de message direct était acceptée sans vérification. Maintenant, si la conversation ou le message manque, ou si la conversation du message diffère, l'erreur « La création du message direct n’a pas été confirmée. Le brouillon est conservé. » est affichée (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267))
+- Avant : la création de groupe était acceptée sans vérification. Maintenant, une réponse sans conversation ou sans nom affiche « La création du groupe n’a pas été confirmée. Le brouillon est conservé. » (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267))
 
 #### Technique
-- Déploiement pour staging et prod : `cicd.yml` ne déclenche plus que `release-dev` sur `main`. Staging et prod passent par les workflows manuels `promote-staging.yml` et `promote-prod.yml` (MAIR-494, [#287](https://github.com/mairie360/Messages_Web_Service/pull/287)). Le lockfile `follow-redirects` 1.16.1 débloque `npm audit`, selon la description de la PR (lockfile absent du diff fourni).
-- Contrat BFF : `@mairie360/bff-message-openapi` est passé à `1.0.0` (MAIR-569, [#269](https://github.com/mairie360/Messages_Web_Service/pull/269)), puis à `0.0.0-dev.9cb0aa6…` (MAIR-575, [#279](https://github.com/mairie360/Messages_Web_Service/pull/279)), puis à `0.0.0-staging.815c7323…` (MAIR-600, [#281](https://github.com/mairie360/Messages_Web_Service/pull/281)). L’état final de la plage est le paquet staging. `scripts/contract-version.mjs` accepte désormais `0.0.0-staging.<sha40>`.
-- Stacks de test (`docker-compose*.yml`) : images `bff-message` alignées sur `staging-815c732`, et `database` / `liquibase-migrations` en `3.2.0`, `message-api` en `2.0.0`, `core-api` en `2.1.0` (MAIR-569, #269 ; MAIR-575, #279 ; MAIR-600, #281).
-- Socle partagé : `@mairie360/lib-components` passe de 0.8.0 à 0.9.0 (#267), puis à 0.10.2 (MAIR-126, [#273](https://github.com/mairie360/Messages_Web_Service/pull/273)). `@mairie360/front-kit` et son archive vendored sont supprimés, sans changement de comportement. `braces` est vendored en dev avec sa licence (#267).
-- CICD : `mairie360/CICD` épinglé à v4.3.1 (MAIR-571, [#271](https://github.com/mairie360/Messages_Web_Service/pull/271)), puis v4.3.2 avec pin par SHA et tag suivi par Renovate (MAIR-571, [#275](https://github.com/mairie360/Messages_Web_Service/pull/275)). Les secrets du journal de release sont transmis.
-- Sécurité CI et image (MAIR-436, [#264](https://github.com/mairie360/Messages_Web_Service/pull/264)) : Node 24.21.0 dans Docker et CI, token en lecture seule par défaut, `push` limité à `main`, token passé en BuildKit secret.
-- Tests : `tests/bundle/client-bundle.test.cjs` vérifie que le bundle client n’embarque aucune entrée lib inutilisée (MAIR-126, [#277](https://github.com/mairie360/Messages_Web_Service/pull/277)). Il est lancé par `frontend-performance.yml` via `npm run test:bundle` (#273).
+- Contrat BFF_Message : passage de `0.0.0-dev` à `1.0.0` (MAIR-569, [#269](https://github.com/mairie360/Messages_Web_Service/pull/269)), puis au paquet `0.0.0-dev.9cb0aa6` (MAIR-575, [#279](https://github.com/mairie360/Messages_Web_Service/pull/279)), puis au paquet `0.0.0-staging.815c732` avec l'image `staging-815c732` (MAIR-600, [#281](https://github.com/mairie360/Messages_Web_Service/pull/281)). Le paquet `0.0.0-staging` est accepté par la politique de version et la documentation est mise à jour.
+- Stacks de test (`docker-compose*.yml`) : images des API et de la base portées sur des versions de release (MAIR-569, [#269](https://github.com/mairie360/Messages_Web_Service/pull/269)).
+- Dépendances : `@mairie360/front-kit` vendoré supprimé, `@mairie360/lib-components` passé de 0.9.0 à 0.10.2 avec des imports par sous-chemin (MAIR-126, [#273](https://github.com/mairie360/Messages_Web_Service/pull/273)). Une vérification du bundle client est ajoutée (MAIR-126, [#273](https://github.com/mairie360/Messages_Web_Service/pull/273) et [#277](https://github.com/mairie360/Messages_Web_Service/pull/277)).
+- CI : `mairie360/CICD` épinglé en v4.3.2 puis v4.3.1 avec secrets du journal de release (MAIR-571, [#275](https://github.com/mairie360/Messages_Web_Service/pull/275), [#271](https://github.com/mairie360/Messages_Web_Service/pull/271)).
+- CI : permissions en lecture seule par défaut, `push` limité à `main` pour `cicd.yml` et `contracts.yml` (MAIR-436, [#264](https://github.com/mairie360/Messages_Web_Service/pull/264)).
+- Adoption du thème partagé et des feuilles de style de lib-components via des variables CSS (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267)).
+- Rétrogradation : des paquets vendorés `braces` ajoutés en dépendance de développement (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267)).
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
 #### Technique
-- Le dépôt ne publie plus automatiquement sur staging ni sur prod : un push sur `main` s’arrête à `release-dev`. Staging et prod se déclenchent à la main avec `promote-staging.yml` et `promote-prod.yml` (MAIR-494, [#287](https://github.com/mairie360/Messages_Web_Service/pull/287)).
-- Pas de changement fonctionnel pour les utilisateurs dans cette plage ; la PR ajoute aussi la pinning de `mairie360/CICD` en v4.4.0 et l’épinglage de `renovate.json`.
+- Renovate remonte `mairie360/CICD` de v4.4.0 à v4.4.3 dans `cicd.yml`, `dev-dependency-exception.yml` et les nouveaux workflows de promotion (([#284](https://github.com/mairie360/Messages_Web_Service/pull/284))).
+- MAIR-494 ([#287](https://github.com/mairie360/Messages_Web_Service/pull/287)) : un push sur `main` s'arrête à `release-dev`, staging et prod ne se déclenchent plus automatiquement. Deux workflows manuels `promote-staging.yml` et `promote-prod.yml` ont été ajoutés, avec verrou par cible et même épingle CICD. La configuration Renovate et le test `tests/cicd-pin.test.cjs` suivent les huit références CICD. La documentation `CLAUDE.md` décrit la promotion. Selon la description de la PR, `follow-redirects` passe en 1.16.1 dans le lockfile pour débloquer `npm audit`.
 
 ## Différence staging → prod (en staging, pas encore en prod)
 
 #### Nouveautés
-- Bandeau de confirmation fermable après la création d’un message direct (« Message direct créé. »), d’un groupe (« Groupe « … » créé. ») et après la suppression d’une conversation (« Conversation « … » supprimée. »). Il disparaît dès qu’une nouvelle action démarre. (#267)
-- Liste de conversations vide : l’état « Aucune conversation » s’accompagne de la description « Créez un message ou un groupe pour commencer. » Pendant le chargement, un squelette remplace la liste. (#267)
-- Lien d’évitement unique placé avant la navigation répétée. (#267)
+- Les conversations sans contenu affichent désormais un état vide explicite « Aucune conversation » avec la description « Créez un message ou un groupe pour commencer. » (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267))
+- Un message de confirmation réussi s'affiche après la création d'un message direct, la création d'un groupe et la suppression d'une conversation ; il se ferme à la demande (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267))
+- Un squelette de chargement s'affiche pendant la lecture des conversations, et un lien d'évitement unique précède la navigation (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267))
 
 #### Changements de comportement
-- Nouveau message à un contact : si une conversation directe existe déjà avec lui (`kind: 'direct'` et son `contactId`), le message est publié dans cette conversation par `POST /conversations/{id}/messages` et elle s’ouvre. Avant, `POST /direct-messages` créait toujours un nouveau fil. Seul un contact sans conversation directe passe par `POST /direct-messages`. Un envoi refusé conserve le brouillon et ne crée pas d’autre fil. (MAIR-204, [#140](https://github.com/mairie360/Messages_Web_Service/pull/140))
-- Création d’un message direct ou d’un groupe : une réponse sans identifiant de conversation ou de message confirmé provoque désormais une erreur et conserve le brouillon (« La création du message direct n’a pas été confirmée. Le brouillon est conservé. », « La création du groupe n’a pas été confirmée. Le brouillon est conservé. »). (#267)
-- Les couleurs de fond et de texte viennent des variables du thème partagé (`--mairie-*`). (#267)
+- « Nouveau message » vers un contact qui a déjà une conversation directe publie dans cette conversation via `POST /conversations/{id}/messages` au lieu de créer un nouveau fil via `POST /direct-messages`. Un envoi refusé conserve le brouillon sans créer d'autre fil. (MAIR-204, [#140](https://github.com/mairie360/Messages_Web_Service/pull/140))
+- Les créations de message direct et de groupe vérifient désormais la réponse : une création non confirmée affiche une erreur et conserve le brouillon (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267))
 
 #### Technique
-- Contrat BFF : `@mairie360/bff-message-openapi` est passé à `1.0.0` (MAIR-569, [#269](https://github.com/mairie360/Messages_Web_Service/pull/269)), puis à `0.0.0-dev.9cb0aa6…` (MAIR-575, [#279](https://github.com/mairie360/Messages_Web_Service/pull/279)), puis à `0.0.0-staging.815c7323…` (MAIR-600, [#281](https://github.com/mairie360/Messages_Web_Service/pull/281)). L’état final de la plage est le paquet staging, et `scripts/contract-version.mjs` accepte désormais `0.0.0-staging.<sha40>`.
-- Stacks de test (`docker-compose*.yml`) : image `bff-message` alignée sur `staging-815c732`, `database` et `liquibase-migrations` en `3.2.0`, `message-api` en `2.0.0`, `core-api` en `2.1.0` (#269, #279, #281).
-- Socle partagé : `@mairie360/lib-components` passe de 0.8.0 à 0.9.0 (#267), puis à 0.10.2 (MAIR-126, [#273](https://github.com/mairie360/Messages_Web_Service/pull/273)). `@mairie360/front-kit` et son archive vendored sont supprimés, sans changement de comportement. `braces` est vendored en dev avec sa licence (#267).
-- CICD : `mairie360/CICD` épinglé à v4.3.1 (MAIR-571, [#271](https://github.com/mairie360/Messages_Web_Service/pull/271)), puis v4.3.2 avec pin par SHA suivi par Renovate (MAIR-571, [#275](https://github.com/mairie360/Messages_Web_Service/pull/275)). Les secrets du journal de release sont transmis.
-- Sécurité CI et image (MAIR-436, [#264](https://github.com/mairie360/Messages_Web_Service/pull/264)) : Node 24.21.0 dans Docker et CI, token en lecture seule par défaut, `push` limité à `main`, token passé en BuildKit secret.
-- Tests : `tests/bundle/client-bundle.test.cjs` vérifie que le bundle client n’embarque aucune entrée lib inutilisée (MAIR-126, [#277](https://github.com/mairie360/Messages_Web_Service/pull/277)), lancé par `frontend-performance.yml`.
+- Contrat BFF_Message passé à `0.0.0-staging.815c732` avec l'image `staging-815c732` dans les stacks (MAIR-600, [#281](https://github.com/mairie360/Messages_Web_Service/pull/281)). Le contrat lui-même n'a pas changé.
+- Contrat BFF_Message passé à `0.0.0-dev.9cb0aa6` (MAIR-575, [#279](https://github.com/mairie360/Messages_Web_Service/pull/279)), après la version `1.0.0` (MAIR-569, [#269](https://github.com/mairie360/Messages_Web_Service/pull/269)).
+- Dépendances : `@mairie360/front-kit` vendoré supprimé et `@mairie360/lib-components` en 0.10.2 avec imports par sous-chemin, plus un test de bundle client (MAIR-126, [#273](https://github.com/mairie360/Messages_Web_Service/pull/273), [#277](https://github.com/mairie360/Messages_Web_Service/pull/277)).
+- CI : `mairie360/CICD` en v4.3.2 puis v4.3.1 avec secrets du journal de release, et tests d'épinglage (MAIR-571, [#275](https://github.com/mairie360/Messages_Web_Service/pull/275), [#271](https://github.com/mairie360/Messages_Web_Service/pull/271)).
+- CI : permissions en lecture seule par défaut et `push` limité à `main` (MAIR-436, [#264](https://github.com/mairie360/Messages_Web_Service/pull/264)).
+- Thème partagé et feuilles de style de lib-components adoptés, et paquets `braces` vendorés en développement (MAIR-526, MAIR-515, MAIR-540, [#267](https://github.com/mairie360/Messages_Web_Service/pull/267)).
 
 ## Historique des passages
 
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-10-21 10:50 UTC | dev | — | `7e2e0be` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/39584885863) |
 | 2026-10-21 01:41 UTC | dev | — | `7f2b8a1` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/39528137691) |
 | 2026-10-20 19:02 UTC | staging | — | `500ac41` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/39478543240) |
 | 2026-10-20 18:57 UTC | dev | — | `500ac41` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/39478543240) |
