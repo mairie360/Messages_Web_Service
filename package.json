@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@mairie360/bff-message-openapi": "0.0.0-staging.815c7323097815c25416a17fb667b635af10c22c",
-    "@mairie360/lib-components": "1.0.1",
+    "@mairie360/lib-components": "1.0.3",
     "axios": "1.20.0",
     "daisyui": "^5.0.0",
     "lucide-react": "^1.0.0",
@@ -42,6 +42,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
+    "@types/jest-axe": "3.5.9",
     "@types/node": "^24.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
