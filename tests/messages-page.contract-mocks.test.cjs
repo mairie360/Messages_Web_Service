@@ -15,9 +15,9 @@ const { apiError, bootstrap, businessReferences, contact, conversation, currentU
 const { FrontNetwork } = require('./support/front-network.cjs');
 const { ContractMockServer } = require('./support/contract-mock-server.cjs');
 const { OpenApiContract } = require('./support/openapi-contract.cjs');
-const Page = requireSrc('app/messages-client.tsx').default;
-const { MessagesWorkspace } = requireSrc('app/_components/messages-workspace.tsx');
-const { useMessagingController } = requireSrc('app/_components/use-messaging-controller.ts');
+const Page = requireSrc('components/MessagesPage/MessagesPage.tsx').default;
+const { MessagesWorkspace } = requireSrc('components/MessagesPage/components/MessagesWorkspace/MessagesWorkspace.tsx');
+const { useMessagingController } = requireSrc('components/MessagesPage/use-messaging-controller.ts');
 const { ATTACHMENTS_UNAVAILABLE_MESSAGE, messageAttachmentPort } = requireSrc('lib/attachment-features.ts');
 // The page once BFF_Message stores attachments (MAIR-512): the same workspace with the upload-capable port.
 function PageWithUploads() { return React.createElement(MessagesWorkspace, useMessagingController({ attachmentPort: messageAttachmentPort })); }

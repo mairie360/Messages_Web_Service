@@ -8,11 +8,11 @@ const { installReactRuntime, mount } = require('./support/server-view.cjs');
 globalThis.window ??= {};
 installReactRuntime();
 const React = require('react');
-const { MentionedContent } = requireSrc('components/messaging/bubble/MentionedContent.tsx');
-const { ComposerAttachmentChips } = requireSrc('components/messaging/composer/ComposerAttachmentChips.tsx');
-const { GroupDetailsFields } = requireSrc('components/messaging/group/GroupDetailsFields.tsx');
-const { GroupMemberPicker } = requireSrc('components/messaging/group/GroupMemberPicker.tsx');
-const { ContextReferenceBar } = requireSrc('components/messaging/thread/ContextReferenceBar.tsx');
+const { MentionedContent } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/MessageThread/components/MessagingMessageBubble/components/MentionedContent/MentionedContent.tsx');
+const { ComposerAttachmentChips } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/ConversationComposers/components/MessagingComposer/components/ComposerAttachmentChips/ComposerAttachmentChips.tsx');
+const { GroupDetailsFields } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/CreateGroupModal/components/GroupDetailsFields/GroupDetailsFields.tsx');
+const { GroupMemberPicker } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/CreateGroupModal/components/GroupMemberPicker/GroupMemberPicker.tsx');
+const { ContextReferenceBar } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/ContextReferenceBar/ContextReferenceBar.tsx');
 
 let view;
 afterEach(() => {

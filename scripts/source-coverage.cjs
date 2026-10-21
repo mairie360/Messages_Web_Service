@@ -11,7 +11,7 @@ async function sourcesIn(directory) {
   for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
     const filename = path.join(directory, entry.name);
     if (entry.isDirectory()) files.push(...await sourcesIn(filename));
-    else if (/\.tsx?$/.test(entry.name)) files.push(filename);
+    else if (/\.tsx?$/.test(entry.name) && !/\.test\.(tsx?|jsx)$/.test(entry.name)) files.push(filename);
   }
   return files.sort();
 }
@@ -113,7 +113,7 @@ async function sourceCoverage({ root = process.cwd(), rawDirectory, reportDirect
   const reportFactory = c8Factory ?? require('c8').Report;
   const version = c8Version ?? require('c8/package.json').version;
   const report = reportFactory({
-    include: ['src/**/*.{ts,tsx}'], exclude: [], extension: ['.ts', '.tsx'], all: true, src: [path.join(root, 'src')],
+    include: ['src/**/*.{ts,tsx}'], exclude: ['**/*.test.ts', '**/*.test.tsx'], extension: ['.ts', '.tsx'], all: true, src: [path.join(root, 'src')],
     reporter: ['text', 'lcov', 'json', 'json-summary'], reportsDirectory: reportDirectory,
     tempDirectory: rawDirectory, excludeAfterRemap: true, excludeNodeModules: true,
     allowExternal: false, skipFull: false, mergeAsync: true,

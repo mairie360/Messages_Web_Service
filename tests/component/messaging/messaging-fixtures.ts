@@ -1,4 +1,4 @@
-import type { MessagingBusinessReference, MessagingConversation, MessagingMessage } from '@/components/messaging/types';
+import type { MessagingBusinessReference, MessagingConversation, MessagingMessage } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging';
 
 export const defaultMessagingConversations: MessagingConversation[] = [
   {

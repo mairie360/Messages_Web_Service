@@ -53,13 +53,44 @@ These commands run offline. After a bump, also move the `bff-message` image tags
 
 Figma is the source of truth: design and agree any UI change on **Mairie360 – Messages_Web_Service** (https://www.figma.com/design/aZKHSHhAj0NQnutKdS82jk) first, then code it. Shared components come from the lib mockup https://www.figma.com/design/T7vetUfuzPEXk5TxjHRiO2 and are instantiated, never redrawn.
 
+## Component tree convention
+
+Every component under `src/components/` is a **folder named after it**, and the folder tree
+mirrors the composition tree:
+
+```
+Name/
+  index.ts          # exports the component (and the helpers it owns)
+  Name.tsx          # imports ONLY its direct sub-components, through their index.ts
+  Name.test.tsx     # its tests, co-located (vitest + jsdom)
+  components/       # one such folder per direct sub-component, recursively
+```
+
+- A component needs nothing but the `index.ts` of its direct sub-components: `Name.tsx` imports
+  `./components/Sub`, never `./components/Sub/Sub` nor a sub-sub-component. Leaves are folders
+  too (without `components/`).
+- Helpers a component owns (models, hooks, `*.ts`) sit beside it and are exported by its
+  `index.ts`; a helper shared by two siblings sits in their closest common ancestor.
+- A big component is acceptable only for a technical reason stated in a comment; otherwise
+  split it so that each visible part is a component and what composes it a sub-component.
+- Page and journey tests stay in `tests/`; per-component tests are the co-located
+  `Name.test.tsx`. `tests/component-tree-convention.test.cjs` enforces the folder, the index,
+  the co-located test and the index-only imports.
+
+## Front tickets and the Figma mockup
+
+A front ticket (Jira + GitHub issue + PR) **must link the Figma frame that serves as the
+example** of what is being built or changed. Without that link the ticket cannot be worked
+on, unless the change does not affect the display (tooling, tests, proxy, contracts…). Update
+and agree the mockup first, then code it: the sync direction is Figma → code.
+
 ## Architecture
 
-- **Messaging components owned here (MAIR-607)** — `src/components/messaging/` holds `Messaging`, its sub-components, `MessagingModalFrame`, `types`, `visible-message` and `style` (formerly `@mairie360/lib-components/messages`, removed because Messages was their only consumer); `messages-workspace.tsx`, `use-messaging-controller.ts`, `messaging-state.ts` and `message-authors.tsx` import `@/components/messaging`. Their component tests are `tests/component/messaging/lib-*.test.tsx` (vitest + jsdom, `npm run test:components`); Node stays the coverage authority. `tests/lib-business-ownership.test.cjs` forbids any import of a removed library entry and checks the installed lib has no `./messages` export.
-- **Shell from the lib (MAIR-578)** — `src/app/_components/app-shell.tsx` wraps the lib `AccessibleShell` (`@mairie360/lib-components/shell`) with the session/logout binding; `src/lib/front-urls-provider.tsx` uses the lib `configureSidebarCookieDomain`. No local `accessible-shell.tsx`, `desktop-navigation.tsx` or `sidebar-preference.ts` (pinned by `tests/lib-shell-adoption.test.cjs`).
+- **Messaging components owned here (MAIR-607) and laid out as a component tree (MAIR-608)** — `src/components/MessagesPage/` is the single root (see *Component tree convention*): `MessagesPage.tsx` (the former `app/messages-client.tsx`, imported by `src/app/page.tsx`) owns `use-messaging-controller.ts` (reads, SSE reception, drafts, mutations) and renders `components/MessagesWorkspace/` (+ `messaging-scroll-regions.ts`; `components/{AppShell,MobileConversationSwitch,Messaging}/`). `Messaging/` owns `messaging-model.ts`, `use-visible-messages-read.ts`, `visible-message.ts`, `messaging-types.ts`, `messaging-style.ts` and composes `components/`: `MessagingSidebar/` (+ `filter-conversations.ts`; `components/{SidebarHeader,ConversationSearch,ConversationList/components/MessagingConversationItem}/`), `MessagingChatHeader/components/{HeaderIdentity,HeaderIconButton,ConversationActionsMenu}/`, `MessageThread/components/MessagingMessageBubble/` (+ `bubble-model.ts`; `components/{MentionedContent,BubbleReferences,BubbleAttachments}/`), `ConversationComposers/components/MessagingComposer/` (+ `composer-text.ts`; `components/{ComposerSuggestions,ComposerAttachmentChips,ComposerToolbar/components/EmojiPicker}/`), `UnreadNotificationsBar/`, `ReadFailureAlert/`, `ContextReferenceBar/`, `NewMessageModal/components/{RecipientSelect,MessageTextArea}/`, `CreateGroupModal/` (+ `group-members.ts`; `components/{GroupDetailsFields,GroupMemberPicker}/`), and the shared `MessagingModalFrame/` (lib `Modal`), `MessagingContactAvatar/`, `BusinessReferenceIcon/`. Every component has its co-located `Name.test.tsx`; `tests/component-tree-convention.test.cjs` checks the tree.
+- **Shell from the lib (MAIR-578)** — `src/components/MessagesPage/components/MessagesWorkspace/components/AppShell/AppShell.tsx` wraps the lib `AccessibleShell` (`@mairie360/lib-components/shell`) with the session/logout binding; `src/lib/front-urls-provider.tsx` uses the lib `configureSidebarCookieDomain`. No local `accessible-shell.tsx`, `desktop-navigation.tsx` or `sidebar-preference.ts` (pinned by `tests/lib-shell-adoption.test.cjs`).
 
 - **Shared shell and profile routing (MAIR-180)** — the frontend adapter in
-  `src/app/_components/app-shell.tsx` binds the BFF-backed session and bounded
+  `src/components/MessagesPage/components/MessagesWorkspace/components/AppShell/AppShell.tsx` binds the BFF-backed session and bounded
   messaging viewport to the published-library `AppShell`. Authenticated legacy
   `/profile` URLs redirect to validated runtime `SETTINGS_FRONT_URL` in frontend
   middleware; missing or invalid destinations return uncached 503. No local
@@ -74,7 +105,7 @@ Figma is the source of truth: design and agree any UI change on **Mairie360 – 
 - **Client calls** — pages call the generated operations of `@mairie360/bff-message-openapi` (`getBffMessage`, wired in `src/lib/bff-client.ts` on an axios instance whose adapter delegates to the same-origin `fetch`) through `messageClient`; no hand-written path exists in `src/` (the contract paths such as `/messaging/bootstrap` are owned by the generated functions), which parses `{ error: { message } }` / `{ message }` bodies into errors. Authentication relies only on the `accessToken` cookie turned into a Bearer by the proxy; unlike Projects/Administrator, this front stores no JWT in `localStorage`.
 - `src/app/page.tsx` uses `src/clients/messageClient.ts` (generated operations and types from the contract package) to load the messaging bootstrap, then messages and contacts on demand, and maps DTOs onto the shared `Messaging` component via `src/lib/messaging-state.ts`. `messageClient` throws `BffRequestError` (defined in `src/lib/bff-client.ts`, re-exported by `messageClient.ts`) (message parsed from the body, plus the HTTP status), which is how `fetchAuthSession` tells a 401 apart.
 - `src/app/business-references/route.ts` is an explicit handler that forwards to the BFF with `forwardToBff` (it takes precedence over the catch-all).
-- `src/app/_components/app-shell.tsx` is a thin adapter around the shared `AppShell`, preserving `useAuthSession` and the bounded message viewport. Its cross-module links are validated `*_FRONT_URL` values read at runtime; archived fronts are omitted.
+- `src/components/MessagesPage/components/MessagesWorkspace/components/AppShell/AppShell.tsx` is a thin adapter around the shared `AppShell`, preserving `useAuthSession` and the bounded message viewport. Its cross-module links are validated `*_FRONT_URL` values read at runtime; archived fronts are omitted.
 - Like every front, Docker (both Dockerfiles, official image pinned by digest) and CI use Node **24.21.0**.
 - `next.config.ts` sets `output: 'standalone'` (required by the Dockerfile), `poweredByHeader: false` and static security headers on every route (`tests/security-headers.test.cjs` pins them, and the ZAP baseline fails without them). `*_FRONT_URL` destinations are read at runtime, not baked into the image.
 - **Attachments, mentions and BFF refusals (MAIR-512)** — BFF_Message answers 503 to `POST /attachments` and refuses a non-empty `attachmentIds`, so the page uses `pendingAttachmentPort` (`src/lib/attachment-features.ts`), which has no `upload` capability: `useMessagingController` then passes no `onAttach` (the shared composer still shows "Joindre un fichier", its button does not depend on the prop) and `handleSendMessage` refuses a draft carrying attachments with `ATTACHMENTS_UNAVAILABLE_MESSAGE` before any network call. `messageAttachmentPort` (upload through `messageClient.uploadAttachments`) is the one-line switch for when the BFF stores files; tests render the workspace with it. `toMentionIds` (`src/lib/messaging-state.ts`) only sends user ids (`user-<n>` or positive integer, the BFF `inputId('user')` rule): group mention options stay displayed but are not transmitted. `BffRequestError` carries `code` and `details[]` next to `message`/`status`; `describeBffError` (`src/lib/bff-error-messages.ts`) translates the 400 details of send / direct message / group creation per refused field and keeps the BFF message otherwise.

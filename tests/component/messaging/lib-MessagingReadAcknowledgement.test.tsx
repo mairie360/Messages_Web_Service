@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Messaging } from '@/components/messaging/Messaging';
+import { Messaging } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging';
 
 const conversations = [
   { id: 'chat-a', name: 'Service A', unreadCount: 3 },

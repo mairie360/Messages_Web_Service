@@ -12,7 +12,7 @@ test('MAIR-578 the messages shell renders the library shell, not a local copy', 
   for (const copy of ['src/components/accessible-shell.tsx', 'src/components/desktop-navigation.tsx', 'src/lib/sidebar-preference.ts']) {
     assert.equal(fs.existsSync(path.join(root, copy)), false, `${copy} must not exist`);
   }
-  const page = read('src/app/_components/app-shell.tsx');
+  const page = read('src/components/MessagesPage/components/MessagesWorkspace/components/AppShell/AppShell.tsx');
   assert.match(page, /import \{ AccessibleShell as SharedAppShell \} from "@mairie360\/lib-components\/shell"/);
   assert.doesNotMatch(page, /@\/components\/(accessible-shell|desktop-navigation)/);
   assert.match(read('src/lib/front-urls-provider.tsx'), /configureSidebarCookieDomain \} from "@mairie360\/lib-components\/shell"/);

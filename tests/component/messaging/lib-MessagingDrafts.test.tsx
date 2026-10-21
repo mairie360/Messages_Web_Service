@@ -3,8 +3,8 @@ import '@testing-library/jest-dom/vitest';
 import React from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
-import { Messaging } from '@/components/messaging/Messaging';
-import type { MessagingProps } from '@/components/messaging/Messaging';
+import { Messaging } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging';
+import type { MessagingProps } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging';
 
 const conversations = [
   { id: 4, name: 'Fil A', kind: 'direct' as const },

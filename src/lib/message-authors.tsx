@@ -1,5 +1,5 @@
 import React, { type ComponentProps } from "react";
-import type { Messaging } from "@/components/messaging";
+import type { Messaging } from '../components/MessagesPage/components/MessagesWorkspace/components/Messaging';
 import type {
   MessagingBusinessReference,
   MessagingContactId,

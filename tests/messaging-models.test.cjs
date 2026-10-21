@@ -3,11 +3,11 @@ const { test } = require('node:test');
 const { requireSrc } = require('./support/load-ts.cjs');
 
 // MAIR-608: the rules pulled out of the messaging components while splitting them.
-const model = requireSrc('components/messaging/messaging-model.ts');
-const composer = requireSrc('components/messaging/composer/composer-text.ts');
-const bubble = requireSrc('components/messaging/bubble/bubble-model.ts');
-const { filterMembers, toggleMemberValue } = requireSrc('components/messaging/group/group-members.ts');
-const { filterConversations } = requireSrc('components/messaging/sidebar/filter-conversations.ts');
+const model = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-model.ts');
+const composer = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/ConversationComposers/components/MessagingComposer/composer-text.ts');
+const bubble = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/MessageThread/components/MessagingMessageBubble/bubble-model.ts');
+const { filterMembers, toggleMemberValue } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/CreateGroupModal/group-members.ts');
+const { filterConversations } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/MessagingSidebar/filter-conversations.ts');
 
 const marie = { id: 1, name: 'Marie Dubois', department: 'Finances', lastMessage: 'Budget validé' };
 const pierre = { id: 'p', name: 'Pierre Martin', department: 'Urbanisme', kind: 'direct' };

@@ -16,7 +16,7 @@ const network = new FrontNetwork([business, user]);
 const browser = installBrowser();
 const { messageClient } = requireSrc('clients/messageClient.ts');
 const { logoutAndReload } = requireSrc('lib/logout.ts');
-const { AppShell } = requireSrc('app/_components/app-shell.tsx');
+const { AppShell } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/AppShell/AppShell.tsx');
 let refresh, access, view;
 before(async () => {
   await business.start(); await user.start();

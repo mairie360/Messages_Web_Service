@@ -4,7 +4,7 @@ const { requireSrc } = require('./support/load-ts.cjs');
 
 // MAIR-607: the geometry rule that picks the last visible message came back from the
 // library; the jsdom tests cover the Messaging flow, this covers the rule itself.
-const { lastVisibleMessagingMessageId } = requireSrc('components/messaging/visible-message.ts');
+const { lastVisibleMessagingMessageId } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/visible-message.ts');
 
 function element({ rect, style = {}, hidden = false, attributes = {}, parent = null, dataset = {}, messages = [] }) {
   const node = {

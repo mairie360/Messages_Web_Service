@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import type { Messaging } from "@/components/messaging";
+import type { Messaging } from '../components/MessagesPage/components/MessagesWorkspace/components/Messaging';
 import type { ContactDto, MessageId } from "../clients/messageClient";
 
 // Mise à jour de l'état de la page de messagerie à partir des réponses du BFF (DTO du contrat)

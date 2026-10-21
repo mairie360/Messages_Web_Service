@@ -7,7 +7,7 @@ const fixtures = require('./support/fixtures.cjs');
 
 installReactRuntime();
 const React = require('react');
-const { useMessagingController } = requireSrc('app/_components/use-messaging-controller.ts');
+const { useMessagingController } = requireSrc('components/MessagesPage/use-messaging-controller.ts');
 
 test('group feedback waits for the server-created group and cannot survive a new refused action', async t => {
   const previous = { window: global.window, document: global.document, fetch: global.fetch, Event: global.Event };

@@ -8,7 +8,7 @@ const { installReactRuntime, mount } = require('./support/server-view.cjs');
 globalThis.window ??= {};
 installReactRuntime();
 const React = require('react');
-const { MessagingComposer } = requireSrc('components/messaging/MessagingComposer.tsx');
+const { MessagingComposer } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/ConversationComposers/components/MessagingComposer/MessagingComposer.tsx');
 
 let view;
 afterEach(() => {

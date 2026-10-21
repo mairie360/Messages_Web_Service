@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { requireSrc } = require('./support/load-ts.cjs');
 
-const { prepareMessagingScrollRegions } = requireSrc('app/_components/messaging-scroll-regions.ts');
+const { prepareMessagingScrollRegions } = requireSrc('components/MessagesPage/components/MessagesWorkspace/messaging-scroll-regions.ts');
 
 test('both published messaging scroll panes are keyboard reachable and named', () => {
   const regions = new Map();

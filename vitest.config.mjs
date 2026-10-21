@@ -6,6 +6,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@tests": fileURLToPath(new URL("./tests", import.meta.url)),
     },
   },
   test: {
@@ -14,12 +15,12 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.tsx", ...coverageScope.reactSources],
-      exclude: coverageScope.serverTsxSources,
+      exclude: [...coverageScope.serverTsxSources, "src/**/*.test.tsx"],
       reportsDirectory: "coverage/components",
       reporter: ["text", "lcov", "json-summary"],
       thresholds: { lines: 60, branches: 60, functions: 60, statements: 60, perFile: { lines: 60 } },
     },
-    include: ["tests/component/**/*.test.tsx"],
+    include: ["tests/component/**/*.test.tsx", "src/**/*.test.tsx"],
     setupFiles: ["./tests/component/setup.js"],
     clearMocks: true,
   },
