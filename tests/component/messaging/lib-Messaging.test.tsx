@@ -812,7 +812,9 @@ describe('Messaging components', () => {
     const dialog = screen.getByRole('dialog');
     expect(screen.getByRole('button', { name: 'Création en cours…' })).toBeDisabled();
     expect(within(dialog).getByRole('button', { name: 'Annuler' })).toBeDisabled();
-    expect(within(dialog).getByRole('button', { name: 'Fermer' })).toBeDisabled();
+    // MAIR-608: the lib Modal keeps its close button enabled; a busy dialog ignores it (lib ConfirmModal rule).
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Fermer' }));
+    expect(screen.getByRole('dialog')).toBe(dialog);
     expect(screen.getByLabelText('Nom du groupe')).toBeDisabled();
     expect(screen.getByLabelText('Description (optionnel)')).toBeDisabled();
     expect(screen.getByRole('searchbox', { name: 'Rechercher un contact' })).toBeDisabled();

@@ -1,14 +1,17 @@
 import React from 'react';
-import { Bell, Briefcase, CalendarDays, ListTodo } from 'lucide-react';
 
 import { joinClasses } from './style';
 import { CreateGroupModal } from './CreateGroupModal';
 import { MessagingChatHeader } from './MessagingChatHeader';
-import { MessagingComposer } from './MessagingComposer';
-import { MessagingMessageBubble } from './MessagingMessageBubble';
 import { MessagingSidebar } from './MessagingSidebar';
 import { NewMessageModal } from './NewMessageModal';
-import { lastVisibleMessagingMessageId } from './visible-message';
+import { buildMentionOptions, buildSendPayload, closeWhenConfirmed, getMessageDirection, mergeMessagesById, messagingIdsMatch } from './messaging-model';
+import { ContextReferenceBar } from './thread/ContextReferenceBar';
+import { ConversationComposers } from './thread/ConversationComposers';
+import { MessageThread } from './thread/MessageThread';
+import { ReadFailureAlert } from './thread/ReadFailureAlert';
+import { UnreadNotificationsBar } from './thread/UnreadNotificationsBar';
+import { useVisibleMessagesRead } from './thread/use-visible-messages-read';
 import type {
   CreateGroupPayload,
   MessagingAttachment,
@@ -54,130 +57,6 @@ export interface MessagingProps extends React.HTMLAttributes<HTMLElement> {
 const emptyConversations: MessagingConversation[] = [];
 const emptyMessages: MessagingMessage[] = [];
 const emptyBusinessReferences: MessagingBusinessReference[] = [];
-
-interface ConversationComposersProps {
-  conversations: MessagingConversation[];
-  activeConversation: MessagingConversation | null;
-  mentionOptions: MessagingMention[];
-  businessReferenceOptions: MessagingBusinessReference[];
-  onSendMessage?: (
-    conversationId: MessagingContactId,
-    content: string,
-    attachments?: MessagingAttachment[],
-    mentions?: MessagingMention[],
-    businessLinks?: MessagingBusinessReference[]
-  ) => MessagingSendResult;
-  onAttach?: MessagingProps['onAttach'];
-  onEmoji?: MessagingProps['onEmoji'];
-}
-
-// Keep only visited drafts mounted: switching threads must neither move a draft
-// to a different recipient nor discard its pending send, files or references.
-// The account key on this component clears the entire in-memory draft session.
-const ConversationComposers = ({
-  conversations, activeConversation, mentionOptions, businessReferenceOptions,
-  onSendMessage, onAttach, onEmoji,
-}: ConversationComposersProps) => {
-  const [visitedIds, setVisitedIds] = React.useState<string[]>([]);
-  const availableIds = new Set(conversations.map(conversation => String(conversation.id)));
-  const activeId = activeConversation ? String(activeConversation.id) : undefined;
-  const draftIds = visitedIds.filter(id => availableIds.has(id));
-  if (activeId !== undefined && !draftIds.includes(activeId)) draftIds.push(activeId);
-
-  // Adjust this component's own state before its children render, so a removed
-  // thread releases its draft immediately (no effect-driven flash or remount).
-  if (draftIds.length !== visitedIds.length || draftIds.some((id, index) => id !== visitedIds[index])) {
-    setVisitedIds(draftIds);
-  }
-
-  return (
-    <>
-      {draftIds.map(id => {
-        const conversation = conversations.find(item => String(item.id) === id)!;
-        return (
-          <div key={id} hidden={id !== activeId}>
-            <MessagingComposer
-              disabled={id !== activeId || !onSendMessage}
-              mentionOptions={mentionOptions}
-              businessReferenceOptions={businessReferenceOptions}
-              onSendMessage={onSendMessage ? (content, attachments, mentions, businessLinks) =>
-                onSendMessage(conversation.id, content, attachments, mentions, businessLinks) : undefined}
-              onAttach={onAttach}
-              onEmoji={onEmoji}
-            />
-          </div>
-        );
-      })}
-      {!activeConversation && <MessagingComposer key="inactive" disabled />}
-    </>
-  );
-};
-
-const messagingIdsMatch = (
-  left: MessagingContactId | undefined,
-  right: MessagingContactId | undefined
-) => left !== undefined && right !== undefined && String(left) === String(right);
-
-const getMessageDirection = (message: MessagingMessage, currentUserId?: MessagingContactId) => {
-  if (currentUserId !== undefined && message.authorId !== undefined) {
-    return messagingIdsMatch(message.authorId, currentUserId) ? 'outgoing' : 'incoming';
-  }
-  if (message.direction) return message.direction;
-
-  return 'incoming';
-};
-
-const mergeMessagesById = (baseMessages: MessagingMessage[], nextMessages: MessagingMessage[] = []) => {
-  const messageIds = new Set(baseMessages.map((message) => String(message.id)));
-  const mergedMessages = [...baseMessages];
-
-  nextMessages.forEach((message) => {
-    if (messageIds.has(String(message.id))) return;
-
-    mergedMessages.push(message);
-    messageIds.add(String(message.id));
-  });
-
-  return mergedMessages;
-};
-
-const getBusinessReferenceLabel = (reference: MessagingBusinessReference) => {
-  if (reference.kind === 'event') return 'Événement';
-  if (reference.kind === 'task') return 'Tâche';
-
-  return 'Projet';
-};
-
-const buildMentionOptions = (
-  contacts: MessagingConversation[],
-  conversations: MessagingConversation[]
-): MessagingMention[] => {
-  const seenMentions = new Set<string>();
-
-  return [
-    ...contacts.map((contact) => ({
-      id: contact.id,
-      name: contact.name,
-      kind: 'direct' as const,
-      description: contact.department,
-    })),
-    ...conversations
-      .filter((conversation) => conversation.kind === 'group')
-      .map((conversation) => ({
-        id: conversation.id,
-        name: conversation.name,
-        kind: 'group' as const,
-        description: conversation.department,
-      })),
-  ].filter((mention) => {
-    const mentionKey = `${mention.kind}:${String(mention.id)}`;
-
-    if (seenMentions.has(mentionKey)) return false;
-
-    seenMentions.add(mentionKey);
-    return true;
-  });
-};
 
 export const Messaging = ({
   conversations,
@@ -226,13 +105,6 @@ export const Messaging = ({
       : firstConversationId);
   const activeConversation =
     displayedConversations.find((conversation) => messagingIdsMatch(conversation.id, resolvedActiveId)) ?? null;
-  const activeIdRef = React.useRef(resolvedActiveId);
-  React.useLayoutEffect(() => { activeIdRef.current = resolvedActiveId; }, [resolvedActiveId]);
-  const messageRegionRef = React.useRef<HTMLDivElement>(null);
-  const readRequestRef = React.useRef<symbol | null>(null);
-  const [readPending, setReadPending] = React.useState(false);
-  const [readFailure, setReadFailure] = React.useState<{ conversationId: MessagingContactId; message: string } | null>(null);
-  React.useEffect(() => () => { readRequestRef.current = null; }, []);
   const displayedMessages = mergeMessagesById(messages ?? emptyMessages, incomingMessages);
   const visibleMessages = displayedMessages
     .filter(
@@ -249,36 +121,8 @@ export const Messaging = ({
   );
   const firstUnreadConversation = displayedConversations.find((conversation) => (conversation.unreadCount ?? 0) > 0);
 
-  const handleReadVisibleMessages = async (conversation: MessagingConversation) => {
-    if (!onReadVisibleMessages || readRequestRef.current ||
-        !messagingIdsMatch(activeIdRef.current, conversation.id)) return;
-    const request = Symbol('visible-message-read');
-    readRequestRef.current = request;
-    setReadPending(true);
-    setReadFailure(null);
-    try {
-      // Let the action menu close before inspecting the actual clipped message region.
-      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-      if (readRequestRef.current !== request ||
-          !messagingIdsMatch(activeIdRef.current, conversation.id)) return;
-      const id = lastVisibleMessagingMessageId(messageRegionRef.current);
-      const lastMessage = id === null ? null : visibleMessages.find(message => String(message.id) === id) ?? null;
-      const accepted = await onReadVisibleMessages(conversation, lastMessage);
-      if (accepted === false && readRequestRef.current === request &&
-          messagingIdsMatch(activeIdRef.current, conversation.id)) {
-        setReadFailure({ conversationId: conversation.id, message: 'Les messages affichés n’ont pas pu être marqués comme lus. Réessayez.' });
-      }
-    } catch {
-      if (readRequestRef.current === request && messagingIdsMatch(activeIdRef.current, conversation.id)) {
-        setReadFailure({ conversationId: conversation.id, message: 'Les messages affichés n’ont pas pu être marqués comme lus. Réessayez.' });
-      }
-    } finally {
-      if (readRequestRef.current === request) {
-        readRequestRef.current = null;
-        setReadPending(false);
-      }
-    }
-  };
+  const { messageRegionRef, readPending, readFailure, readVisibleMessages } =
+    useVisibleMessagesRead(resolvedActiveId, visibleMessages, onReadVisibleMessages);
 
   const handleConversationSelect = (conversation: MessagingConversation) => {
     if (activeConversationId === undefined) {
@@ -304,64 +148,16 @@ export const Messaging = ({
     attachments?: MessagingAttachment[],
     mentions?: MessagingMention[],
     businessLinks?: MessagingBusinessReference[]
-  ) => {
-    const payload: MessagingSendMessagePayload = {
-      conversationId,
-      content,
-    };
+  ) => onSendMessage?.(buildSendPayload(conversationId, content, { attachments, mentions, businessLinks, context: contextReference }));
 
-    if (attachments?.length) {
-      payload.attachments = attachments;
-    }
+  const handleSendNewMessage = (payload: NewMessagePayload) =>
+    closeWhenConfirmed(onNewMessageSend?.(payload), () => setNewMessageOpen(false));
 
-    if (mentions?.length) {
-      payload.mentions = mentions;
-    }
-
-    if (businessLinks?.length) {
-      payload.businessLinks = businessLinks;
-    }
-
-    if (contextReference) {
-      payload.context = contextReference;
-    }
-
-    return onSendMessage?.(payload);
-  };
-
-  const handleSendNewMessage = (payload: NewMessagePayload) => {
-    const result = onNewMessageSend?.(payload);
-    if (result instanceof Promise) {
-      return result.then((confirmed) => {
-        if (confirmed !== false) setNewMessageOpen(false);
-        return confirmed;
-      });
-    }
-    if (result !== false) setNewMessageOpen(false);
-    return result;
-  };
-
-  const handleCreateGroup = (payload: CreateGroupPayload) => {
-    const result = onCreateGroup?.(payload);
-    if (result instanceof Promise) {
-      return result.then((confirmed) => {
-        if (confirmed !== false) setCreateGroupOpen(false);
-        return confirmed;
-      });
-    }
-    if (result !== false) setCreateGroupOpen(false);
-    return result;
-  };
+  const handleCreateGroup = (payload: CreateGroupPayload) =>
+    closeWhenConfirmed(onCreateGroup?.(payload), () => setCreateGroupOpen(false));
 
   const handleDeleteConversation = (conversationToDelete: MessagingConversation) => {
     onConversationDelete?.(conversationToDelete);
-  };
-
-  const getBusinessReferenceIcon = (reference: MessagingBusinessReference) => {
-    if (reference.kind === 'event') return <CalendarDays className="size-4 shrink-0" strokeWidth={1.8} />;
-    if (reference.kind === 'task') return <ListTodo className="size-4 shrink-0" strokeWidth={1.8} />;
-
-    return <Briefcase className="size-4 shrink-0" strokeWidth={1.8} />;
   };
 
   return (
@@ -388,86 +184,34 @@ export const Messaging = ({
           onVideoCall={onVideoCall}
           onMoreActions={onMoreActions}
           onDeleteConversation={onConversationDelete ? handleDeleteConversation : undefined}
-          onReadVisibleMessages={onReadVisibleMessages ? conversation => void handleReadVisibleMessages(conversation) : undefined}
+          onReadVisibleMessages={onReadVisibleMessages ? conversation => void readVisibleMessages(conversation) : undefined}
           readPending={readPending}
         />
 
         {readFailure && messagingIdsMatch(readFailure.conversationId, resolvedActiveId) && (
-          <p role="alert" className="border-b border-[var(--mairie-border)] px-4 py-2 text-sm text-[var(--mairie-error-text)] sm:px-5">{readFailure.message}</p>
+          <ReadFailureAlert message={readFailure.message} />
         )}
 
         {unreadNotificationCount > 0 && (
-          <div
-            role="status"
-            aria-label="Notifications de messagerie"
-            className="flex flex-wrap items-center gap-3 border-b border-[var(--mairie-border)] bg-[var(--mairie-warning-surface)] px-4 py-2.5 text-sm text-[var(--mairie-warning-text)] sm:px-5"
-          >
-            <Bell className="size-4 shrink-0" strokeWidth={1.8} />
-            <span className="font-semibold">
-              {unreadNotificationCount} notification{unreadNotificationCount > 1 ? 's' : ''} non lue
-              {unreadNotificationCount > 1 ? 's' : ''}
-            </span>
-            {firstUnreadConversation && (
-              <button
-                type="button"
-                className="rounded-md px-2 py-1 font-semibold text-[var(--mairie-accent)] transition hover:bg-[var(--mairie-surface)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/30"
-                onClick={() => handleConversationSelect(firstUnreadConversation)}
-              >
-                Voir {firstUnreadConversation.name}
-              </button>
-            )}
-          </div>
+          <UnreadNotificationsBar
+            count={unreadNotificationCount}
+            firstUnreadConversation={firstUnreadConversation}
+            onOpen={handleConversationSelect}
+          />
         )}
 
-        <div ref={messageRegionRef} className="min-h-[340px] flex-1 space-y-5 overflow-y-auto bg-[var(--mairie-surface)] px-4 py-5 sm:px-5">
-          {activeConversation ? (
-            visibleMessages.length > 0 ? (
-              visibleMessages.map((message) => (
-                <MessagingMessageBubble
-                  onAttachmentDownload={onAttachmentDownload}
-                  key={message.id}
-                  message={message}
-                  data-messaging-message-id={String(message.id)}
-                  mentionOptions={displayedMentionOptions}
-                  businessReferenceOptions={businessReferences}
-                  onBusinessReferenceClick={onBusinessReferenceClick}
-                />
-              ))
-            ) : (
-              <div className="flex h-full items-center justify-center text-sm text-[var(--mairie-muted)]">
-                Aucun message dans cette conversation.
-              </div>
-            )
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-[var(--mairie-muted)]">{emptyStateLabel}</div>
-          )}
-        </div>
+        <MessageThread
+          ref={messageRegionRef}
+          hasConversation={activeConversation !== null}
+          messages={visibleMessages}
+          emptyStateLabel={emptyStateLabel}
+          mentionOptions={displayedMentionOptions}
+          businessReferenceOptions={businessReferences}
+          onAttachmentDownload={onAttachmentDownload}
+          onBusinessReferenceClick={onBusinessReferenceClick}
+        />
 
-        {contextReference && (
-          <div
-            aria-label="Message contextuel"
-            className="flex items-center gap-3 border-t border-[var(--mairie-border)] bg-[var(--mairie-surface-raised)] px-4 py-3 text-sm text-[var(--mairie-teal-text)] sm:px-5"
-          >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--mairie-surface)] text-[var(--mairie-teal-text)]">
-              {getBusinessReferenceIcon(contextReference)}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block font-semibold leading-5">Message contextuel</span>
-              <span className="block truncate leading-5">
-                {getBusinessReferenceLabel(contextReference)} : {contextReference.title}
-              </span>
-            </span>
-            {onBusinessReferenceClick && (
-              <button
-                type="button"
-                className="shrink-0 rounded-md px-2.5 py-1.5 font-semibold text-[var(--mairie-accent)] transition hover:bg-[var(--mairie-surface)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/30"
-                onClick={() => onBusinessReferenceClick(contextReference)}
-              >
-                Ouvrir
-              </button>
-            )}
-          </div>
-        )}
+        {contextReference && <ContextReferenceBar reference={contextReference} onOpen={onBusinessReferenceClick} />}
 
         <ConversationComposers
           key={currentUserId === undefined ? 'anonymous' : `account:${String(currentUserId)}`}

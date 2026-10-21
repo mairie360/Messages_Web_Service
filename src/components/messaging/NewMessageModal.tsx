@@ -1,8 +1,9 @@
 import React from 'react';
-import { ChevronDown, Send } from 'lucide-react';
+import { CancelButton, SendButton } from '@mairie360/lib-components/primitives';
 
-import { joinClasses } from './style';
 import { MessagingModalFrame } from './MessagingModalFrame';
+import { MessageTextArea } from './new-message/MessageTextArea';
+import { RecipientSelect } from './new-message/RecipientSelect';
 import type { MessagingContactId, MessagingConversation, MessagingSendResult, NewMessagePayload } from './types';
 
 export interface NewMessageModalProps {
@@ -21,15 +22,6 @@ export interface NewMessageModalProps {
   onCancel: () => void;
   onSendMessage: (payload: NewMessagePayload) => MessagingSendResult;
 }
-
-const fieldClassName =
-  'h-9 w-full rounded-md border border-[var(--mairie-border)] bg-[var(--mairie-surface)] px-3 text-sm text-[var(--mairie-text)] outline-none transition placeholder:text-[var(--mairie-muted)] focus:border-[var(--mairie-accent)] focus:ring-2 focus:ring-[var(--mairie-accent)]/20';
-
-const buttonSecondaryClassName =
-  'inline-flex h-9 items-center justify-center rounded-md border border-[var(--mairie-border)] bg-[var(--mairie-surface)] px-4 text-sm font-semibold text-[var(--mairie-text)] shadow-sm transition hover:bg-[var(--mairie-surface-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/25';
-
-const buttonPrimaryClassName =
-  'inline-flex h-9 items-center justify-center gap-2 rounded-md bg-[var(--mairie-action-background)] px-4 text-sm font-semibold text-[var(--mairie-on-action)] shadow-sm transition hover:bg-[var(--mairie-action-hover-background)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/35 disabled:cursor-not-allowed disabled:bg-[var(--mairie-border)]';
 
 export const NewMessageModal = ({
   isOpen,
@@ -52,10 +44,7 @@ export const NewMessageModal = ({
   const [message, setMessage] = React.useState(initialMessage);
   const [isSending, setIsSending] = React.useState(false);
   const sendingRef = React.useRef(false);
-  const titleId = React.useId();
-  const subtitleId = React.useId();
-  const recipientId = React.useId();
-  const messageId = React.useId();
+  const formId = React.useId();
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -101,59 +90,31 @@ export const NewMessageModal = ({
     <MessagingModalFrame
       title={title}
       subtitle={subtitle}
-      titleId={titleId}
-      subtitleId={subtitleId}
+      formId={formId}
       onClose={onCancel}
       onSubmit={handleSubmit}
       footer={
         <>
-          <button type="button" className={buttonSecondaryClassName} onClick={onCancel}>
-            {cancelLabel}
-          </button>
-          <button type="submit" className={buttonPrimaryClassName} disabled={!canSubmit}>
-            <Send className="size-4" strokeWidth={1.8} />
-            <span>{submitLabel}</span>
-          </button>
+          <CancelButton label={cancelLabel} onClick={onCancel} />
+          <SendButton type="submit" form={formId} label={submitLabel} disabled={!canSubmit} loading={isSending} />
         </>
       }
     >
-      <div>
-        <label htmlFor={recipientId} className="mb-1 block text-sm font-semibold leading-5 text-[var(--mairie-text)]">
-          {recipientLabel}
-        </label>
-        <div className="relative">
-          <select
-            id={recipientId}
-            value={recipientValue}
-            disabled={isSending}
-            className={joinClasses(fieldClassName, 'appearance-none pr-10')}
-            onChange={(event) => setRecipientValue(event.target.value)}
-          >
-            <option value="">{recipientPlaceholder}</option>
-            {contacts.map((contact) => (
-              <option key={contact.id} value={String(contact.id)}>
-                {contact.name}
-                {contact.department ? ` - ${contact.department}` : ''}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[var(--mairie-muted)]" />
-        </div>
-      </div>
-
-      <div>
-        <label htmlFor={messageId} className="mb-1 block text-sm font-semibold leading-5 text-[var(--mairie-text)]">
-          {messageLabel}
-        </label>
-        <textarea
-          id={messageId}
-          value={message}
-          disabled={isSending}
-          placeholder={messagePlaceholder}
-          className={joinClasses(fieldClassName, 'h-[100px] resize-none py-2')}
-          onChange={(event) => setMessage(event.target.value)}
-        />
-      </div>
+      <RecipientSelect
+        label={recipientLabel}
+        placeholder={recipientPlaceholder}
+        contacts={contacts}
+        value={recipientValue}
+        disabled={isSending}
+        onChange={setRecipientValue}
+      />
+      <MessageTextArea
+        label={messageLabel}
+        placeholder={messagePlaceholder}
+        value={message}
+        disabled={isSending}
+        onChange={setMessage}
+      />
     </MessagingModalFrame>
   );
 };
