@@ -1,5 +1,5 @@
 import React, { type ComponentProps } from "react";
-import type { Messaging } from "@mairie360/lib-components/messages";
+import type { Messaging } from "@/components/messaging";
 import type {
   MessagingBusinessReference,
   MessagingContactId,

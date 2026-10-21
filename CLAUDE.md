@@ -55,6 +55,7 @@ Figma is the source of truth: design and agree any UI change on **Mairie360 – 
 
 ## Architecture
 
+- **Messaging components owned here (MAIR-607)** — `src/components/messaging/` holds `Messaging`, its sub-components, `MessagingModalFrame`, `types`, `visible-message` and `style` (formerly `@mairie360/lib-components/messages`, removed because Messages was their only consumer); `messages-workspace.tsx`, `use-messaging-controller.ts`, `messaging-state.ts` and `message-authors.tsx` import `@/components/messaging`. Their component tests are `tests/component/messaging/lib-*.test.tsx` (vitest + jsdom, `npm run test:components`); Node stays the coverage authority. `tests/lib-business-ownership.test.cjs` forbids any import of a removed library entry and checks the installed lib has no `./messages` export.
 - **Shell from the lib (MAIR-578)** — `src/app/_components/app-shell.tsx` wraps the lib `AccessibleShell` (`@mairie360/lib-components/shell`) with the session/logout binding; `src/lib/front-urls-provider.tsx` uses the lib `configureSidebarCookieDomain`. No local `accessible-shell.tsx`, `desktop-navigation.tsx` or `sidebar-preference.ts` (pinned by `tests/lib-shell-adoption.test.cjs`).
 
 - **Shared shell and profile routing (MAIR-180)** — the frontend adapter in

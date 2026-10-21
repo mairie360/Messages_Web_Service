@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps } from "react";
-import type { Messaging } from "@mairie360/lib-components/messages";
+import type { Messaging } from "@/components/messaging";
 import { BffNavigationRequiredError, BffRequestError, messageClient, type CurrentUserDto, type MessageId } from "@/clients/messageClient";
 import {
   appendMessage,

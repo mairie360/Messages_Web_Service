@@ -1,0 +1,172 @@
+import type { MessagingBusinessReference, MessagingConversation, MessagingMessage } from '@/components/messaging/types';
+
+export const defaultMessagingConversations: MessagingConversation[] = [
+  {
+    id: 'marie-dubois',
+    name: 'Marie Dubois',
+    department: 'Finances',
+    initials: 'MD',
+    presence: 'online',
+    lastMessage: 'Le budget a été validé pour le projet',
+    lastMessageAt: '14:32',
+    unreadCount: 2,
+  },
+  {
+    id: 'pierre-martin',
+    name: 'Pierre Martin',
+    department: 'Urbanisme',
+    initials: 'PM',
+    lastMessage: 'Pouvez-vous envoyer le rapport ?',
+    lastMessageAt: '13:45',
+  },
+  {
+    id: 'sophie-leroy',
+    name: 'Sophie Leroy',
+    department: 'Culture',
+    initials: 'SL',
+    presence: 'online',
+    lastMessage: 'Réunion reportée à demain',
+    lastMessageAt: '12:18',
+    unreadCount: 1,
+  },
+  {
+    id: 'thomas-bernard',
+    name: 'Thomas Bernard',
+    department: 'Travaux',
+    initials: 'TB',
+    lastMessage: 'Documents envoyés',
+    lastMessageAt: '11:30',
+  },
+  {
+    id: 'equipe-direction',
+    name: 'Équipe Direction',
+    department: 'Groupe',
+    kind: 'group',
+    initials: 'ED',
+    presence: 'online',
+    lastMessage: 'Nouvelle procédure disponible',
+    lastMessageAt: 'Hier',
+    unreadCount: 3,
+  },
+];
+
+export const defaultMessagingBusinessReferences: MessagingBusinessReference[] = [
+  {
+    id: 'project-renovation-mairie',
+    title: 'Projet rénovation mairie',
+    kind: 'project',
+    description: 'Projet',
+    href: '#project-renovation-mairie',
+  },
+  {
+    id: 'task-budget-previsionnel',
+    title: 'Valider le budget prévisionnel',
+    kind: 'task',
+    description: 'Tâche',
+    href: '#task-budget-previsionnel',
+  },
+  {
+    id: 'event-conseil-municipal',
+    title: 'Conseil municipal',
+    kind: 'event',
+    description: 'Événement',
+    href: '#event-conseil-municipal',
+  },
+];
+
+export const defaultMessagingMessages: MessagingMessage[] = [
+  {
+    id: 'message-1',
+    conversationId: 'marie-dubois',
+    content: "Bonjour Jean, j'ai examiné le dossier du projet de rénovation.",
+    sentAt: '14:25',
+    direction: 'incoming',
+  },
+  {
+    id: 'message-2',
+    conversationId: 'marie-dubois',
+    content: 'Parfait, quelles sont vos conclusions ?',
+    sentAt: '14:27',
+    direction: 'outgoing',
+  },
+  {
+    id: 'message-3',
+    conversationId: 'marie-dubois',
+    content: 'Le budget a été validé pour le projet. Nous pouvons commencer la phase suivante.',
+    businessLinks: [defaultMessagingBusinessReferences[0], defaultMessagingBusinessReferences[1]],
+    sentAt: '14:32',
+    direction: 'incoming',
+  },
+  {
+    id: 'message-4',
+    conversationId: 'pierre-martin',
+    content: 'Bonjour, pouvez-vous me transmettre le dernier rapport PLU ?',
+    sentAt: '13:36',
+    direction: 'incoming',
+  },
+  {
+    id: 'message-5',
+    conversationId: 'pierre-martin',
+    content: "Je vous l'envoie dans la matinée avec les annexes.",
+    sentAt: '13:41',
+    direction: 'outgoing',
+  },
+  {
+    id: 'message-6',
+    conversationId: 'pierre-martin',
+    content: 'Merci, cela nous aidera pour la réunion de 16h.',
+    sentAt: '13:45',
+    direction: 'incoming',
+  },
+  {
+    id: 'message-7',
+    conversationId: 'sophie-leroy',
+    content: 'La réunion culture est reportée à demain matin.',
+    sentAt: '12:07',
+    direction: 'incoming',
+  },
+  {
+    id: 'message-8',
+    conversationId: 'sophie-leroy',
+    content: 'Bien reçu, je préviens les élus concernés 👍',
+    sentAt: '12:18',
+    direction: 'outgoing',
+  },
+  {
+    id: 'message-9',
+    conversationId: 'thomas-bernard',
+    content: 'Voici les documents du chantier de la rue des Tamarins.',
+    attachments: [
+      {
+        id: 'attachment-tamarins',
+        name: 'planning-travaux.pdf',
+        size: 184320,
+        type: 'application/pdf',
+      },
+    ],
+    sentAt: '11:30',
+    direction: 'incoming',
+  },
+  {
+    id: 'message-10',
+    conversationId: 'equipe-direction',
+    content: 'Nouvelle procédure disponible pour validation. Merci de vos retours ✅',
+    attachments: [
+      {
+        id: 'attachment-procedure',
+        name: 'procedure-interne.docx',
+        size: 96768,
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      },
+    ],
+    sentAt: 'Hier',
+    direction: 'incoming',
+  },
+  {
+    id: 'message-11',
+    conversationId: 'equipe-direction',
+    content: 'Je relis le document cet après-midi.',
+    sentAt: 'Hier',
+    direction: 'outgoing',
+  },
+];

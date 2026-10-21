@@ -1,6 +1,6 @@
 'use client';
 
-import { Messaging } from "@mairie360/lib-components/messages";
+import { Messaging } from "@/components/messaging";
 import { EmptyState, Skeleton, Toast } from "@mairie360/lib-components/primitives";
 import { toMessagingUserId } from "@/lib/messaging-state";
 import { AppShell } from "./app-shell";
