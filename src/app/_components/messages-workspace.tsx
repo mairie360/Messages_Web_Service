@@ -1,7 +1,7 @@
 'use client';
 
 import { Messaging } from "@/components/messaging";
-import { EmptyState, Skeleton, Toast } from "@mairie360/lib-components/primitives";
+import { DataState, Skeleton, Toast } from "@mairie360/lib-components/primitives";
 import { toMessagingUserId } from "@/lib/messaging-state";
 import { AppShell } from "./app-shell";
 import { prepareMessagingScrollRegions } from "./messaging-scroll-regions";
@@ -139,7 +139,7 @@ export function MessagesWorkspace({
                 activeConversationId={hasConfirmedThread ? activeConversationId : ""}
                 currentUserId={toMessagingUserId(currentUser?.id)}
                 emptyStateLabel={activeConversationId === ""
-                  ? <EmptyState title="Aucune conversation" description="Créez un message ou un groupe pour commencer." />
+                  ? <DataState state="empty" title="Aucune conversation" description="Créez un message ou un groupe pour commencer." />
                   : hasConfirmedThread ? "Aucune conversation" : threadPlaceholder}
                 aria-busy={selectionPending}
                 onConversationSelect={(conversation) =>

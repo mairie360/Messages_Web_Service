@@ -2,7 +2,7 @@
 
 import { AccessibleShell as SharedAppShell } from "@mairie360/lib-components/shell";
 
-import { Alert } from "@mairie360/lib-components/primitives";
+import { Button, ErrorAlert, RetryButton } from "@mairie360/lib-components/primitives";
 import { useState, type ReactNode } from "react";
 import { navigateToLogin } from "@/lib/logout";
 import { logoutAndReload, useAuthSession, type AuthSession } from "@/lib/auth-session";
@@ -28,7 +28,6 @@ export function AppShell({ activeItem, children }: AppShellProps) {
   return (
     <SharedAppShell
       activeItem={activeItem}
-      isAdmin={session.isAdmin}
       user={session.user}
       onLogout={() => void logout()}
       hrefs={{ ...frontHrefs, messages: frontHrefs.messages ?? "/" }}
@@ -37,10 +36,10 @@ export function AppShell({ activeItem, children }: AppShellProps) {
     >
       <div className="messages-main-inner">
         {logoutError && <div className="mb-4 shrink-0">
-          <Alert type="error" message={logoutError} />
+          <ErrorAlert title={logoutError} onDismiss={() => setLogoutError(null)} />
           <div className="mt-3 flex flex-wrap gap-3">
-            <button type="button" className="min-h-11 rounded-lg border bg-white px-4 py-2 font-semibold text-gray-900" onClick={() => void logout()}>Réessayer</button>
-            <button type="button" className="min-h-11 rounded-lg border bg-white px-4 py-2 font-semibold text-gray-900" onClick={() => navigateToLogin(true)}>Retour à la connexion</button>
+            <RetryButton variant="outline" tone="neutral" onClick={() => void logout()} />
+            <Button variant="outline" tone="neutral" label="Retour à la connexion" onClick={() => navigateToLogin(true)} />
           </div>
         </div>}
         {typeof children === "function" ? children(session) : children}
