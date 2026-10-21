@@ -110,7 +110,7 @@ services:
       retries: 5
 
   message-api:
-    image: ${MESSAGE_API_IMAGE:-ghcr.io/mairie360/message-api:2.0.0}
+    image: ${MESSAGE_API_IMAGE:-ghcr.io/mairie360/message-api:2.1.0}
     container_name: message-front-sec-message-api
     depends_on:
       liquibase:
@@ -188,7 +188,7 @@ services:
       - backend
 
   bff-message:
-    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:staging-815c732}
+    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:1.1.0}
     container_name: message-front-sec-bff-message
     depends_on:
       seeder:
