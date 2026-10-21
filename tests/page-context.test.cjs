@@ -2,7 +2,8 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { requireSrc } = require('./support/page-context-loader.cjs');
 const { readPageUrlState, pageStateUrl, urlChoice, urlText, urlPage, urlDate } = requireSrc('lib/page-url-state.ts');
-const { readSidebarPreference, sidebarPreferenceCookie, validSidebarCookieDomain, configureSidebarCookieDomain } = requireSrc('lib/sidebar-preference.ts');
+// MAIR-578: the sidebar preference now comes from the published shell entry.
+const { readSidebarPreference, sidebarPreferenceCookie, validSidebarCookieDomain, configureSidebarCookieDomain } = require('@mairie360/lib-components/shell');
 
 test('page context rejects duplicate, unknown, oversized and invalid parameters', () => {
   const schema = { tab: urlChoice(['profile', 'security']), q: urlText(12), page: urlPage, date: urlDate };

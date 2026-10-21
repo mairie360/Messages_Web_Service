@@ -15,7 +15,7 @@ const { apiError, bootstrap, businessReferences, contact, conversation, currentU
 const { FrontNetwork } = require('./support/front-network.cjs');
 const { ContractMockServer } = require('./support/contract-mock-server.cjs');
 const { OpenApiContract } = require('./support/openapi-contract.cjs');
-const Client = requireSrc('app/messages-client.tsx').default;
+const Client = requireSrc('components/MessagesPage/MessagesPage.tsx').default;
 
 const messageBff = messageBffMock();
 const userBff = new ContractMockServer('BFF_USER', OpenApiContract.load(require('node:path').join(__dirname, 'fixtures/user-session-openapi.json')));

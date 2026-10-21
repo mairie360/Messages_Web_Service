@@ -76,7 +76,7 @@ test('parsed messaging fallback, small-text and focus policies preserve the shar
     const lengths = tokens.filter((token) => Number.isFinite(Number.parseFloat(token)));
     const colors = tokens.filter((token) => token !== 'solid' && !Number.isFinite(Number.parseFloat(token)));
     assert.deepEqual(lengths, ['2px']); assert.ok(tokens.includes('solid')); assert.equal(colors.length, 1);
-    assert.equal(color(colors[0]), 'rgb(18, 86, 166)');
+    assert.equal(color(colors[0]), 'rgb(62, 106, 98)');
   };
   outline('.messages-module [role="region"]:focus-visible');
   outline('.messages-pane-switch:focus-visible', '(max-width: 1023px)');
