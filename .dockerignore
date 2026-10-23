@@ -12,7 +12,6 @@ playwright-report
 
 # tests (unitaires, sécurité, performance) : inutiles dans l'image
 coverage
-tests
 .zap
 docker-compose-*.yml
 load-test.js
