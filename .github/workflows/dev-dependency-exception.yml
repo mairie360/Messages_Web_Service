@@ -23,5 +23,5 @@ jobs:
     with:
       package_name: message-front
       cicd_ref: fe5229c1839585eee3229385f5177c1134b2a59c # v4.5.0
-      node_version: "24.21.0"
+      node_version: "24.22.1"
       reason: ${{ inputs.reason }}
