@@ -31,14 +31,16 @@ COMMIT;
 
 -- Explicit ids, then the sequence is moved past them so that the conversations created by the
 -- application never collide. Messages keep their generated ids.
-INSERT INTO conversations (id, title, kind, created_at)
+-- A direct conversation names its pair (lowest id first, chk_conversations_direct_pair of
+-- Database v3.0.0); any other kind has none.
+INSERT INTO conversations (id, title, kind, direct_user_low, direct_user_high, created_at)
 VALUES
   -- Direct conversation of user 2 with user 3 (older: second in the list).
-  (101, 'Planning de la semaine', 'direct', '2026-01-12T08:00:00Z'),
+  (101, 'Planning de la semaine', 'direct', 2, 3, '2026-01-12T08:00:00Z'),
   -- Group conversation of users 2, 3 and 10 (newest: first in the list, selected on load).
-  (102, 'Équipe accueil', 'group', '2026-01-13T09:00:00Z'),
+  (102, 'Équipe accueil', 'group', NULL, NULL, '2026-01-13T09:00:00Z'),
   -- Conversation of the writer (user 11) with user 3, invisible to user 2.
-  (103, 'Courrier entrant', 'direct', '2026-01-10T10:00:00Z')
+  (103, 'Courrier entrant', 'direct', 3, 11, '2026-01-10T10:00:00Z')
 ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('conversations', 'id'), 1000);
 
