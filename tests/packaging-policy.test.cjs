@@ -218,3 +218,17 @@ test('MAIR-316: the RGAA stack has its own project name and bounded readiness lo
     assert.match(loop, /if \[ \$\$i -ge \d+ \]; then echo "[^"]+"; exit 1; fi;/);
   }
 });
+
+test('MAIR-316: each accessibility run starts from an empty report', () => {
+  const shell = read('accessibility_test.sh');
+  const clear = shell.indexOf('rm -rf rgaa-report\n');
+  assert.ok(clear >= 0, 'accessibility_test.sh clears rgaa-report/');
+  assert.ok(clear < shell.indexOf('docker compose -f "$COMPOSE_FILE" up'), 'before the stack starts');
+});
+
+test('MAIR-316: the RGAA message seed does not duplicate messages when it runs again', () => {
+  const seed = read('init-accessibility.sql').replace(/--[^\n]*/g, '');
+  const insert = seed.slice(seed.indexOf('INSERT INTO messages'));
+  assert.match(insert, /WHERE NOT EXISTS \(\s*SELECT 1 FROM messages m/);
+  assert.doesNotMatch(insert, /INSERT INTO messages \([^)]*\)\s*VALUES/);
+});

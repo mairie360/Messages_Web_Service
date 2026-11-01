@@ -57,11 +57,19 @@ ON CONFLICT (conversation_id, user_id) DO NOTHING;
 
 -- Incoming and outgoing messages for user 2; the ones of users 3 and 10 leave unread counts
 -- (trigger), so the notification banner shows too.
+-- Idempotent: a seeder run again on a kept database must not duplicate the messages (unread
+-- counts and captured pages would change).
 INSERT INTO messages (conversation_id, owner_id, content, created_at)
-VALUES
+SELECT v.conversation_id, v.owner_id, v.content, v.created_at::timestamptz
+FROM (VALUES
   (101, 3, 'Bonjour, pouvez-vous me transmettre le planning de la semaine ?', '2026-01-12T08:05:00Z'),
   (101, 2, 'Oui, je vous l''envoie dans la matinée.', '2026-01-12T08:20:00Z'),
   (102, 10, 'Bonjour à tous, la réunion d''équipe est avancée à 14 h.', '2026-01-14T08:30:00Z'),
   (102, 3, 'Merci, je préviens le service état civil.', '2026-01-14T08:45:00Z'),
   (102, 2, 'Bien noté, à tout à l''heure.', '2026-01-14T09:10:00Z'),
-  (103, 3, 'Le courrier du jour est arrivé.', '2026-01-14T07:30:00Z');
+  (103, 3, 'Le courrier du jour est arrivé.', '2026-01-14T07:30:00Z')
+) AS v(conversation_id, owner_id, content, created_at)
+WHERE NOT EXISTS (
+  SELECT 1 FROM messages m
+  WHERE m.conversation_id = v.conversation_id AND m.owner_id = v.owner_id AND m.created_at = v.created_at::timestamptz
+);

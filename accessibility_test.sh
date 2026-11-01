@@ -41,6 +41,9 @@ RGAA_UID="$(id -u)"
 RGAA_GID="$(id -g)"
 export RGAA_UID RGAA_GID
 
+# A fresh report: an early failure must not leave the previous run's summary.md behind, nor files
+# of states since removed from rgaa.yaml.
+rm -rf rgaa-report
 mkdir -p rgaa-report .rgaa-ai-cache
 
 echo "==> [1/4] Starting the stack and the RGAA run..."
