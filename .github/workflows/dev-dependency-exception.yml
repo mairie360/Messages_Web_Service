@@ -1,0 +1,27 @@
+name: Frontend dev dependency exception
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Reason for the exact development-only advisory exception
+        required: true
+        type: string
+        default: GHSA-vfj7-8cjw-p6xm in dev-only dependencies; retain the failed audit and require zero production findings
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  packages: write
+  id-token: write
+
+jobs:
+  dev_exception:
+    name: Dev dependency exception
+    uses: mairie360/CICD/.github/workflows/frontend-dev-exception.yml@fe5229c1839585eee3229385f5177c1134b2a59c # v4.5.0
+    with:
+      package_name: message-front
+      cicd_ref: fe5229c1839585eee3229385f5177c1134b2a59c # v4.5.0
+      node_version: "24.22.1"
+      reason: ${{ inputs.reason }}

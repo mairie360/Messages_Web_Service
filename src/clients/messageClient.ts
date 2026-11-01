@@ -1,149 +1,101 @@
+import { parseMessagingBootstrapReceipt } from '../lib/messaging-bootstrap-receipt';
 import type {
-  BusinessReferencesResponse,
-  DeleteConversationsConversationId200,
   GetContacts200,
-  GetConversations200,
-  GetConversationsConversationIdMessages200,
   GetMe200,
-  GetMessagingBootstrap200,
-  PostConversationsConversationIdMessages201,
   PostConversationsConversationIdMessagesBody,
-  PostAttachments201,
-  PostDirectMessages201,
+  UploadAttachmentResponse,
   PostDirectMessagesBody,
-  PostGroups201,
   PostGroupsBody,
+  PostConversationsConversationIdReadBody,
 } from "@mairie360/bff-message-openapi/model";
+import { bffMessage } from "../lib/bff-client";
 
 // Types du contrat publié de BFF Message (@mairie360/bff-message-openapi, version épinglée dans package.json).
 // Seuls les modèles de premier niveau sont nommés : les noms des sous-modèles orval changent avec le contrat.
 
 export type MessageId = string | number;
 
+export type { UploadAttachmentResponse };
+
 export type CurrentUserDto = GetMe200["currentUser"];
 
 export type ContactDto = GetContacts200["contacts"][number];
 
-/** Erreur HTTP renvoyée par le BFF, avec son statut. */
-export class BffRequestError extends Error {
-  constructor(message: string, readonly status: number) {
-    super(message);
-    this.name = "BffRequestError";
-  }
-}
-
-async function readJson<T>(response: Response): Promise<T> {
-  const text = await response.text();
-
-  if (!text) return undefined as T;
-
-  return JSON.parse(text) as T;
-}
-
-async function bffRequest<T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
-  const headers = new Headers(init.headers);
-
-  headers.set("Accept", "application/json");
-
-  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-
-  const response = await fetch(path, {
-    ...init,
-    headers,
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const errorBody = await readJson<{ message?: string; error?: { message?: string } }>(
-      response,
-    ).catch(() => null);
-    const serviceMessage = [errorBody?.error?.message, errorBody?.message].find(
-      (value) => typeof value === "string" && value.trim(),
-    );
-    const message = serviceMessage ?? (
-      response.status >= 500
-        ? "Le service de messagerie est temporairement indisponible."
-        : "La demande n’a pas pu aboutir."
-    );
-
-    throw new BffRequestError(message, response.status);
-  }
-
-  return readJson<T>(response);
-}
+export { BffNavigationRequiredError, BffRequestError } from "../lib/bff-client";
+export type { BffErrorDetail } from "../lib/bff-client";
 
 function encodeId(id: MessageId) {
   return encodeURIComponent(String(id));
 }
 
 export const messageClient = {
-  getCurrentUser() {
-    return bffRequest<GetMe200>("/me");
+  async getCurrentUser() {
+    return (await bffMessage.getMe()).data;
   },
 
-  getBootstrap() {
-    return bffRequest<GetMessagingBootstrap200>("/messaging/bootstrap");
+  async getBootstrap() {
+    return parseMessagingBootstrapReceipt((await bffMessage.getMessagingBootstrap()).data);
   },
 
-  getContacts() {
-    return bffRequest<GetContacts200>("/contacts");
+  async getContacts() {
+    return (await bffMessage.getContacts()).data;
   },
 
-  getBusinessReferences() {
-    return bffRequest<BusinessReferencesResponse>("/business-references");
+  async getBusinessReferences() {
+    return (await bffMessage.getBusinessReferences()).data;
   },
 
-  getConversations() {
-    return bffRequest<GetConversations200>("/conversations");
+  async getConversations(signal?: AbortSignal) {
+    return (await bffMessage.getConversations(undefined, { signal })).data;
   },
 
-  getConversationMessages(conversationId: MessageId) {
-    return bffRequest<GetConversationsConversationIdMessages200>(
-      `/conversations/${encodeId(conversationId)}/messages`,
-    );
+  async getConversationMessages(conversationId: MessageId, signal?: AbortSignal) {
+    return (await bffMessage.getConversationsConversationIdMessages(encodeId(conversationId), undefined, { signal })).data;
   },
 
-  uploadAttachments(files: File[]) {
-    const body = new FormData();
-    files.forEach((file) => body.append("files", file, file.name));
-    return bffRequest<PostAttachments201>("/attachments", {
-      method: "POST",
-      body,
-    });
+  async acknowledgeVisibleMessages(conversationId: MessageId, readUntilMessageId: MessageId) {
+    const body: PostConversationsConversationIdReadBody = { readUntilMessageId };
+    const { data: reply } = await bffMessage.postConversationsConversationIdRead(encodeId(conversationId), body);
+    if (!reply || String(reply.conversationId) !== String(conversationId) ||
+        !Number.isSafeInteger(reply.unreadCount) || reply.unreadCount < 0) {
+      throw new Error("L’acquittement des messages n’a pas été confirmé.");
+    }
+    return reply;
   },
 
-  sendMessage(conversationId: MessageId, payload: PostConversationsConversationIdMessagesBody) {
-    return bffRequest<PostConversationsConversationIdMessages201>(
-      `/conversations/${encodeId(conversationId)}/messages`,
-      {
-        method: "POST",
-        body: JSON.stringify(payload),
-      },
-    );
+  async uploadAttachments(files: File[]) {
+    // The generated operation uploads one file per call (multipart part `files`); the replies are merged.
+    const results: UploadAttachmentResponse["attachments"][] = [];
+    let next = 0;
+    let failed = false;
+    // Independent uploads overlap within three workers. Keep selection order
+    // and stop scheduling on failure; already-dispatched requests may settle.
+    const uploadNext = async (): Promise<void> => {
+      if (failed || next >= files.length) return;
+      const index = next++;
+      try {
+        const { data } = await bffMessage.postAttachments({ files: files[index] });
+        results[index] = (data as UploadAttachmentResponse).attachments;
+      } catch (error) { failed = true; throw error; }
+      return uploadNext();
+    };
+    await Promise.all(Array.from({ length: Math.min(3, files.length) }, uploadNext));
+    return { attachments: results.flat() } as UploadAttachmentResponse;
   },
 
-  createDirectMessage(payload: PostDirectMessagesBody) {
-    return bffRequest<PostDirectMessages201>("/direct-messages", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+  async sendMessage(conversationId: MessageId, payload: PostConversationsConversationIdMessagesBody) {
+    return (await bffMessage.postConversationsConversationIdMessages(encodeId(conversationId), payload)).data;
   },
 
-  createGroup(payload: PostGroupsBody) {
-    return bffRequest<PostGroups201>("/groups", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+  async createDirectMessage(payload: PostDirectMessagesBody) {
+    return (await bffMessage.postDirectMessages(payload)).data;
   },
 
-  deleteConversation(conversationId: MessageId) {
-    return bffRequest<DeleteConversationsConversationId200>(`/conversations/${encodeId(conversationId)}`, {
-      method: "DELETE",
-    });
+  async createGroup(payload: PostGroupsBody) {
+    return (await bffMessage.postGroups(payload)).data;
+  },
+
+  async deleteConversation(conversationId: MessageId) {
+    return (await bffMessage.deleteConversationsConversationId(encodeId(conversationId))).data;
   },
 };

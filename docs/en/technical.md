@@ -72,7 +72,30 @@ flowchart LR
   Next --> BFF["BFF_Message"]
 ```
 
-The page uses the messaging client to load bootstrap, then messages and contacts on demand. It maps responses for the shared `Messaging` component. After bootstrap, it fetches `/conversations` and the active thread every ten seconds while the tab is visible, and when focus resumes. Responses arriving after a selection or mutation are ignored so they cannot overwrite newer state; a sync failure preserves the last known thread and shows an alert. The explicit `/business-references` route forwards the BFF Message response.
+The page uses the messaging client to load bootstrap, then messages and contacts on demand. It maps responses for the shared `Messaging` component. After bootstrap, it fetches `/conversations` and the active thread every two seconds while the tab is visible, and when focus resumes. Responses arriving after a selection or mutation are ignored so they cannot overwrite newer state; a temporary sync failure preserves the last known thread and shows an alert. The explicit `/business-references` route forwards the BFF Message response.
+
+For synchronization reads only, `redirect: "manual"` exposes browser redirects as
+`opaqueredirect`; the client raises `BffNavigationRequiredError` without reading
+Location, status or body. A current visible polling or explicit thread-selection response reloads the protected
+page, leaving the Login target and return path to the unchanged middleware. A
+genuine401 calls the existing `logoutAndReload()` once instead, clearing the
+apparently unexpired rejected cookie through the existing local route; its finally
+reload is preserved even if transport fails.403/503/network failures do not log
+out. A shared page navigation guard suppresses further polling and thread reads,
+including duplicate selection while local cleanup is pending. Stale selections,
+hidden-page refusals and unmounted responses do not initiate navigation. No token
+is decoded or stored by this code. Bootstrap/mutation recovery is not widened;
+durable drafts and server revocation remain unproven.
+
+The page tracks confirmed thread IDs separately from the requested selection:
+bootstrap's selected ID and supplied message histories, successful matching
+thread reads, and confirmed newly created conversations. Unseen pending/refused
+threads use the existing controlled empty selection and `emptyStateLabel` instead
+of the library's hard-coded empty-message result; `Messaging`/its composer remain
+mounted, with writing disabled for unconfirmed histories. Known histories retain
+their messages through failed reads. Pending state has `role="status"` and
+`aria-busy`; stale callbacks cannot send to a former/unconfirmed thread. No DOM
+patch, component key reset, fake message, changed package or endpoint is added.
 
 Business suggestions load independently through `messageClient.getBusinessReferences()` on mount and on focus/visibility changes while the page is visible. A per-effect in-flight guard coalesces simultaneous events; no additional polling interval is created. Successful responses replace the list, including an empty list. Transient failures keep the last successful suggestions, while HTTP 401/403 clears them. Unmount removes both listeners and ignores pending responses. `tests/messages-page.contract-mocks.test.cjs` covers this lifecycle through the real frontend client and proxy with contract-driven mocks; this does not add persistence for sent references, attachments or read acknowledgements.
 
@@ -84,7 +107,7 @@ The following sources and limitations describe the associated BFF, which determi
 
 Conversations and messages use Message API. Contacts are read directly from the SQL `users` table, including the current user (token `sub` identifier). Business references are aggregated from BFF Project and BFF Calendar. Local profile edits, attachment metadata and the read acknowledgement do not provide complete persistence.
 
-Attachment upload currently creates metadata and does not provide durable binary storage. Mark-as-read returns a zero counter without writing to Message API; the page therefore does not call that route or locally clear unread counts. Conversation groups use the API, while some profile data remains local to the process.
+Attachments are not available yet (MAIR-512): the BFF answers 503 to `POST /attachments` and refuses any non-empty `attachmentIds`. The page therefore uses the default `pendingAttachmentPort` (`src/lib/attachment-features.ts`), which has no `upload` capability: the shared composer still shows "Joindre un fichier" (its button does not depend on `onAttach`), but the files are not registered and a draft carrying attachments is refused locally in French, without any network call. `messageAttachmentPort` keeps the upload path (`messageClient.uploadAttachments`) ready for the day the BFF stores files. Only user ids (`user-<n>` or integer, the BFF rule) are sent in `mentionIds`: group mention options stay highlighted but are not transmitted. A BFF 400 on a send, a direct message or a group creation is translated per refused field from `error.details[]` (`src/lib/bff-error-messages.ts`); other refusals keep the BFF message. Mark-as-read returns a zero counter without writing to Message API; the page therefore does not call that route or locally clear unread counts. Conversation groups use the API, while some profile data remains local to the process.
 
 The group callback returns the actual `messageClient.createGroup()` promise and a
 boolean confirmation: `true` after the returned conversation is integrated, or
@@ -96,7 +119,7 @@ React state manages display and pending operations. This repository defines no b
 
 ## Installation and local startup
 
-Use Node.js 22 to reproduce the contract job and npm with the committed lockfile. Other job and Docker versions are detailed below.
+Use Node.js 24.21.0 (the version pinned in CI and Docker) to reproduce the contract job and npm with the committed lockfile. Other job and Docker versions are detailed below.
 
 Private `@mairie360/*` dependencies require GitHub Packages access. Set `NODE_AUTH_TOKEN` in the environment to a token allowed to read these packages, as configured in `.npmrc`. Do not commit its value.
 
@@ -152,7 +175,7 @@ These data paths are exposed at the same origin through the proxy; Next.js pages
 
 | Method | Path | Declared body | Declared statuses |
 | --- | --- | --- | --- |
-| POST | `/attachments` | multipart/form-data | 401, 2XX |
+| POST | `/attachments` | multipart/form-data | 401, 2XX (always 503 today: not called by the page) |
 | GET | `/business-references` | — | 2XX |
 | GET | `/check_apis` | — | 2XX |
 | GET | `/contacts` | — | 401, 2XX |
@@ -193,29 +216,29 @@ Every response carries `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff
 The contract source is the published `@mairie360/bff-message-openapi` package, pinned to an exact version in `package.json`. Never copy the contract from a **BFF_Message** checkout: the local repository can be ahead of the last published release. After a version bump:
 
 ```bash
-npm install --save-exact @mairie360/bff-message-openapi@X.Y.Z   # published releases only, never 0.0.0-dev/staging
+npm install --save-exact @mairie360/bff-message-openapi@<version>   # a release X.Y.Z, or a published 0.0.0-dev.<sha40> or 0.0.0-staging.<sha40> of BFF_Message main (MAIR-600)
 npm run contracts:sync      # rebuild contracts/openapi.json from the installed package
-npm run contracts:check     # fail if the version isn't exact, if a second bff-*-openapi package exists, or if the snapshot is stale
+npm run contracts:check     # fail if the version isn't an accepted exact version, if a second bff-*-openapi package exists, or if the snapshot is stale
 npm test
 npm run lint
 npm run build
 ```
 
-These commands run offline. Move the `bff-message` image tags in the `docker-compose*.yml` files to the same version as well (`tests/package-contract.test.cjs` enforces it). `contracts/openapi.json` is the committed rebuild of the package, read by the proxy at build time and by the tests: never hand-edit it. Route types come straight from the package (`@mairie360/bff-message-openapi/model`); there is no generated `.d.ts` any more. `test:contracts` runs the Node tests without coverage; `npm test` runs them with 60% coverage thresholds (lines, branches, functions) reported on the original TypeScript.
+These commands run offline. Move the `bff-message` image tags in the `docker-compose*.yml` files to the image built from the same commit as well (`X.Y.Z`, `dev-<sha7>` for a dev package, or `staging-<sha7>` for a staging package; `tests/package-contract.test.cjs` enforces it through `scripts/contract-version.mjs`). The dev BFF_Message also needs `JWT_SECRET`, `PROJECT_API_URL` and `CALENDAR_API_URL` at startup (the stacks point the last two at an unreachable sentinel, like BFF_Message's own stacks), the dev APIs need `JWT_ALLOW_WEAK_SECRET`, `RATE_LIMIT_ENABLED=false` and `RATE_LIMIT_PER_SECOND=0`, the dev Liquibase `-Dallow_template_admin=true`, and `init-test.sql` argon2id hashes. `contracts/openapi.json` is the committed rebuild of the package, read by the proxy at build time and by the tests: never hand-edit it. Route types come straight from the package (`@mairie360/bff-message-openapi/model`); there is no generated `.d.ts` any more. `test:contracts` runs the Node tests without coverage; `npm test` runs them with 60% coverage thresholds (lines, branches, functions) reported on the original TypeScript.
 
-Orval output only types successes, exposed under the `2XX` range, plus the error statuses carried by a `<OperationId><status>` model: any other error reply mocked in the tests must be declared with `outOfContract: true`.
+Orval output only types successes, exposed under the `2XX` range, plus the error statuses carried by a `<OperationId><status>` model; the dev package references the shared `ErrorResponse` model instead, so no error status is documented and every error reply mocked in the tests must be declared with `outOfContract: true`.
 
-The `tests/*.contract-mocks.test.cjs` tests run the real browser client (`messageClient`, `fetchAuthSession`, `useAuthSession`) through the real Next.js handlers (contract catch-all, `/business-references`, local logout) up to a local HTTP server simulating BFF Message, driven by `contracts/openapi.json`. Every request (path, method, parameters, body) and every mocked response is validated against that contract, and any call to another host fails: BFF Message is the only reachable BFF. The proxy block replays **every** contract operation with requests and replies built by `contract.sample`, so a package bump covers new routes automatically. `tests/network-contract.test.cjs` scans `src/` to check that only `messageClient`, `auth-session` and `bff-proxy` call the network, that a single BFF URL is read, and that every path called by the browser matches a declared operation or a local route with no network. `tests/package-contract.test.cjs` checks the exact package pin, that only one `bff-*-openapi` package is used, that the snapshot is fresh, and the `bff-message` image versions. A new `messageClient` method fails the tests until it has a contract scenario.
+The `tests/*.contract-mocks.test.cjs` tests run the real browser client (`messageClient`, `fetchAuthSession`, `useAuthSession`) through the real Next.js handlers (contract catch-all, `/business-references`, local logout) up to a local HTTP server simulating BFF Message, driven by `contracts/openapi.json`. Every request (path, method, parameters, body) and every mocked response is validated against that contract, and any call to another host fails: BFF Message is the only reachable BFF. The proxy block replays **every** contract operation with requests and replies built by `contract.sample`, so a package bump covers new routes automatically. `tests/network-contract.test.cjs` scans `src/` to check that only `lib/bff-client`, `auth-session` and `bff-proxy` call the network, that axios is only imported by `lib/bff-client`, that `messageClient` only calls operations of the generated client and writes no path, that a single BFF URL is read, and that every literal path called by the browser matches a local route with no network. `tests/package-contract.test.cjs` checks the exact package pin, that only one `bff-*-openapi` package is used, that the snapshot is fresh, and the `bff-message` image versions. A new `messageClient` method fails the tests until it has a contract scenario.
 
 For documentation-only changes, check links, accuracy in both languages and `git diff --check`; do not regenerate contracts without changing their source.
 
 ## CI/CD and Docker execution
 
-The `contracts.yml` job uses Node.js 22, `actions/checkout@v7` and `actions/setup-node@v7`. It runs on pushes, pull requests and manual dispatch; it installs with `npm ci`, checks contracts and runs the associated tests.
+The `contracts.yml` job uses Node.js 24.21.0, `actions/checkout@v7` and `actions/setup-node@v7`. It runs on pull requests, manual dispatch and pushes to `main` only (MAIR-436); it installs with `npm ci`, checks contracts and runs the associated tests.
 
-`cicd.yml` calls `mairie360/CICD/.github/workflows/frontend-cicd.yml@v2.3.1`, with `cicd_version: "v2.3.1"` and `node_version: "22"`. Reusable steps and GitHub environments determine actual checks, publications and deployments.
+`cicd.yml` calls `mairie360/CICD/.github/workflows/frontend-cicd.yml` pinned to a CICD commit, with the same `cicd_version` and `node_version: "24.21.0"`. It runs on pull requests, on manual dispatch and on pushes to `main` only; its token is read-only by default and only the job calling the release pipeline gets `contents`, `packages` and `id-token` write scopes (MAIR-436, `tests/workflow-permissions.test.cjs`). Reusable steps and GitHub environments determine actual checks, publications and deployments.
 
-The Dockerfile defaults to `NODE_VERSION=22.15.0` and the Next.js `standalone` build; the image command is `["node", "server.js"]`. Image ports and Compose mappings can differ from the local port suggested above.
+The Dockerfile pins `NODE_VERSION=24.21.0` (official bookworm-slim image pinned by digest) and the Next.js `standalone` build; the image command is `["node", "server.js"]`. Image ports and Compose mappings can differ from the local port suggested above.
 
 Before running Docker, check service variables, build secrets and networks in the repository files. Green CI validates its jobs; it does not prove business-service availability in a remote environment.
 

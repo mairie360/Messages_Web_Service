@@ -1,22 +1,65 @@
 name: Message Web Service CICD
 
 on:
+  # MAIR-436: branch pushes are covered by their pull_request run; only main
+  # (which releases) runs on push, so a PR branch no longer runs the pipeline twice.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
+# MAIR-436: read-only token by default; write scopes are granted to the release job only.
 permissions:
-  contents: write
-  packages: write
-  id-token: write
+  contents: read
 
 jobs:
+  # MAIR-230 / #205: execute real blocking scanners under the required legacy name.
+  # Keep the shared audit too; never synthesize success or bypass protection.
+  required_security_scan:
+    name: CICD / Code Security Audit (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout frontend history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout reviewed scanner actions
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mairie360/CICD
+          ref: 5b7d127d46f95d8951935b6209ca7c2ca857a21d # main 2026-10-15 (validated frontend coverage upload)
+          path: cicd-repo
+          persist-credentials: false
+      - name: Run blocking Semgrep scan
+        uses: ./cicd-repo/actions/frontend-semgrep-pypi
+        with:
+          config: p/typescript p/react p/owasp-top-ten p/secrets p/dockerfile p/github-actions
+          fail_on_findings: "true"
+          artifact_name: semgrep-required-check-sarif
+      - name: Run blocking redacted Gitleaks scan
+        uses: ./cicd-repo/actions/frontend-gitleaks
+        with:
+          fail_on_findings: "true"
+
   CICD:
-    uses: mairie360/CICD/.github/workflows/frontend-cicd.yml@v4.0.2
+    # A reusable workflow cannot exceed its caller job's scopes: release-dev
+    # (packages, id-token for cosign) and release-prod (contents for the tag) need them.
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    uses: mairie360/CICD/.github/workflows/frontend-cicd.yml@fe5229c1839585eee3229385f5177c1134b2a59c # v4.5.0
     with:
       package_name: "message-front"
-      node_version: "22"
-      cicd_version: "v4.0.2"
+      node_version: "24.22.1"
+      cicd_version: "fe5229c1839585eee3229385f5177c1134b2a59c" # v4.5.0
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       N8N_WEBHOOK_SECRET: ${{ secrets.N8N_WEBHOOK_SECRET }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
+      RELEASE_APP_PK: ${{ secrets.RELEASE_APP_PK }}
