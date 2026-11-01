@@ -21,3 +21,24 @@ test('the actual new-message dialog receives focus, cycles Tab and returns focus
   await dom.waitFor(() => !dom.document.querySelector('[role="dialog"][aria-modal="true"]'));
   assert.equal(dom.document.activeElement, opener);
 });
+
+// MAIR-318: the Create group dialog must contain keyboard focus like New message, and Escape
+// (not only the close button) must dismiss it and give focus back to the sidebar trigger.
+test('MAIR-318 the actual create-group dialog contains Tab and Escape returns focus to its opener', async t => {
+  const dom = await messagesDom(t), opener = dom.button('Créer un groupe');
+  assert.ok(opener); opener.focus(); await dom.click(opener);
+  const modal = dom.document.querySelector('[role="dialog"][aria-modal="true"]');
+  assert.ok(modal); assert.match(modal.textContent, /Créer un groupe/);
+  await dom.waitFor(() => modal.contains(dom.document.activeElement));
+  const items = enabled(modal), first = items[0], last = items.at(-1); assert.ok(items.length > 1);
+  const press = (node, key, shiftKey = false) => {
+    const event = new dom.window.KeyboardEvent('keydown', { key, shiftKey, bubbles: true, cancelable: true });
+    node.dispatchEvent(event); return event;
+  };
+  last.focus(); assert.equal(press(last, 'Tab').defaultPrevented, true); assert.equal(dom.document.activeElement, first);
+  assert.equal(press(first, 'Tab', true).defaultPrevented, true); assert.equal(dom.document.activeElement, last);
+  const React = require('react');
+  await React.act(async () => { press(dom.document.activeElement, 'Escape'); });
+  await dom.waitFor(() => !dom.document.querySelector('[role="dialog"][aria-modal="true"]'));
+  assert.equal(dom.document.activeElement, opener);
+});
