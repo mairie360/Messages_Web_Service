@@ -55,7 +55,8 @@ const businessReferences = () => ({
 });
 
 /** Erreur au format `ApiErrorResponse` du contrat. */
-const apiError = (code, text) => ({ code, message: text });
+/** ErrorResponse (BFF Message) : enveloppe d'erreur commune des BFFs, { error: { code, message, details } }. */
+const apiError = (code, text) => ({ error: { code, message: text, details: [] } });
 
 module.exports = {
   apiError, bootstrap, businessReferences, contact, conversation, currentUser, message, messageBffContract, messageBffMock, tokenFor, users,

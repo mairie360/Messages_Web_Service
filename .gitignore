@@ -42,3 +42,8 @@ yarn-error.log*
 next-env.d.ts
 
 !contracts/openapi.json
+
+# Reproducible local performance artefacts and temporary baseline checkout.
+/performance/
+/.performance-base/
+/performance-server.log
