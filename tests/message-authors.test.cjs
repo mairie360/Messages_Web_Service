@@ -2,8 +2,9 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
-const { MessagingMessageBubble } = require('@mairie360/lib-components');
 const { requireSrc } = require('./support/load-ts.cjs');
+// MAIR-607: the bubble is Messages' own component now.
+const { MessagingMessageBubble } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/MessageThread/components/MessagingMessageBubble/MessagingMessageBubble.tsx');
 const { buildMessageMentionOptions, presentMessageAuthors } = requireSrc('lib/message-authors.tsx');
 
 const contacts = [{ id: 'user-7', name: 'Sophie Leroy', kind: 'direct' }];

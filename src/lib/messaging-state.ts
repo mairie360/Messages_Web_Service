@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import type { Messaging } from "@mairie360/lib-components";
+import type { Messaging } from '../components/MessagesPage/components/MessagesWorkspace/components/Messaging';
 import type { ContactDto, MessageId } from "../clients/messageClient";
 
 // Mise à jour de l'état de la page de messagerie à partir des réponses du BFF (DTO du contrat)
@@ -83,8 +83,40 @@ export function appendMessage(
   return [...currentMessages, nextMessage];
 }
 
+// The BFF_Message contract gives direct conversations `kind: 'direct'` and the contact's `contactId`
+// (MAIR-204); the shared `Messaging` conversation type does not declare `contactId`.
+type ConversationWithContact = MessagingConversation & { contactId?: MessageId };
+
+// The existing direct conversation with `recipientId`, if any: a new message to that contact is
+// posted there instead of creating another chat. Ids are compared in the `user-<n>` form.
+export function findDirectConversation(
+  conversations: MessagingConversation[],
+  recipientId: MessageId,
+): MessagingConversation | undefined {
+  const recipient = toMessagingUserId(recipientId);
+  return conversations.find((conversation) => {
+    const { kind, contactId } = conversation as ConversationWithContact;
+    return kind === "direct" && contactId !== undefined && toMessagingUserId(contactId) === recipient;
+  });
+}
+
 export function getPayloadIds(items?: Array<{ id: MessageId }>) {
   return items?.map((item) => item.id);
+}
+
+// Same rule as BFF_Message `inputId('user')`: a positive integer or a `user-<n>` public id.
+const USER_ID = /^(?:user-)?[1-9]\d*$/;
+
+export function isUserId(id: MessageId) {
+  return USER_ID.test(String(id));
+}
+
+/**
+ * Ids sent as `mentionIds`: users only. The composer also offers group conversations (`conversation-<n>`) as
+ * mention options; they stay highlighted in the text but are not transmitted, the BFF would refuse them (MAIR-512).
+ */
+export function toMentionIds(mentions?: Array<{ id: MessageId }>): MessageId[] {
+  return (getPayloadIds(mentions) ?? []).filter(isUserId);
 }
 
 export function toMessagingContacts(

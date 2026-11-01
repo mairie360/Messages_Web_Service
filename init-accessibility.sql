@@ -14,12 +14,12 @@ BEGIN;
 INSERT INTO users (id, first_name, last_name, email, password, status)
 VALUES
   -- Third member of the group conversation of user 2.
-  (10, 'Camille', 'Martin', 'camille-martin@mairie360.fr', 'dummy', 'active'),
+  (10, 'Camille', 'Martin', 'camille-martin@mairie360.fr', NULL, 'active'),
   -- Only for message-sent, which posts a message: the states run in parallel, the ones played as
   -- user 2 must not see it. It has a conversation of its own.
-  (11, 'Rgaa', 'Writer', 'rgaa-writer@mairie360.fr', 'dummy', 'active'),
+  (11, 'Rgaa', 'Writer', 'rgaa-writer@mairie360.fr', NULL, 'active'),
   -- Only for empty-inbox: no conversation at all.
-  (12, 'Rgaa', 'Empty', 'rgaa-empty@mairie360.fr', 'dummy', 'active')
+  (12, 'Rgaa', 'Empty', 'rgaa-empty@mairie360.fr', NULL, 'active')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO user_roles (user_id, role_id)

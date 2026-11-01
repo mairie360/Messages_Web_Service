@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mairie360/CICD/main/tests/a11y/rgaa.schema.json
-# RGAA 4.1.2 scope of the messages front (MAIR-316), checked by the RGAA job of mairie360/CICD
-# frontend-cicd.yml in release-prod, on the staging-<sha> image (format: CICD README, "RGAA scope").
+# RGAA 4.1.2 scope of the messages front (MAIR-316), checked by the rgaa job of mairie360/CICD
+# promote-prod.yml on the staging image (format: CICD README, "RGAA scope").
 version: 1
 target: http://message-front:5003
 

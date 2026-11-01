@@ -11,8 +11,11 @@ function installBrowser() {
   };
   const remove = (listeners, name, callback) => listeners.get(name)?.delete(callback);
   const emit = (listeners, name) => listeners.get(name)?.forEach((callback) => callback());
+  const { setBrowserFrontUrls } = require('./load-ts.cjs').requireSrc('lib/front-urls.ts');
+  setBrowserFrontUrls({ LOGIN_FRONT_URL: 'https://login.mairie.test', MESSAGE_FRONT_URL: 'http://localhost:5003' });
+  const location = () => ({ reloads: 0, assigned: [], search: '', get href() { return 'http://localhost:5003/' + this.search; }, assign(href) { this.assigned.push(href); }, reload() { this.reloads += 1; } });
   const browser = {
-    location: { reloads: 0, search: '', reload() { this.reloads += 1; } },
+    location: location(),
     setInterval(callback, delay) {
       const id = nextIntervalId++;
       intervals.set(id, { callback, delay });
@@ -41,8 +44,8 @@ function installBrowser() {
       document.hidden = hidden;
       emit(documentListeners, 'visibilitychange');
     },
-    reset() { browser.location.reloads = 0; browser.location.search = ''; document.hidden = false; intervals.clear(); },
-    restore() { delete global.window; delete global.document; },
+    reset() { setBrowserFrontUrls({ LOGIN_FRONT_URL: 'https://login.mairie.test', MESSAGE_FRONT_URL: 'http://localhost:5003' }); browser.location = location(); document.hidden = false; intervals.clear(); },
+    restore() { setBrowserFrontUrls({}); delete global.window; delete global.document; },
   };
 }
 

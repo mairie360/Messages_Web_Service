@@ -7,7 +7,7 @@ import ts from 'typescript';
 // (sortie orval : endpoints/*.ts + model/*.ts, sans openapi.json). Le contrat utilisé par le front est
 // donc celui de la version publiée épinglée dans package.json, jamais une copie d'un checkout du BFF.
 // Même lecteur que Login_Web_Service/scripts/orval-contract.mjs (portage ESM de
-// BFFs/*/tests/support/orval-contract.ts), étendu aux types littéraux et aux corps multipart.
+// BFFs/*/tests/support/orval-contract.ts), étendu aux types littéraux, aux corps multipart et aux enums nullables.
 //
 // Ce que la sortie orval ne conserve pas, et que ce contrat ne peut donc pas vérifier :
 // - le statut de succès est exposé sous la plage `2XX` ; les erreurs référencées (ApiErrorResponse) ne
@@ -64,6 +64,7 @@ function readModels(dir) {
     const source = parse(file);
     const enumValues = new Map();
     const enumAliases = [];
+    const nullableEnums = new Set();
 
     for (const statement of source.statements) {
       if (ts.isInterfaceDeclaration(statement)) {
@@ -74,6 +75,10 @@ function readModels(dir) {
           models.schemas[statement.name.text] ??= models.aliases[statement.name.text];
         } else if (ts.isIndexedAccessTypeNode(statement.type)) {
           enumAliases.push(statement.name.text);
+        } else if (isNullableEnumAlias(statement.type)) {
+          // `export type X = typeof X[keyof typeof X] | null` : enum orval marqué @nullable.
+          enumAliases.push(statement.name.text);
+          nullableEnums.add(statement.name.text);
         } else {
           models.schemas[statement.name.text] ??= typeSchema(statement.type);
         }
@@ -93,10 +98,19 @@ function readModels(dir) {
     for (const name of enumAliases) {
       const values = enumValues.get(name);
       if (!values) throw new Error(`Enum orval ${name} sans constante associée (${file})`);
-      models.schemas[name] = { type: 'string', enum: values };
+      models.schemas[name] = nullableEnums.has(name)
+        ? { type: ['string', 'null'], enum: [...values, null] }
+        : { type: 'string', enum: values };
     }
   }
   return models;
+}
+
+/** `typeof X[keyof typeof X] | null` (ou l'inverse) : alias d'enum orval nullable. */
+function isNullableEnumAlias(node) {
+  if (!ts.isUnionTypeNode(node) || node.types.length !== 2) return false;
+  const isNull = (member) => ts.isLiteralTypeNode(member) && member.literal.kind === ts.SyntaxKind.NullKeyword;
+  return node.types.some(ts.isIndexedAccessTypeNode) && node.types.some(isNull);
 }
 
 function readOperation(operationId, fn, models) {
@@ -253,6 +267,10 @@ function typeSchema(node) {
     if (name === 'Array' && node.typeArguments?.[0]) return { type: 'array', items: typeSchema(node.typeArguments[0]) };
     if (name === 'Record' && node.typeArguments?.[1]) return { type: 'object', additionalProperties: typeSchema(node.typeArguments[1]) };
     return { $ref: `#/components/schemas/${name}` };
+  }
+  if (ts.isIndexedAccessTypeNode(node) && ts.isTypeQueryNode(node.objectType)) {
+    // `typeof X[keyof typeof X]` écrit en ligne : même enum orval que l'alias X.
+    return { $ref: `#/components/schemas/${node.objectType.exprName.getText()}` };
   }
   if (ts.isIntersectionTypeNode(node)) return { allOf: node.types.map(typeSchema) };
   if (ts.isUnionTypeNode(node)) {

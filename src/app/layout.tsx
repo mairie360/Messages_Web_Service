@@ -1,9 +1,15 @@
+import { parseAppearanceCookie, APPEARANCE_COOKIE } from '@mairie360/lib-components/theme';
+import { cookies } from 'next/headers';
+import { jwtDisplayRole, instanceTimeZone } from '@mairie360/lib-components/shared';
+import { InstanceProvider } from '@mairie360/lib-components/react';
 import type { Metadata } from "next";
+import { Geist } from "next/font/google";
 import { readFrontUrlsFromEnv } from "@/lib/front-urls";
 import { FrontUrlsProvider } from "@/lib/front-urls-provider";
 import "./globals.css";
-import "@mairie360/lib-components/dist/styles.css";
 import "./app-shell.css";
+
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 // Rendu à la demande obligatoire : une page prérendue au build ne porterait pas le
 // nonce CSP propre à chaque requête, et ses scripts seraient bloqués.
@@ -21,17 +27,21 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const role = jwtDisplayRole(cookieStore.get('accessToken')?.value);
+  const appearance = parseAppearanceCookie(cookieStore.get(APPEARANCE_COOKIE)?.value);
+  const timeZone = instanceTimeZone(process.env.INSTANCE_TIMEZONE);
   return (
-    <html lang="fr">
+    <html lang="fr" data-theme={appearance?.theme ?? "system"} data-density={appearance?.density ?? "normal"}>
       <head>
         <meta name="apple-mobile-web-app-title" content="Mairie360" />
       </head>
-      <body><FrontUrlsProvider urls={readFrontUrlsFromEnv()}>{children}</FrontUrlsProvider></body>
+      <body className={`${geistSans.variable} mairie-ui antialiased`}><InstanceProvider role={role} timeZone={timeZone} appearance={appearance} appearanceCookieDomain={process.env.COOKIE_DOMAIN}><FrontUrlsProvider urls={readFrontUrlsFromEnv()} cookieDomain={process.env.COOKIE_DOMAIN}>{children}</FrontUrlsProvider></InstanceProvider></body>
     </html>
   );
 }
