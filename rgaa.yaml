@@ -13,11 +13,11 @@ session:
 # Seed users (init-test.sql, init-accessibility.sql), all with the role User: bff-message 0.4.0
 # gives every user the same role, so no other role changes the page.
 users:
-  # Member of the group "Équipe accueil" and of the direct conversation "Planning de la semaine".
+  # Member of the group "Équipe accueil" and of a direct conversation with user 3 ("Contact Sample").
   agent:
     id: 2
     role: user
-  # Only for message-sent, which posts a message in its own conversation "Courrier entrant": the
+  # Only for message-sent, which posts a message in its own direct conversation with user 3: the
   # states run in parallel, the ones played as agent must not see it.
   writer:
     id: 11
@@ -109,10 +109,11 @@ states:
     route: /
     steps:
       - wait_for: { role: heading, name: Équipe accueil }
-      # The list item is named after its avatar initials too: "Voir Planning de la semaine" does not
-      # match (and the BFF ids are not the database ids, so ?conversation=<id> cannot be used).
-      - click: { role: button, name: PD Planning de la semaine }
-      - wait_for: { role: heading, name: Planning de la semaine }
+      # A direct conversation is listed and titled after the other member (user 3, "Contact
+      # Sample"), not after its stored title; the BFF ids are not the database ids, so
+      # ?conversation=<id> cannot be used.
+      - click: { role: button, name: Contact Sample }
+      - wait_for: { role: heading, name: Contact Sample }
       - wait_for: { text: "Bonjour, pouvez-vous me transmettre le planning de la semaine ?" }
   - id: search-no-result
     description: Conversation search without a match
@@ -182,7 +183,8 @@ states:
     as: writer
     route: /
     steps:
-      - wait_for: { role: heading, name: Courrier entrant }
-      - fill: { role: textbox, name: Tapez votre message, value: "Merci, je m'en occupe." }
+      # The writer's only conversation, a direct one with user 3: titled after that member.
+      - wait_for: { role: heading, name: Contact Sample }
+      - fill: { role: textbox, name: Écrire un message, value: "Merci, je m'en occupe." }
       - click: { role: button, name: Envoyer, exact: true }
       - wait_for: { text: "Merci, je m'en occupe." }
