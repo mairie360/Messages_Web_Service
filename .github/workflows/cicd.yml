@@ -52,11 +52,11 @@ jobs:
       contents: write
       packages: write
       id-token: write
-    uses: mairie360/CICD/.github/workflows/frontend-cicd.yml@82eeb666ba060b14b272520c3b3a3f4cd94410c7 # v5.1.1
+    uses: mairie360/CICD/.github/workflows/frontend-cicd.yml@9804aed718d436254e96a5d51cc23e8dd9dec1ca # v5.2.2
     with:
       package_name: "message-front"
       node_version: "24.22.1"
-      cicd_version: "82eeb666ba060b14b272520c3b3a3f4cd94410c7" # v5.1.1
+      cicd_version: "9804aed718d436254e96a5d51cc23e8dd9dec1ca" # v5.2.2
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       N8N_WEBHOOK_SECRET: ${{ secrets.N8N_WEBHOOK_SECRET }}
