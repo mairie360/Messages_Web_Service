@@ -1,39 +1,55 @@
 # Journal des releases — Messages_Web_Service
 
-<!-- release-journal-state {"dev": "64832f9799a1a3c14a98e5321ba65fc9aaae2981", "prod": "9b14d687f47bbd09f93d7b2cfbbefc090e198a2f", "prod_tag": "v0.5.0", "staging": "9b14d687f47bbd09f93d7b2cfbbefc090e198a2f", "updated": {"dev": "2026-11-02 23:06 UTC", "prod": "2026-10-21 11:08 UTC", "staging": "2026-10-21 11:04 UTC"}} -->
+<!-- release-journal-state {"dev": "878eeeb8dae4216dfdf6bdd8a64a92d875cd32f6", "prod": "9b14d687f47bbd09f93d7b2cfbbefc090e198a2f", "prod_tag": "v0.5.0", "staging": "9b14d687f47bbd09f93d7b2cfbbefc090e198a2f", "updated": {"dev": "2026-11-03 14:59 UTC", "prod": "2026-10-21 11:08 UTC", "staging": "2026-10-21 11:04 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v0.5.0 | `9b14d68` | 2026-10-21 11:08 UTC |
 | staging | — | `9b14d68` | 2026-10-21 11:04 UTC |
-| dev | — | `64832f9` | 2026-11-02 23:06 UTC |
+| dev | — | `878eeeb` | 2026-11-03 14:59 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v0.5.0)
 
-#### Nouveautés
-- Le dialogue « Créer un groupe » garde le focus clavier : Tab et Maj+Tab restent à l'intérieur du dialogue, Échap le ferme et rend le focus au déclencheur d'ouverture. (MAIR-318, [#213](https://github.com/mairie360/Messages_Web_Service/pull/213))
-
 #### Changements de comportement
-- Les dialogues « Nouveau message » et « Créer un groupe » s'appuient sur les composants partagés de la lib (sélecteur de destinataires, champs texte, zone de message, recherche, cases à cocher, boutons Annuler, Envoyer et Créer) : leur apparence change. L'écran vide de la messagerie affiche désormais un `DataState`, et l'échec de déconnexion affiche un `ErrorAlert` avec `RetryButton`. (MAIR-608, [#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
+
+- Les fenêtres « Nouveau message » et « Créer un groupe » utilisent désormais les composants partagés de la lib (`SelectField`, `TextArea`, `TextField`, champ de recherche, `Checkbox`, boutons Annuler / Envoyer / Créer). (MAIR-608, [#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
+- L'état vide du fil de messages s'affiche avec `DataState`, et l'échec de déconnexion avec `ErrorAlert` + `RetryButton` / `Button`. (MAIR-608, [#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
+- Le shell (barre latérale, barre du haut, pied de page) vient de `@mairie360/lib-components/shell` (`AccessibleShell`) : les copies locales `accessible-shell.tsx`, `desktop-navigation.tsx` et `sidebar-preference.ts` sont supprimées. La lib passe de 0.10.2 à 1.0.3, changement annoncé comme rupture (`feat!`). (MAIR-608, [#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
 
 #### Technique
-- Dépendances de l'interface : `@mairie360/lib-components` passe en 1.0.3 et les composants de messagerie locaux sont déplacés dans `src/components/MessagesPage/`, sans changement de rendu attendu. Ajout de la suite de tests de composants (vitest). (MAIR-608, [#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
-- Sécurité et dépendances : Next.js 16.4.2, Node 24.22.1 avec images de base épinglées par digest, `follow-redirects` 1.16.2, backport zod vendorisé avec vérification d'intégrité à l'installation et au build, et preuve de provenance des bundles par source maps réservée au build de mesure CI. (MAIR-770, [#307](https://github.com/mairie360/Messages_Web_Service/pull/307) ; MAIR-300, [#300](https://github.com/mairie360/Messages_Web_Service/pull/300) ; [#304](https://github.com/mairie360/Messages_Web_Service/pull/304) ; [#249](https://github.com/mairie360/Messages_Web_Service/pull/249))
-- CI : checklist RGPD sur les PR (`gdpr-pr.yml`, MAIR-295, [#226](https://github.com/mairie360/Messages_Web_Service/pull/226)), CICD épinglé en v5.2.2 (MAIR-771, [#309](https://github.com/mairie360/Messages_Web_Service/pull/309)) et stack d'accessibilité RGAA (`accessibility_test.sh`, `docker-compose-accessibility.yml`, MAIR-316, [#221](https://github.com/mairie360/Messages_Web_Service/pull/221)). Mises à jour Renovate de CICD (MAIR-771, [#302](https://github.com/mairie360/Messages_Web_Service/pull/302) et [#299](https://github.com/mairie360/Messages_Web_Service/pull/299)).
+
+- Simulation d'usage RGPD avant prod : stack `docker-compose-gdpr-simulation.yml`, `gdpr-simulation.yaml`, `gdpr-journey.yaml` et `gdpr_simulation_test.sh`, non publiés ; ignorés par `.dockerignore` et `.gitignore`. (MAIR-497, [#311](https://github.com/mairie360/Messages_Web_Service/pull/311))
+- Checklist RGPD sur les pull requests (`gdpr-pr.yml`, avec un test de pin dans `renovate.json`). (MAIR-295, [#226](https://github.com/mairie360/Messages_Web_Service/pull/226))
+- Correctif zod par backport vendorisé (`vendor/zod`), vérification d'intégrité au `postinstall` / `prebuild` / `pretest`, exclusion Gitleaks de `vendor/security-patches.json`, source maps émises seulement par le build de mesure du bundle. (MAIR-770, [#307](https://github.com/mairie360/Messages_Web_Service/pull/307))
+- Mise à jour de la pin mairie360/CICD dans les workflows (v4.5.0, v4.13.0, v5.1.1, v5.2.2, v5.3.0) et du test `packaging-policy`. (MAIR-316, MAIR-771, [#299](https://github.com/mairie360/Messages_Web_Service/pull/299), [#302](https://github.com/mairie360/Messages_Web_Service/pull/302), [#309](https://github.com/mairie360/Messages_Web_Service/pull/309), [#311](https://github.com/mairie360/Messages_Web_Service/pull/311))
+- Suite RGAA : `rgaa.yaml`, `docker-compose-accessibility.yml`, `init-accessibility.sql`, `accessibility_test.sh`. (MAIR-316, [#221](https://github.com/mairie360/Messages_Web_Service/pull/221))
+- `follow-redirects` résolu en 1.16.2 dans le lock, avec un test de non-régression. (GHSA-mrwp-f3q8-3g9p, [#304](https://github.com/mairie360/Messages_Web_Service/pull/304))
+- Node 24.22.1 (images Docker par digest, CI, `development.Dockerfile`). Dans `.dockerignore`, `tests` n'est plus exclu : le dossier de tests entre désormais dans le contexte de build. (MAIR-600, [#300](https://github.com/mairie360/Messages_Web_Service/pull/300))
+- Dépendances mises à jour : Next.js 16.4.2, `eslint-config-next`, `jsdom` 30.1.3, `playwright-core` 1.64.1, `@types/node`, `@vitest/coverage-v8`, daisyui. (MAIR-600, [#249](https://github.com/mairie360/Messages_Web_Service/pull/249))
+- Test de non-régression du focus de la fenêtre « Créer un groupe » (Tab / Shift+Tab, Échap, retour du focus). (MAIR-318, [#213](https://github.com/mairie360/Messages_Web_Service/pull/213))
+- Arborescence des composants de messagerie découpée en dossiers et tests co-localisés, avec `tests/component-tree-convention.test.cjs` et Vitest dans `npm test`. (MAIR-608, [#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
-#### Nouveautés
-- Le dialogue « Créer un groupe » garde le focus clavier : Tab et Maj+Tab restent à l'intérieur du dialogue, Échap le ferme et rend le focus au déclencheur d'ouverture. (MAIR-318, [#213](https://github.com/mairie360/Messages_Web_Service/pull/213))
-
 #### Changements de comportement
-- Les dialogues « Nouveau message » et « Créer un groupe » s'appuient sur les composants partagés de la lib (sélecteur de destinataires, champs texte, zone de message, recherche, cases à cocher, boutons Annuler, Envoyer et Créer) : leur apparence change. L'écran vide de la messagerie affiche désormais un `DataState`, et l'échec de déconnexion affiche un `ErrorAlert` avec `RetryButton`. (MAIR-608, [#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
+
+- Les fenêtres « Nouveau message » et « Créer un groupe » utilisent désormais les composants partagés de la lib (`SelectField`, `TextArea`, `TextField`, champ de recherche, `Checkbox`, boutons Annuler / Envoyer / Créer). (MAIR-608, [#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
+- L'état vide du fil de messages s'affiche avec `DataState`, et l'échec de déconnexion avec `ErrorAlert` + `RetryButton` / `Button`. (MAIR-608, [#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
+- Le shell (barre latérale, barre du haut, pied de page) vient de `@mairie360/lib-components/shell` (`AccessibleShell`) : les copies locales `accessible-shell.tsx`, `desktop-navigation.tsx` et `sidebar-preference.ts` sont supprimées. La lib passe de 0.10.2 à 1.0.3, changement annoncé comme rupture (`feat!`). (MAIR-608, [#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
 
 #### Technique
-- Dépendances de l'interface : `@mairie360/lib-components` passe en 1.0.3 et les composants de messagerie locaux sont déplacés dans `src/components/MessagesPage/`, sans changement de rendu attendu. Ajout de la suite de tests de composants (vitest). (MAIR-608, [#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
-- Sécurité et dépendances : Next.js 16.4.2, Node 24.22.1 avec images de base épinglées par digest, `follow-redirects` 1.16.2, backport zod vendorisé avec vérification d'intégrité à l'installation et au build, et preuve de provenance des bundles par source maps réservée au build de mesure CI. (MAIR-770, [#307](https://github.com/mairie360/Messages_Web_Service/pull/307) ; MAIR-300, [#300](https://github.com/mairie360/Messages_Web_Service/pull/300) ; [#304](https://github.com/mairie360/Messages_Web_Service/pull/304) ; [#249](https://github.com/mairie360/Messages_Web_Service/pull/249))
-- CI : checklist RGPD sur les PR (`gdpr-pr.yml`, MAIR-295, [#226](https://github.com/mairie360/Messages_Web_Service/pull/226)), CICD épinglé en v5.2.2 (MAIR-771, [#309](https://github.com/mairie360/Messages_Web_Service/pull/309)) et stack d'accessibilité RGAA (`accessibility_test.sh`, `docker-compose-accessibility.yml`, MAIR-316, [#221](https://github.com/mairie360/Messages_Web_Service/pull/221)). Mises à jour Renovate de CICD (MAIR-771, [#302](https://github.com/mairie360/Messages_Web_Service/pull/302) et [#299](https://github.com/mairie360/Messages_Web_Service/pull/299)).
+
+- Simulation d'usage RGPD avant prod : stack `docker-compose-gdpr-simulation.yml`, `gdpr-simulation.yaml`, `gdpr-journey.yaml` et `gdpr_simulation_test.sh`, non publiés ; ignorés par `.dockerignore` et `.gitignore`. (MAIR-497, [#311](https://github.com/mairie360/Messages_Web_Service/pull/311))
+- Checklist RGPD sur les pull requests (`gdpr-pr.yml`, avec un test de pin dans `renovate.json`). (MAIR-295, [#226](https://github.com/mairie360/Messages_Web_Service/pull/226))
+- Correctif zod par backport vendorisé (`vendor/zod`), vérification d'intégrité au `postinstall` / `prebuild` / `pretest`, exclusion Gitleaks de `vendor/security-patches.json`, source maps émises seulement par le build de mesure du bundle. (MAIR-770, [#307](https://github.com/mairie360/Messages_Web_Service/pull/307))
+- Mise à jour de la pin mairie360/CICD dans les workflows (v4.5.0, v4.13.0, v5.1.1, v5.2.2, v5.3.0) et du test `packaging-policy`. (MAIR-316, MAIR-771, [#299](https://github.com/mairie360/Messages_Web_Service/pull/299), [#302](https://github.com/mairie360/Messages_Web_Service/pull/302), [#309](https://github.com/mairie360/Messages_Web_Service/pull/309), [#311](https://github.com/mairie360/Messages_Web_Service/pull/311))
+- Suite RGAA : `rgaa.yaml`, `docker-compose-accessibility.yml`, `init-accessibility.sql`, `accessibility_test.sh`. (MAIR-316, [#221](https://github.com/mairie360/Messages_Web_Service/pull/221))
+- `follow-redirects` résolu en 1.16.2 dans le lock, avec un test de non-régression. (GHSA-mrwp-f3q8-3g9p, [#304](https://github.com/mairie360/Messages_Web_Service/pull/304))
+- Node 24.22.1 (images Docker par digest, CI, `development.Dockerfile`). Dans `.dockerignore`, `tests` n'est plus exclu : le dossier de tests entre désormais dans le contexte de build. (MAIR-600, [#300](https://github.com/mairie360/Messages_Web_Service/pull/300))
+- Dépendances mises à jour : Next.js 16.4.2, `eslint-config-next`, `jsdom` 30.1.3, `playwright-core` 1.64.1, `@types/node`, `@vitest/coverage-v8`, daisyui. (MAIR-600, [#249](https://github.com/mairie360/Messages_Web_Service/pull/249))
+- Test de non-régression du focus de la fenêtre « Créer un groupe » (Tab / Shift+Tab, Échap, retour du focus). (MAIR-318, [#213](https://github.com/mairie360/Messages_Web_Service/pull/213))
+- Arborescence des composants de messagerie découpée en dossiers et tests co-localisés, avec `tests/component-tree-convention.test.cjs` et Vitest dans `npm test`. (MAIR-608, [#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
 
 ## Différence staging → prod (en staging, pas encore en prod)
 
@@ -44,6 +60,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-03 14:59 UTC | dev | — | `878eeeb` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/41656798602) |
 | 2026-11-02 23:06 UTC | dev | — | `64832f9` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/41540164242) |
 | 2026-11-02 22:22 UTC | dev | — | `f94897d` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/41533106634) |
 | 2026-11-02 16:16 UTC | dev | — | `d17660f` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/41478344880) |
