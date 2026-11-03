@@ -52,3 +52,6 @@ next-env.d.ts
 /cicd-repo/
 /rgaa-report/
 /.rgaa-ai-cache/
+# GDPR usage simulation run (gdpr_simulation_test.sh, MAIR-497): raw logs, never committed.
+/gdpr-simulation/
+/.gdpr-ai-cache/

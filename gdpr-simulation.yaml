@@ -1,0 +1,30 @@
+# GDPR usage simulation of the messages front (MAIR-497), played by mairie360/CICD
+# tests/gdpr/simulation on the test stack only (docker-compose-gdpr-simulation.yml,
+# gdpr_simulation_test.sh; format: CICD README, "GDPR simulation").
+#
+# Fictitious personas with unique values go through gdpr-journey.yaml (BFF_Message's journey) on the
+# front's origin: their names, e-mails and phone numbers are written in groups, messages, direct
+# messages, searches and deliberate errors. Their group conversation is then opened in the browser:
+# the browser console and storage, the requests and cookies of the pages, the logs of every
+# container, the Redis keys and the database after the purge are then checked and reviewed (CICD
+# analyze.mjs). The erased persona's group is deleted after its pages, the only deletion the front
+# offers.
+version: 1
+journey: gdpr-journey.yaml
+personas: 4
+erased: 1
+erase:
+  - name: delete the persona's group
+    request: {method: DELETE, path: "/conversations/{{group_id}}", headers: &session {Cookie: "accessToken={{env.ADMIN_JWT}}", Origin: "http://message-front:5003"}}
+    expect: [200, 204]
+browser:
+  target: http://message-front:5003
+  # Session of the journey: the front relays it to its BFF as a Bearer token.
+  cookies: {accessToken: "{{env.ADMIN_JWT}}"}
+  # The messaging page keeps its /stream (Server-Sent Events) open: it never reaches networkidle.
+  wait_until: load
+  pages:
+    - name: conversations
+      path: "/"
+    - name: the persona's group conversation
+      path: "/?conversation={{group_id}}"
