@@ -1,0 +1,86 @@
+# GDPR usage simulation journey of the messages front (MAIR-497), played by mairie360/CICD
+# tests/gdpr/simulation for every persona of gdpr-simulation.yaml (gdpr-marker.yaml format of
+# MAIR-290).
+#
+# The journey of BFF_Message's log marker test, sent to the front's own origin: the same-origin proxy
+# (src/lib/bff-proxy.ts) relays it to the BFF with the accessToken cookie as a Bearer token, as for
+# the browser, so the logs of the front see the persona's values in the bodies, the query strings
+# and the deliberate errors. The proxy only forwards same-origin requests (Origin) and the paths of
+# contracts/openapi.json; the first step defines the session headers the next ones reuse
+# (*session).
+version: 1
+target: http://message-front:5003
+wait: /
+# Session of the run (the seeded admin), signed by gdpr_simulation_test.sh.
+env: [ADMIN_JWT]
+steps:
+  - name: search the contacts for the marker (query string)
+    request: {method: GET, path: "/contacts?search={{marker.last_name}}&limit=10", headers: &session {Cookie: "accessToken={{env.ADMIN_JWT}}", Origin: "http://message-front:5003"}}
+  - name: search the contacts with a refused limit (deliberate error, query string)
+    request: {method: GET, path: "/contacts?search={{marker.email}}&limit=0", headers: *session}
+    expect: [400]
+  - name: search the conversations for the marker (query string)
+    request: {method: GET, path: "/conversations?search={{marker.first_name}}&limit=10", headers: *session}
+  - name: search the conversations with a refused limit (deliberate error, query string)
+    request: {method: GET, path: "/conversations?search={{marker.phone}}&limit={{marker.last_name}}", headers: *session}
+    expect: [400]
+  - name: create a group named after the marker
+    request:
+      method: POST
+      path: /groups
+      headers: *session
+      json: {name: "Team {{marker.last_name}}", description: "Reach {{marker.first_name}} at {{marker.phone}}", memberIds: [3]}
+    expect: [201]
+    capture:
+      group_id: body.conversation.id
+  - name: create a group with a refused name (deliberate error)
+    request:
+      method: POST
+      path: /groups
+      headers: *session
+      json: {name: "<{{marker.last_name}}>", description: "{{marker.email}}", memberIds: [3]}
+    expect: [400]
+  - name: send a message holding the marker
+    request:
+      method: POST
+      path: "/conversations/{{group_id}}/messages"
+      headers: *session
+      json: {content: "Hello {{marker.first_name}} {{marker.last_name}}, call {{marker.phone}} or {{marker.email}}"}
+    expect: [201]
+  - name: send a message with a refused content (deliberate error)
+    request:
+      method: POST
+      path: "/conversations/{{group_id}}/messages"
+      headers: *session
+      json: {content: "<b>{{marker.email}}</b>"}
+    expect: [400]
+  - name: send a message to a conversation that does not exist (deliberate error)
+    request:
+      method: POST
+      path: /conversations/999999/messages
+      headers: *session
+      json: {content: "Hello {{marker.last_name}}, {{marker.phone}}"}
+    # Message API 2.1.0 (the stack's) answers 404; 403 is kept for a chat the caller may not post in.
+    expect: [403, 404]
+  - name: read the messages
+    request: {method: GET, path: "/conversations/{{group_id}}/messages?limit=20", headers: *session}
+  - name: read the messages with a refused cursor (deliberate error, query string)
+    request: {method: GET, path: "/conversations/{{group_id}}/messages?before={{marker.email}}", headers: *session}
+    expect: [400]
+  - name: send a direct message holding the marker
+    request:
+      method: POST
+      path: /direct-messages
+      headers: *session
+      json: {recipientId: 3, message: "Private: {{marker.first_name}} {{marker.last_name}}, {{marker.phone}}"}
+    expect: [201]
+  - name: send a direct message to a refused recipient (deliberate error)
+    request:
+      method: POST
+      path: /direct-messages
+      headers: *session
+      json: {recipientId: "{{marker.email}}", message: "Private: {{marker.last_name}}"}
+    expect: [400]
+  - name: read the bootstrap with an invalid token (deliberate error)
+    request: {method: GET, path: /messaging/bootstrap, headers: {Cookie: "accessToken={{marker.password}}", Origin: "http://message-front:5003"}}
+    expect: [401]

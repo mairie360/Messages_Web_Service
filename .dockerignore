@@ -22,5 +22,11 @@ accessibility_test.sh
 rgaa.yaml
 rgaa-report
 .rgaa-ai-cache
+gdpr-simulation
+.gdpr-ai-cache
+gdpr-simulation.yaml
+gdpr-journey.yaml
+gdpr_simulation_test.sh
+docker-compose-gdpr-simulation.yml
 init-accessibility.sql
 cicd-repo
