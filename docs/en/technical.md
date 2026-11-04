@@ -250,7 +250,7 @@ the verified `staging-<sha>` image (`e2e_tests` job, mairie360/CICD `actions/e2e
 MAIR-602) and blocks the release when a journey fails or when the folder is missing. The report
 (HTML, traces and videos of the failed journeys) is kept in `e2e-report/`. For local iterations,
 start the stack with `docker compose -f docker-compose-e2e.yml up -d message-front` and run
-`E2E_BASE_URL=http://localhost:5003 npm run e2e` (after `npm run e2e:install`); tear it down with
+`E2E_BASE_URL=http://localhost:${E2E_FRONT_PORT:-5003} npm run e2e` (after `npm run e2e:install`; `E2E_FRONT_PORT` moves the published port); tear it down with
 `docker compose -f docker-compose-e2e.yml down -v` before a new run.
 
 ## Troubleshooting
