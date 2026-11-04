@@ -79,7 +79,7 @@ test('the exact required legacy status executes both real blocking scanners with
     steps: [
       { name: 'Checkout frontend history', uses: checkout, with: { 'fetch-depth': 0, 'persist-credentials': false } },
       { name: 'Checkout reviewed scanner actions', uses: checkout, with: {
-        repository: 'mairie360/CICD', ref: '34889930cf42b20020d2e2f702a566ef7ebca1ec', path: 'cicd-repo', 'persist-credentials': false,
+        repository: 'mairie360/CICD', ref: 'ccf7d3acc8c6fb9d5f57b95347e6aceb94df6f69', path: 'cicd-repo', 'persist-credentials': false,
       } },
       { name: 'Run blocking Semgrep scan', uses: './cicd-repo/actions/security/semgrep-pypi', with: {
         config: 'p/typescript p/react p/owasp-top-ten p/secrets p/dockerfile p/github-actions', fail_on_findings: 'true', artifact_name: 'semgrep-required-check-sarif',

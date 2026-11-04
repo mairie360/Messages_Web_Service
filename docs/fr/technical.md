@@ -266,7 +266,7 @@ de mairie360/CICD, MAIR-602) et bloque la release si un parcours échoue ou si l
 Le rapport (HTML, traces et vidéos des parcours en échec) est conservé dans `e2e-report/`. Pour
 itérer en local, démarrer la stack avec `docker compose -f docker-compose-e2e.yml up -d message-front`
 puis lancer `E2E_BASE_URL=http://localhost:5003 npm run e2e` (après `npm run e2e:install`) ; la
-supprimer avec `down -v` avant un nouveau lancement.
+supprimer avec `docker compose -f docker-compose-e2e.yml down -v` avant un nouveau lancement.
 
 ## Diagnostic
 
