@@ -109,6 +109,8 @@ test('the e2e stack is its own Compose project and starts from a successful rese
   const compose = yaml.load(read('docker-compose-e2e.yml'));
   assert.equal(compose.name, 'messages-e2e', 'down -v must never reach the dev stack of the same folder');
   const script = read('e2e_test.sh');
+  assert.match(script, /^export COMPOSE_PROJECT_NAME="messages-e2e"$/m, 'the caller environment cannot redirect down -v');
+  assert.ok(script.indexOf('export COMPOSE_PROJECT_NAME') < script.indexOf('docker compose -f'), 'set before the first Compose command');
   assert.match(script, /if ! docker compose -f "\$COMPOSE_FILE" down -v --remove-orphans; then[\s\S]*?exit 1\nfi/,
     'a failed initial reset stops the run');
 });

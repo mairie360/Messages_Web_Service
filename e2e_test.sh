@@ -6,6 +6,9 @@
 
 COMPOSE_FILE="docker-compose-e2e.yml"
 SERVICE_NAME="playwright"
+# Fixed project, as in docker-compose-e2e.yml: a COMPOSE_PROJECT_NAME of the caller (it wins over `name:`)
+# must never point the `down -v` below at another stack.
+export COMPOSE_PROJECT_NAME="messages-e2e"
 
 # A front without journeys must fail, not pass silently (MAIR-602 acceptance criteria).
 if ! ls e2e/*.spec.ts >/dev/null 2>&1; then
