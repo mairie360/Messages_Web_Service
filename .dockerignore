@@ -12,13 +12,24 @@ playwright-report
 
 # tests (unitaires, sécurité, performance) : inutiles dans l'image
 coverage
-tests
 .zap
 docker-compose-*.yml
 load-test.js
 init-test.sql
 security_test.sh
 performance_test.sh
+accessibility_test.sh
+rgaa.yaml
+rgaa-report
+.rgaa-ai-cache
+gdpr-simulation
+.gdpr-ai-cache
+gdpr-simulation.yaml
+gdpr-journey.yaml
+gdpr_simulation_test.sh
+docker-compose-gdpr-simulation.yml
+init-accessibility.sql
+cicd-repo
 
 # end-to-end journeys (MAIR-603): run from the docker-compose-e2e.yml stack, not in the image
 e2e
