@@ -55,3 +55,6 @@ next-env.d.ts
 # GDPR usage simulation run (gdpr_simulation_test.sh, MAIR-497): raw logs, never committed.
 /gdpr-simulation/
 /.gdpr-ai-cache/
+# end-to-end journeys (MAIR-603)
+/e2e/node_modules
+/e2e-report

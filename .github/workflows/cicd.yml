@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: mairie360/CICD
-          ref: 34889930cf42b20020d2e2f702a566ef7ebca1ec # v5.3.1
+          ref: ccf7d3acc8c6fb9d5f57b95347e6aceb94df6f69 # v5.5.0
           path: cicd-repo
           persist-credentials: false
       - name: Run blocking Semgrep scan
