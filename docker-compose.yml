@@ -81,7 +81,7 @@ services:
 
   message-api:
     container_name: message-api-front-message-developpement
-    image: ghcr.io/mairie360/message-api:2.1.0
+    image: ghcr.io/mairie360/message-api:2.2.0
     ports:
       - "3003:3003"
     networks:
@@ -109,7 +109,7 @@ services:
 
   bff-message:
     container_name: bff-message-message-front
-    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:dev-cdd75eb}
+    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:1.2.0}
     ports:
       - "4003:4003"
     networks:
