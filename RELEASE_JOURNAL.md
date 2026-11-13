@@ -1,36 +1,17 @@
 # Journal des releases — Messages_Web_Service
 
-<!-- release-journal-state {"dev": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "prod": "9b14d687f47bbd09f93d7b2cfbbefc090e198a2f", "prod_tag": "v0.5.0", "staging": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "updated": {"dev": "2026-11-13 01:14 UTC", "prod": "2026-10-21 11:08 UTC", "staging": "2026-11-13 01:18 UTC"}} -->
+<!-- release-journal-state {"dev": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "prod": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "prod_tag": "v0.6.0", "staging": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "updated": {"dev": "2026-11-13 01:14 UTC", "prod": "2026-11-13 01:40 UTC", "staging": "2026-11-13 01:18 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
-| prod | v0.5.0 | `9b14d68` | 2026-10-21 11:08 UTC |
+| prod | v0.6.0 | `b662844` | 2026-11-13 01:40 UTC |
 | staging | — | `b662844` | 2026-11-13 01:18 UTC |
 | dev | — | `b662844` | 2026-11-13 01:14 UTC |
 
-## Ajouté sur main depuis la dernière release prod (v0.5.0)
+## Ajouté sur main depuis la dernière release prod (v0.6.0)
 
-- fix(deps): MAIR-1003 Release prod: align internal versions and deploy ([#323](https://github.com/mairie360/Messages_Web_Service/pull/323))
-- chore(deps): update mairie360 database schema to v3.4.0 (#321) ([#321](https://github.com/mairie360/Messages_Web_Service/pull/321))
-- fix: MAIR-816 Release dev: align internal versions and deploy ([#320](https://github.com/mairie360/Messages_Web_Service/pull/320))
-- chore(deps): update dependency mairie360/cicd to v5.6.0 (#318) ([#318](https://github.com/mairie360/Messages_Web_Service/pull/318))
-- feat: MAIR-603 E2E - Parcours utilisateurs Playwright des fronts (#298) ([#298](https://github.com/mairie360/Messages_Web_Service/pull/298))
-- chore(deps): update dependency mairie360/cicd to v5.5.0 (#313) ([#313](https://github.com/mairie360/Messages_Web_Service/pull/313))
-- fix: MAIR-743 [Audit 30/10] Login, Calendars, Elearning, Projects: branch Gitleaks fingerprints invalid after squash, main likely red (N1) (#315) ([#315](https://github.com/mairie360/Messages_Web_Service/pull/315))
-- fix: MAIR-497 GDPR - Usage simulation and AI review of logs and database before prod ([#312](https://github.com/mairie360/Messages_Web_Service/pull/312))
-- feat: MAIR-497 RGPD - Simulation d'usage et revue IA des logs et de la base avant la prod ([#311](https://github.com/mairie360/Messages_Web_Service/pull/311))
-- ci: MAIR-771 APIs, BFFs, Database : monter CICD en v5.2.2 pour activer les contrôles RGPD (#309) ([#309](https://github.com/mairie360/Messages_Web_Service/pull/309))
-- chore(deps): update mairie360 cicd (#302) ([#302](https://github.com/mairie360/Messages_Web_Service/pull/302))
-- fix(security): MAIR-770 Administrator, Dashboard, Messages, Settings : porter le correctif zod et la preuve de bundle par source maps ([#307](https://github.com/mairie360/Messages_Web_Service/pull/307))
-- fix(deps): bump follow-redirects to 1.16.2 (GHSA-mrwp-f3q8-3g9p) ([#304](https://github.com/mairie360/Messages_Web_Service/pull/304))
-- feat: MAIR-316 RGAA - Périmètre et états des pages par front (#221) ([#221](https://github.com/mairie360/Messages_Web_Service/pull/221))
-- fix(messages): MAIR-318 contain creation dialog keyboard focus (#213) ([#213](https://github.com/mairie360/Messages_Web_Service/pull/213))
-- ci: MAIR-295 Ajouter une checklist RGPD aux PR et des rappels d'échéances automatiques (#226) ([#226](https://github.com/mairie360/Messages_Web_Service/pull/226))
-- fix(security): patch Node.js runtime and toolchain (#300) ([#300](https://github.com/mairie360/Messages_Web_Service/pull/300))
-- chore(deps): update dependency mairie360/cicd to v4.5.0 (#299) ([#299](https://github.com/mairie360/Messages_Web_Service/pull/299))
-- fix(deps): update typescript dependencies (#249) ([#249](https://github.com/mairie360/Messages_Web_Service/pull/249))
-- feat!: MAIR-608 Lib UI - Normaliser la charte, les tailles et les composants partagés des fronts ([#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
+_Rien._
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
@@ -38,34 +19,14 @@ _Rien._
 
 ## Différence staging → prod (en staging, pas encore en prod)
 
-- fix(deps): MAIR-1003 Release prod: align internal versions and deploy ([#323](https://github.com/mairie360/Messages_Web_Service/pull/323))
-- chore(deps): update mairie360 database schema to v3.4.0 (#321) ([#321](https://github.com/mairie360/Messages_Web_Service/pull/321))
-- fix: MAIR-816 Release dev: align internal versions and deploy ([#320](https://github.com/mairie360/Messages_Web_Service/pull/320))
-- chore(deps): update dependency mairie360/cicd to v5.6.0 (#318) ([#318](https://github.com/mairie360/Messages_Web_Service/pull/318))
-- feat: MAIR-603 E2E - Parcours utilisateurs Playwright des fronts (#298) ([#298](https://github.com/mairie360/Messages_Web_Service/pull/298))
-- chore(deps): update dependency mairie360/cicd to v5.5.0 (#313) ([#313](https://github.com/mairie360/Messages_Web_Service/pull/313))
-- fix: MAIR-743 [Audit 30/10] Login, Calendars, Elearning, Projects: branch Gitleaks fingerprints invalid after squash, main likely red (N1) (#315) ([#315](https://github.com/mairie360/Messages_Web_Service/pull/315))
-- fix: MAIR-497 GDPR - Usage simulation and AI review of logs and database before prod ([#312](https://github.com/mairie360/Messages_Web_Service/pull/312))
-- feat: MAIR-497 RGPD - Simulation d'usage et revue IA des logs et de la base avant la prod ([#311](https://github.com/mairie360/Messages_Web_Service/pull/311))
-- ci: MAIR-771 APIs, BFFs, Database : monter CICD en v5.2.2 pour activer les contrôles RGPD (#309) ([#309](https://github.com/mairie360/Messages_Web_Service/pull/309))
-- chore(deps): update mairie360 cicd (#302) ([#302](https://github.com/mairie360/Messages_Web_Service/pull/302))
-- fix(security): MAIR-770 Administrator, Dashboard, Messages, Settings : porter le correctif zod et la preuve de bundle par source maps ([#307](https://github.com/mairie360/Messages_Web_Service/pull/307))
-- fix(deps): bump follow-redirects to 1.16.2 (GHSA-mrwp-f3q8-3g9p) ([#304](https://github.com/mairie360/Messages_Web_Service/pull/304))
-- feat: MAIR-316 RGAA - Périmètre et états des pages par front (#221) ([#221](https://github.com/mairie360/Messages_Web_Service/pull/221))
-- fix(messages): MAIR-318 contain creation dialog keyboard focus (#213) ([#213](https://github.com/mairie360/Messages_Web_Service/pull/213))
-- ci: MAIR-295 Ajouter une checklist RGPD aux PR et des rappels d'échéances automatiques (#226) ([#226](https://github.com/mairie360/Messages_Web_Service/pull/226))
-- fix(security): patch Node.js runtime and toolchain (#300) ([#300](https://github.com/mairie360/Messages_Web_Service/pull/300))
-- chore(deps): update dependency mairie360/cicd to v4.5.0 (#299) ([#299](https://github.com/mairie360/Messages_Web_Service/pull/299))
-- fix(deps): update typescript dependencies (#249) ([#249](https://github.com/mairie360/Messages_Web_Service/pull/249))
-- feat!: MAIR-608 Lib UI - Normaliser la charte, les tailles et les composants partagés des fronts ([#291](https://github.com/mairie360/Messages_Web_Service/pull/291))
-
-> Résumé Claude indisponible pour ce passage : listes brutes des commits.
+_Rien._
 
 ## Historique des passages
 
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-13 01:40 UTC | prod | v0.6.0 | `b662844` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/43344048182) |
 | 2026-11-13 01:18 UTC | staging | — | `b662844` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/43343485307) |
 | 2026-11-13 01:14 UTC | dev | — | `b662844` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/43342382826) |
 | 2026-11-13 01:06 UTC | dev | — | `9dc5ed0` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/43340627312) |
