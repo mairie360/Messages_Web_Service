@@ -1,16 +1,17 @@
 # Journal des releases — Messages_Web_Service
 
-<!-- release-journal-state {"dev": "2fdf0c48002987685fa42952d4864cf521ab4a35", "prod": "9b14d687f47bbd09f93d7b2cfbbefc090e198a2f", "prod_tag": "v0.5.0", "staging": "2fdf0c48002987685fa42952d4864cf521ab4a35", "updated": {"dev": "2026-11-12 17:05 UTC", "prod": "2026-10-21 11:08 UTC", "staging": "2026-11-12 19:05 UTC"}} -->
+<!-- release-journal-state {"dev": "9dc5ed0d9f9e4ab81579c89ed986971eea5fda11", "prod": "9b14d687f47bbd09f93d7b2cfbbefc090e198a2f", "prod_tag": "v0.5.0", "staging": "2fdf0c48002987685fa42952d4864cf521ab4a35", "updated": {"dev": "2026-11-13 01:06 UTC", "prod": "2026-10-21 11:08 UTC", "staging": "2026-11-12 19:05 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v0.5.0 | `9b14d68` | 2026-10-21 11:08 UTC |
 | staging | — | `2fdf0c4` | 2026-11-12 19:05 UTC |
-| dev | — | `2fdf0c4` | 2026-11-12 17:05 UTC |
+| dev | — | `9dc5ed0` | 2026-11-13 01:06 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v0.5.0)
 
+- chore(deps): update mairie360 database schema to v3.4.0 (#321) ([#321](https://github.com/mairie360/Messages_Web_Service/pull/321))
 - fix: MAIR-816 Release dev: align internal versions and deploy ([#320](https://github.com/mairie360/Messages_Web_Service/pull/320))
 - chore(deps): update dependency mairie360/cicd to v5.6.0 (#318) ([#318](https://github.com/mairie360/Messages_Web_Service/pull/318))
 - feat: MAIR-603 E2E - Parcours utilisateurs Playwright des fronts (#298) ([#298](https://github.com/mairie360/Messages_Web_Service/pull/298))
@@ -32,7 +33,7 @@
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
-_Rien._
+- chore(deps): update mairie360 database schema to v3.4.0 (#321) ([#321](https://github.com/mairie360/Messages_Web_Service/pull/321))
 
 ## Différence staging → prod (en staging, pas encore en prod)
 
@@ -62,6 +63,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-13 01:06 UTC | dev | — | `9dc5ed0` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/43340627312) |
 | 2026-11-12 19:05 UTC | staging | — | `2fdf0c4` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/43285882384) |
 | 2026-11-12 17:05 UTC | dev | — | `2fdf0c4` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/43264148661) |
 | 2026-11-04 22:13 UTC | dev | — | `3f53055` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/41922196368) |
