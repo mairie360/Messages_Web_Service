@@ -36,7 +36,7 @@ x-api-env: &api-env
 
 services:
   postgres:
-    image: ${DB_IMAGE:-ghcr.io/mairie360/database:3.3.0}
+    image: ${DB_IMAGE:-ghcr.io/mairie360/database:3.4.0}
     container_name: message-front-a11y-db
     environment:
       POSTGRES_USER: postgres
@@ -55,7 +55,7 @@ services:
       retries: 10
 
   liquibase:
-    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:3.3.0}
+    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:3.4.0}
     container_name: message-front-a11y-liquibase
     depends_on:
       postgres:
@@ -120,7 +120,7 @@ services:
       retries: 5
 
   message-api:
-    image: ${MESSAGE_API_IMAGE:-ghcr.io/mairie360/message-api:2.1.0}
+    image: ${MESSAGE_API_IMAGE:-ghcr.io/mairie360/message-api:2.2.0}
     container_name: message-front-a11y-message-api
     depends_on:
       liquibase:
@@ -159,7 +159,7 @@ services:
       - backend
 
   core-api:
-    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:2.2.0}
+    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:2.3.0}
     container_name: message-front-a11y-core-api
     depends_on:
       liquibase:
@@ -200,7 +200,7 @@ services:
       - backend
 
   bff-message:
-    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:dev-cdd75eb}
+    image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:1.2.0}
     container_name: message-front-a11y-bff-message
     depends_on:
       seeder-a11y:
