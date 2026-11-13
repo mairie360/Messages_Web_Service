@@ -159,7 +159,7 @@ services:
       - backend
 
   core-api:
-    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:2.2.0}
+    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:2.3.0}
     container_name: message-front-sim-core-api
     depends_on:
       liquibase:
