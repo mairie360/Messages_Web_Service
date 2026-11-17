@@ -59,11 +59,10 @@ test('src imports contract types from the package only, never from a local copy'
   ]);
 });
 
-test('every Docker stack starts BFF Message only, in the image built from the contract package commit', async () => {
-  const { imageTagForContractVersion } = await import('../scripts/contract-version.mjs');
-  const expectedTag = imageTagForContractVersion(pinned);
+test('MAIR-998 every Docker stack starts BFF Message only, on the moving tag of the stage', () => {
+  const expectedTag = '${UPSTREAM_TAG:-dev}';
   for (const file of fs.readdirSync(ROOT).filter((name) => /^docker-compose.*\.ya?ml$/.test(name))) {
-    const images = [...fs.readFileSync(path.join(ROOT, file), 'utf8').matchAll(/ghcr\.io\/mairie360\/(bff-[\w-]+):([\w.-]+)/g)];
+    const images = [...fs.readFileSync(path.join(ROOT, file), 'utf8').matchAll(/ghcr\.io\/mairie360\/(bff-[\w-]+):(\$\{[^}]*\}|[\w.-]+)/g)];
     assert.deepEqual(images.map(([, name, tag]) => `${name}:${tag}`), [`bff-message:${expectedTag}`], file);
   }
 });
@@ -82,12 +81,9 @@ test('MAIR-553: every Docker stack gives BFF Message the upstream URLs it requir
   }
 });
 
-test('the contract version policy accepts releases, dev and staging packages and maps them to image tags', async () => {
-  const { isAcceptedContractVersion, imageTagForContractVersion } = await import('../scripts/contract-version.mjs');
-  assert.equal(imageTagForContractVersion('0.4.0'), '0.4.0');
-  assert.equal(imageTagForContractVersion('0.0.0-dev.0f3838b81c6fa6e66b938c35ef211cf2ed862ad3'), 'dev-0f3838b');
+test('the contract version policy accepts releases, dev and staging packages', async () => {
+  const { isAcceptedContractVersion } = await import('../scripts/contract-version.mjs');
   assert.equal(isAcceptedContractVersion('0.0.0-staging.0f3838b81c6fa6e66b938c35ef211cf2ed862ad3'), true);
-  assert.equal(imageTagForContractVersion('0.0.0-staging.0f3838b81c6fa6e66b938c35ef211cf2ed862ad3'), 'staging-0f3838b');
   for (const rejected of ['^0.4.0', '0.4', '0.0.0-staging.0f3838b', '0.0.0-dev.0f3838b', 'latest']) {
     assert.equal(isAcceptedContractVersion(rejected), false, rejected);
   }
