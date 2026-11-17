@@ -1,21 +1,23 @@
 # Journal des releases — Messages_Web_Service
 
-<!-- release-journal-state {"dev": "43ad7b911d293b403e4bb1ffcfe3ed63f6e10fb7", "prod": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "prod_tag": "v0.6.0", "staging": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "updated": {"dev": "2026-11-17 13:04 UTC", "prod": "2026-11-13 01:40 UTC", "staging": "2026-11-13 01:18 UTC"}} -->
+<!-- release-journal-state {"dev": "0169d227da669a489cb491da76b34c209b41acec", "prod": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "prod_tag": "v0.6.0", "staging": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "updated": {"dev": "2026-11-17 14:56 UTC", "prod": "2026-11-13 01:40 UTC", "staging": "2026-11-13 01:18 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v0.6.0 | `b662844` | 2026-11-13 01:40 UTC |
 | staging | — | `b662844` | 2026-11-13 01:18 UTC |
-| dev | — | `43ad7b9` | 2026-11-17 13:04 UTC |
+| dev | — | `0169d22` | 2026-11-17 14:56 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v0.6.0)
 
+- feat: MAIR-998 Test stacks follow the moving upstream tag of the stage (#329) ([#329](https://github.com/mairie360/Messages_Web_Service/pull/329))
 - ci: MAIR-1008 Nightly rehearsal of the promotion gates (#327) ([#327](https://github.com/mairie360/Messages_Web_Service/pull/327))
 - chore(deps): update dependency mairie360/cicd to v5.6.1 (#331) ([#331](https://github.com/mairie360/Messages_Web_Service/pull/331))
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
+- feat: MAIR-998 Test stacks follow the moving upstream tag of the stage (#329) ([#329](https://github.com/mairie360/Messages_Web_Service/pull/329))
 - ci: MAIR-1008 Nightly rehearsal of the promotion gates (#327) ([#327](https://github.com/mairie360/Messages_Web_Service/pull/327))
 - chore(deps): update dependency mairie360/cicd to v5.6.1 (#331) ([#331](https://github.com/mairie360/Messages_Web_Service/pull/331))
 
@@ -30,6 +32,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-17 14:56 UTC | dev | — | `0169d22` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/44107683930) |
 | 2026-11-17 13:04 UTC | dev | — | `43ad7b9` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/44086775253) |
 | 2026-11-17 11:16 UTC | dev | — | `3994148` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/44070358203) |
 | 2026-11-13 01:40 UTC | prod | v0.6.0 | `b662844` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/43344048182) |
