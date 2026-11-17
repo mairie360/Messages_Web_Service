@@ -15,7 +15,7 @@ npm ci
 npm run dev                              # `next dev -p 5003`; needs BFF_Message reachable, see "BFF URL" below
 npm run build && npm run start -- --port 5003   # `start` has no port of its own (defaults to 3000)
 npm run lint                             # ESLint on src/
-npm test                                 # node:test on tests/*.test.cjs, then the Vitest component tests, 60% branch/function/line thresholds on src/** (source-mapped), lcov in coverage/lcov.info (what CI runs)
+npm test                                 # node:test on tests/*.test.cjs (60% branch/function/line thresholds on src/**, source-mapped, lcov in coverage/lcov.info), then the Vitest component tests (what CI runs)
 npm run test:contracts                   # node:test files only, no coverage
 npm run test:components                  # Vitest + jsdom component tests only
 node --test --test-name-pattern="<name>" tests/proxy.test.cjs   # single test
@@ -24,7 +24,7 @@ docker compose up --watch                # dev stack: Postgres + Liquibase + Red
 
 The `docker-compose.yml` dev stack pulls `dev-latest` GHCR images for the database and Message API, and `bff-message` at the contract package version. BFF_Message is the only BFF: no Core API, no BFF User (BFF_Message itself no longer calls Core, and Message API validates the JWT).
 
-Tests are plain CommonJS `node:test` files matching `tests/*.test.cjs` (no Jest, no DOM in these files). Load `src/` modules with `requireSrc('<path under src>')` from `tests/support/load-ts.cjs`: it transpiles `.ts`/`.tsx` with inline source maps (so `--enable-source-maps` reports coverage on the real TS lines) and resolves the `@/*` alias. Node only measures files a test loads, so `tests/network-contract.test.cjs` requires every non-React `src/**/*.ts` module; `src/app/page.tsx` and `app-shell.tsx` are loaded by `tests/messages-page.contract-mocks.test.cjs` only, so page logic still lives in `src/lib/messaging-state.ts` and session loading in `fetchAuthSession`/`toAuthSession`.
+Tests are plain CommonJS `node:test` files matching `tests/*.test.cjs` (no Jest, no DOM in these files). Load `src/` modules with `requireSrc('<path under src>')` from `tests/support/load-ts.cjs`: it transpiles `.ts`/`.tsx` with inline source maps (so `--enable-source-maps` reports coverage on the real TS lines) and resolves the `@/*` alias. Every source must show up in the node coverage report (a file no test loads fails the gate), so `tests/network-contract.test.cjs` requires every non-React `src/**/*.ts` module; `src/app/page.tsx` is rendered by `tests/messages-page.contract-mocks.test.cjs`, `tests/server-initial-page.test.cjs` and `tests/initial-messages-hydration.test.cjs`, so page logic still lives in `src/lib/messaging-state.ts` and session loading in `fetchAuthSession`/`toAuthSession`.
 
 Component tests are separate and run by `npm test` after the node tests (`npm run test:components`): Vitest + jsdom + Testing Library (`vitest run`), co-located `Name.test.tsx` files under `src/` (see *Component tree convention*), configured by `vitest.config.mjs` with `tests/component/setup.js`.
 
