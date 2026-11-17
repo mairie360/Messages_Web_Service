@@ -1,31 +1,34 @@
 # Journal des releases — Messages_Web_Service
 
-<!-- release-journal-state {"dev": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "prod": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "prod_tag": "v0.6.0", "staging": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "updated": {"dev": "2026-11-13 01:14 UTC", "prod": "2026-11-13 01:40 UTC", "staging": "2026-11-13 01:18 UTC"}} -->
+<!-- release-journal-state {"dev": "3994148ee585a78cec253a6399d88dcdb8ddcb16", "prod": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "prod_tag": "v0.6.0", "staging": "b662844b17c754edfba4eb01e133277c6b9bc7a9", "updated": {"dev": "2026-11-17 11:16 UTC", "prod": "2026-11-13 01:40 UTC", "staging": "2026-11-13 01:18 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v0.6.0 | `b662844` | 2026-11-13 01:40 UTC |
 | staging | — | `b662844` | 2026-11-13 01:18 UTC |
-| dev | — | `b662844` | 2026-11-13 01:14 UTC |
+| dev | — | `3994148` | 2026-11-17 11:16 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v0.6.0)
 
-_Rien._
+- chore(deps): update dependency mairie360/cicd to v5.6.1 (#331) ([#331](https://github.com/mairie360/Messages_Web_Service/pull/331))
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
-_Rien._
+- chore(deps): update dependency mairie360/cicd to v5.6.1 (#331) ([#331](https://github.com/mairie360/Messages_Web_Service/pull/331))
 
 ## Différence staging → prod (en staging, pas encore en prod)
 
 _Rien._
+
+> Résumé Claude indisponible pour ce passage : listes brutes des commits.
 
 ## Historique des passages
 
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-17 11:16 UTC | dev | — | `3994148` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/44070358203) |
 | 2026-11-13 01:40 UTC | prod | v0.6.0 | `b662844` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/43344048182) |
 | 2026-11-13 01:18 UTC | staging | — | `b662844` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/43343485307) |
 | 2026-11-13 01:14 UTC | dev | — | `b662844` | [run](https://github.com/mairie360/Messages_Web_Service/actions/runs/43342382826) |
