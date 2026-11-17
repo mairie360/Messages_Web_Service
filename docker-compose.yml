@@ -25,6 +25,7 @@ x-db-env: &db-env
 services:
   postgres:
     image: ghcr.io/mairie360/database:${UPSTREAM_TAG:-dev}
+    pull_policy: ${UPSTREAM_PULL_POLICY:-always}
     restart: always
     container_name: mairie360-db-message-front
     environment:
@@ -45,6 +46,7 @@ services:
 
   liquibase:
     image: ghcr.io/mairie360/liquibase-migrations:${UPSTREAM_TAG:-dev}
+    pull_policy: ${UPSTREAM_PULL_POLICY:-always}
     container_name: mairie360-liquibase-message-front
     depends_on:
       postgres:
@@ -82,6 +84,7 @@ services:
   message-api:
     container_name: message-api-front-message-developpement
     image: ghcr.io/mairie360/message-api:${UPSTREAM_TAG:-dev}
+    pull_policy: ${UPSTREAM_PULL_POLICY:-always}
     ports:
       - "3003:3003"
     networks:
@@ -110,6 +113,7 @@ services:
   bff-message:
     container_name: bff-message-message-front
     image: ${BFF_MESSAGE_IMAGE:-ghcr.io/mairie360/bff-message:${UPSTREAM_TAG:-dev}}
+    pull_policy: ${UPSTREAM_PULL_POLICY:-always}
     ports:
       - "4003:4003"
     networks:
