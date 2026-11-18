@@ -33,7 +33,8 @@ jobs:
     secrets:
       N8N_WEBHOOK_SECRET: ${{ secrets.N8N_WEBHOOK_SECRET }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      # AI pre-audit of the RGAA check (rgaa job, MAIR-320); the workspace only when the key is not scoped to one.
       ANTHROPIC_WORKSPACE_ID: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
       RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
       RELEASE_APP_PK: ${{ secrets.RELEASE_APP_PK }}
+      # AI pre-audit of the RGAA check (rgaa job, MAIR-320); the workspace only when the key is not scoped to one.
+      ANTHROPIC_REVIEW_API_KEY: ${{ secrets.ANTHROPIC_REVIEW_API_KEY }}
