@@ -202,3 +202,6 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
 - **Confirmations (MAIR-865).** « Message direct créé. », « Groupe … créé. » and the other action
   confirmations float in a lib toast bottom right, above the footer, without moving the module (5 s, no
   title, closable with the mouse or the keyboard).
+- **Empty states (MAIR-870).** « Sélectionnez une conversation » (empty header, large semibold), « Aucune
+  conversation trouvée. » (local search without result), « Aucun contact trouvé. » and the thread placeholders
+  are lib `Text` (muted), no hand-styled paragraph; the thread keeps a ready-made `DataState` as is.

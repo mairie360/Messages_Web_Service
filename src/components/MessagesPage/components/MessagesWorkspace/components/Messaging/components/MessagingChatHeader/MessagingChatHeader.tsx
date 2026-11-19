@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from '@mairie360/lib-components/primitives';
 import { Phone, Video } from 'lucide-react';
 
 import { joinClasses } from '../../messaging-style';
@@ -42,7 +43,7 @@ export const MessagingChatHeader = ({
         className={joinClasses('flex min-h-[78px] items-center border-b border-[var(--mairie-border)] bg-[var(--mairie-surface)] px-4', className)}
         {...props}
       >
-        <p className="text-sm text-[var(--mairie-muted)]">Sélectionnez une conversation</p>
+        <Text as="p" size="l" weight="semibold">Sélectionnez une conversation</Text>
       </div>
     );
   }
