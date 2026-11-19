@@ -31,8 +31,8 @@ export function AppShell({ activeItem, children }: AppShellProps) {
       user={session.user}
       onLogout={() => void logout()}
       hrefs={{ ...frontHrefs, messages: frontHrefs.messages ?? "/" }}
+      mainLayout="fill"
       sidebarProps={{ brandLogoSrc: "/mairie360-logo.png" }}
-      className="messages-app-root"
     >
       <div className="messages-main-inner">
         {logoutError && <div className="mb-4 shrink-0">

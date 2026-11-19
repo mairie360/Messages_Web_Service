@@ -758,7 +758,8 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
   assert.match(view.text(), /Chargement de la messagerie/);
   assert.equal(view.hostElements((props, text, tag) => tag === 'button' && text === 'Chargement en cours…')[0].props.disabled, true);
   assert.doesNotMatch(view.text(), /Aucune conversation/);
-  assert.match(view.html, /messages-app-root/);
+  assert.doesNotMatch(view.html, /messages-app-root/);
+  assert.match(view.html, /<main\b[^>]*data-layout="fill"/);
   assert.match(view.html, /messages-main-inner/);
   assert.doesNotMatch(view.text(), /Équipe communication/);
 
@@ -782,7 +783,7 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
   const footer = view.html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/)?.[0];
   assert.ok(footer);
   assert.doesNotMatch(view.html, /<aside\b[^]*?<footer\b[^]*?<\/footer>[^]*?<\/aside>/);
-  assert.match(view.html, /<\/main>\s*<footer\b/);
+  assert.match(view.html, /<\/main>[\s\S]*<div class="app-shell-footer shrink-0"[^>]*><footer\b/);
   assert.match(footer.replace(/<[^>]*>/g, ''), new RegExp(`© ${new Date().getFullYear()} Mairie360`));
   assert.doesNotMatch(footer, /Version|<button\b|<a\b/);
 });
@@ -819,32 +820,31 @@ test('desktop and mobile navigation expose only active modules and keep Settings
   try {
     await renderLoadedPage();
     assert.equal(view.props('Header').profileHref, 'https://settings.test.example/');
-    const isAdmin = view.props('Sidebar').isAdmin;
-    for (const mobileOpen of [false, true]) {
-      await view.act(() => view.props('Header').setSidebarOpen(mobileOpen));
-      const sidebars = view.find('Sidebar');
-      assert.equal(sidebars.length, mobileOpen ? 2 : 1);
-      for (const { props } of sidebars) {
-        assert.deepEqual(props.items.map(item => item.id),
-          ['dashboard', 'projects', 'messages', 'training', 'calendar', 'admin', 'settings']);
-        assert.equal(props.items.find(item => item.id === 'admin').adminOnly, true);
-        assert.equal(props.isAdmin, isAdmin);
-        assert.equal(props.activeItem, 'messages');
-      }
-      const menus = view.html.match(/<nav\b[^>]*aria-label="Menu principal"[^>]*>[\s\S]*?<\/nav>/g) ?? [];
-      assert.equal(menus.length, sidebars.length + 1);
-      for (const menu of menus) {
-        assert.doesNotMatch(menu, /E-mails|Fichiers/);
-        assert.match(menu, /Paramètres/);
-        assert.equal(menu.includes('>Administration<'), isAdmin);
-      }
-    }
-    const mobileSidebar = view.find('Sidebar')[1].props;
-    await view.act(() => mobileSidebar.onItemSelect(mobileSidebar.items.find(item => item.id === 'settings')));
+    const desktop = view.props('DesktopNavigation');
+    assert.equal(desktop.activeItem, 'messages');
+    const isAdmin = desktop.isAdmin;
+    const desktopMenu = view.html.match(/<aside\b[^>]*class="app-desktop-navigation"[\s\S]*?<\/aside>/)?.[0] ?? '';
+    assert.doesNotMatch(desktopMenu, /E-mails|Fichiers/);
+    assert.match(desktopMenu, /aria-label="Paramètres"/);
+    assert.equal(desktopMenu.includes('aria-label="Administration"'), isAdmin);
+    assert.equal(view.find('Sidebar').length, 0, 'the desktop band is not the mobile drawer');
+
+    await view.act(() => view.props('Header').setSidebarOpen(true));
+    const [mobile] = view.find('Sidebar');
+    assert.ok(mobile, 'the mobile drawer renders the shared sidebar');
+    assert.deepEqual(mobile.props.items.map(item => item.id),
+      ['dashboard', 'projects', 'messages', 'training', 'calendar', 'admin', 'settings']);
+    assert.equal(mobile.props.items.find(item => item.id === 'admin').adminOnly, true);
+    assert.equal(mobile.props.isAdmin, isAdmin);
+    assert.equal(mobile.props.activeItem, 'messages');
+    const drawer = view.html.match(/<div[^>]*role="dialog"[^>]*aria-label="Navigation mobile"[\s\S]*?<\/nav>/)?.[0] ?? '';
+    assert.doesNotMatch(drawer, /E-mails|Fichiers/);
+    assert.match(drawer, /Paramètres/);
+    await view.act(() => mobile.props.onItemSelect(mobile.props.items.find(item => item.id === 'settings')));
     assert.deepEqual(assigned, ['https://settings.test.example/']);
     await view.act(() => view.props('Header').onPageChange('profile'));
     assert.deepEqual(assigned, ['https://settings.test.example/', 'https://settings.test.example/']);
-    assert.equal(view.find('Sidebar').length, 1);
+    assert.equal(view.find('Sidebar').length, 0);
   } finally {
     setBrowserFrontUrls({});
     global.window.location.assign = originalAssign;
@@ -856,7 +856,8 @@ test('the sidebar keeps Settings as the only account entry', async () => {
   setBrowserFrontUrls({ SETTINGS_FRONT_URL: 'https://settings.test.example/' });
   try {
     await renderLoadedPage();
-    const ids = view.props('Sidebar').items.map((item) => item.id);
+    await view.act(() => view.props('Header').setSidebarOpen(true));
+    const ids = view.find('Sidebar')[0].props.items.map((item) => item.id);
     assert.equal(ids.includes('profile'), false);
     assert.equal(ids.filter((id) => id === 'settings').length, 1);
   } finally {
