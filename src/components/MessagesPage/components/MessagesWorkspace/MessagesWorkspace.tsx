@@ -7,6 +7,7 @@ import { AppShell, totalUnread } from './components/AppShell';
 import { prepareMessagingScrollRegions } from './messaging-scroll-regions';
 import { MobileConversationSwitch } from './components/MobileConversationSwitch';
 import { MessagesBootstrapState } from './components/MessagesBootstrapState';
+import { MessagesNotices } from './components/MessagesNotices';
 import type { useMessagingController } from '../../use-messaging-controller';
 
 type MessagesWorkspaceProps = ReturnType<typeof useMessagingController>;
@@ -18,6 +19,7 @@ export function MessagesWorkspace({
   retryBootstrap,
   deletingConversation,
   error,
+  dismissError,
   feedback,
   dismissFeedback,
   syncError,
@@ -58,24 +60,13 @@ export function MessagesWorkspace({
               {streamState === 'connected' ? 'Réception automatique active.' : streamState === 'polling' ? 'Actualisation automatique active.' : streamState === 'connecting' ? 'Connexion à la réception automatique…' : 'Réception automatique retardée.'}
               {streamState === 'offline' && <button type="button" onClick={retryReception} className="ml-3 min-h-11 font-semibold underline">Réessayer la réception</button>}
             </div>
-            {deletingConversation && (
-              <p role="status" className="messages-operation-status">
-                Suppression de la conversation en cours…
-              </p>
-            )}
-            {error && (
-              <p role="alert" className="messages-error">
-                {error}
-              </p>
-            )}
-            {syncError && (
-              <p role="alert" className="messages-error">
-                {syncError}
-              </p>
-            )}
-            {selectionPending && (
-              <p role="status" className="messages-operation-status">{threadPlaceholder}</p>
-            )}
+            <MessagesNotices
+              deletingConversation={deletingConversation}
+              error={error}
+              onDismissError={dismissError}
+              syncError={syncError}
+              pendingText={selectionPending ? threadPlaceholder : null}
+            />
 
             {activeConversationId && (
               <MobileConversationSwitch

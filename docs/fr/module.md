@@ -197,3 +197,7 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
 - **États de démarrage (MAIR-847).** Le chargement et l'indisponibilité de la messagerie utilisent
   `Card`, `ErrorAlert` (le démarrage refusé), `Skeleton` et `RetryButton` de la lib (« Chargement en
   cours… », désactivé pendant le chargement).
+- **Erreurs et statuts (MAIR-854).** Une action refusée s'affiche dans un `ErrorAlert` de la lib que l'on
+  peut fermer, une synchronisation refusée dans un `ErrorAlert` durable (la lecture suivante l'efface) ;
+  « Suppression de la conversation en cours… » et le texte d'ouverture d'un fil sont des `Alert` info. Les
+  textes et les annonces `alert` / `status` ne changent pas.

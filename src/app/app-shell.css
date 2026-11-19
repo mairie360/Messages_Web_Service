@@ -87,29 +87,7 @@
   flex-shrink: 0;
 }
 
-.messages-error {
-  margin: 0;
-  flex-shrink: 0;
-  border: 1px solid var(--mairie-error-text);
-  border-radius: 8px;
-  background: var(--mairie-error-surface);
-  padding: 10px 12px;
-  color: var(--mairie-error-text);
-  font-size: 14px;
-  line-height: 20px;
-}
 
-.messages-operation-status {
-  margin: 0;
-  flex-shrink: 0;
-  border: 1px solid var(--mairie-control-border);
-  border-radius: 8px;
-  background: var(--mairie-surface);
-  padding: 10px 12px;
-  color: var(--mairie-text);
-  font-size: 14px;
-  line-height: 20px;
-}
 
 @media (max-width: 1023px) {
   .messages-pane-switch {
