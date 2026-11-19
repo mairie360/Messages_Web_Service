@@ -188,3 +188,6 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
 - **Frame (MAIR-838).** Lib 2.1.0: the collapsible navigation band, top bar, footer, typography and the
   full-height main area (`mainLayout="fill"`: no page scroll, 20 px / 24 px padding) come from the lib
   frame; `app-shell.css` keeps only the messaging module geometry. The theme is always light.
+- **Shell (MAIR-844).** The navigation band shows the lib logo and the commune name (`COMMUNE_NAME`),
+  « Messagerie » is active with the unread total as its badge (99+ beyond 99), and the footer shows the
+  version (`APP_VERSION`) and the legal notice / privacy policy pages of the Login front.

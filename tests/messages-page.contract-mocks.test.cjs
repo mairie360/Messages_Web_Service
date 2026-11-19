@@ -785,7 +785,9 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
   assert.doesNotMatch(view.html, /<aside\b[^]*?<footer\b[^]*?<\/footer>[^]*?<\/aside>/);
   assert.match(view.html, /<\/main>[\s\S]*<div class="app-shell-footer shrink-0"[^>]*><footer\b/);
   assert.match(footer.replace(/<[^>]*>/g, ''), new RegExp(`© ${new Date().getFullYear()} Mairie360`));
-  assert.doesNotMatch(footer, /Version|<button\b|<a\b/);
+  // MAIR-844: no APP_VERSION here, so no version; the legal pages come from the Login front.
+  assert.doesNotMatch(footer, /Version|<button\b/);
+  assert.deepEqual([...footer.matchAll(/<a href="([^"]+)"/g)].map((match) => new URL(match[1]).pathname), ['/mentions-legales', '/confidentialite']);
 });
 
 test('narrow screens can switch to the conversation list and return to the selected thread', async () => {
