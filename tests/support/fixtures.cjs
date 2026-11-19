@@ -58,6 +58,14 @@ const businessReferences = () => ({
 /** ErrorResponse (BFF Message) : enveloppe d'erreur commune des BFFs, { error: { code, message, details } }. */
 const apiError = (code, text) => ({ error: { code, message: text, details: [] } });
 
-module.exports = {
+/**
+ * MAIR-865: the lib ToastProvider keeps two hidden live regions (`role="status"` / `role="alert"`) mounted; page
+ * assertions about the page's own alerts and statuses leave them out.
+ */
+const withoutToastRegions = (html) => html
+  .replace(/<div data-m360-component="ToastProvider" class="sr-only" role="(?:status|alert)"[^>]*>(?:<div>[^<]*<\/div>)*<\/div>/g, '')
+  .replace(/<section data-m360-component="ToastProvider"[\s\S]*?<\/section>/g, '');
+
+module.exports = { withoutToastRegions,
   apiError, bootstrap, businessReferences, contact, conversation, currentUser, message, messageBffContract, messageBffMock, tokenFor, users,
 };

@@ -513,12 +513,17 @@ function ensureBrowserGlobals() {
       body: eventTarget({ style: {}, contains: () => false, classList: { add() {}, remove() {} } }),
       documentElement: { style: {}, clientWidth: 1280, clientHeight: 800 },
       activeElement: null,
+      // The lib ToastProvider (2.x) pauses its timers while the window is blurred or hidden.
+      visibilityState: 'visible',
+      hasFocus: () => true,
       querySelector: () => null,
       querySelectorAll: () => [],
       getElementById: () => null,
       createElement: () => ({ style: {}, setAttribute() {}, appendChild() {}, remove() {} }),
     });
   }
+  // `instanceof HTMLElement` checks (lib ToastProvider) must not throw outside a DOM.
+  globalThis.HTMLElement ??= class HTMLElement {};
   const root = globalThis.document.documentElement ??= { clientWidth: 1280, clientHeight: 800 };
   root.dataset ??= {};
   root.style ??= {};

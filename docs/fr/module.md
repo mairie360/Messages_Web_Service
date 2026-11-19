@@ -204,3 +204,6 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
 - **Réception (MAIR-860).** L'état de la réception automatique est un `StatusPill` de la lib (active :
   succès, actualisation : info, connexion : neutre, retardée : avertissement) ; « Réessayer la réception »
   est un `Button` de la lib (cible de 44 px) affiché seulement quand la réception est retardée.
+- **Confirmations (MAIR-865).** « Message direct créé. », « Groupe … créé. » et les autres confirmations
+  d'action s'affichent dans un toast de la lib en bas à droite, au-dessus du pied de page, sans déplacer le
+  module (5 s, sans titre, fermable à la souris ou au clavier).
