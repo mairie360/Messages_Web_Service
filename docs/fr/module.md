@@ -191,3 +191,6 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   la typographie et la zone principale pleine hauteur (`mainLayout="fill"` : pas de défilement de page,
   marges 20 px / 24 px) viennent du cadre de la lib ; `app-shell.css` ne garde que la géométrie du module
   de messagerie. Le thème est toujours clair.
+- **Cadre (MAIR-844).** Le bandeau affiche le logo de la lib et le nom de la commune (`COMMUNE_NAME`),
+  « Messagerie » est actif avec le total des non-lus en badge (99+ au-delà de 99), et le pied de page affiche
+  la version (`APP_VERSION`) ainsi que les mentions légales et la politique de confidentialité du front Login.
