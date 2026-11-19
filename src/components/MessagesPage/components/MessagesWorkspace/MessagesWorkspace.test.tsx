@@ -14,6 +14,7 @@ describe('MessagesWorkspace', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Chargement de la messagerie' })).toBeInTheDocument();
     rerender(<MessagesWorkspace {...(controller as unknown as React.ComponentProps<typeof MessagesWorkspace>)} loading={false} bootstrapError="BFF injoignable" />);
     expect(screen.getByRole('heading', { level: 1, name: 'Messagerie indisponible' })).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('BFF injoignable');
+    // MAIR-865: the lib ToastProvider also mounts an empty hidden role="alert" region.
+    expect(screen.getAllByRole('alert').filter((node) => !node.closest('[data-m360-component~="ToastProvider"]')).map((node) => node.textContent)).toEqual([expect.stringContaining('BFF injoignable')]);
   });
 });

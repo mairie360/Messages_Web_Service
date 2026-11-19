@@ -11,7 +11,7 @@ const { installReactRuntime, mount } = require('./support/server-view.cjs');
 const { router } = installReactRuntime();
 const React = require('react');
 const { installBrowser } = require('./support/browser.cjs');
-const { apiError, bootstrap, businessReferences, contact, conversation, currentUser, message, messageBffMock, tokenFor, users } = require('./support/fixtures.cjs');
+const { withoutToastRegions, apiError, bootstrap, businessReferences, contact, conversation, currentUser, message, messageBffMock, tokenFor, users } = require('./support/fixtures.cjs');
 const { FrontNetwork } = require('./support/front-network.cjs');
 const { ContractMockServer } = require('./support/contract-mock-server.cjs');
 const { OpenApiContract } = require('./support/openapi-contract.cjs');
@@ -450,7 +450,7 @@ test('the page offers no onAttach and refuses a draft with attachments before an
     conversationId: 'conversation-4', content: 'Voici le document', attachments: [attachment], mentions: [],
   }));
   assert.equal(result, false);
-  const html = await view.waitFor((current) => current.includes('role="alert"'));
+  const html = await view.waitFor((current) => withoutToastRegions(current).includes('role="alert"'));
   assert.match(html, new RegExp(ATTACHMENTS_UNAVAILABLE_MESSAGE));
   assert.deepEqual(errorAlertTitles(), [ATTACHMENTS_UNAVAILABLE_MESSAGE]);
   assert.equal(ATTACHMENTS_UNAVAILABLE_MESSAGE, 'Les pièces jointes ne sont pas encore disponibles. Retirez-les du brouillon pour envoyer votre message.');
@@ -464,7 +464,7 @@ test('the page offers no onAttach and refuses a draft with attachments before an
   assert.equal(await view.act(() => view.props('Messaging').onSendMessage({
     conversationId: 'conversation-4', content: 'Voici le document', attachments: [], mentions: [],
   })), true);
-  await view.waitFor((current) => !current.includes('role="alert"'));
+  await view.waitFor((current) => !withoutToastRegions(current).includes('role="alert"'));
   assert.deepEqual(messageBff.requests.filter((call) => call.method === 'POST').map((call) => call.template), ['/conversations/{conversationId}/messages']);
 });
 
@@ -523,7 +523,7 @@ for (const [label, operation, send, reply, expected] of [
     const handler = { send: 'onSendMessage', direct: 'onNewMessageSend', group: 'onCreateGroup' }[operation];
 
     assert.equal(await view.act(() => view.props('Messaging')[handler](send)), false);
-    const html = await view.waitFor((current) => current.includes('role="alert"'));
+    const html = await view.waitFor((current) => withoutToastRegions(current).includes('role="alert"'));
     assert.match(html, /role="alert"/);
     assert.deepEqual(errorAlertTitles(), [expected]);
     assert.equal(messageBff.calls(template, method.toUpperCase()).length, 1);
@@ -772,7 +772,7 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
 
   assert.equal(upstream().filter(call => call === 'GET /messaging/bootstrap').length, 1);
   assert.equal((html.match(/<h1\b/g) ?? []).length, 1, 'the loaded workspace retains one accessible page title');
-  assert.doesNotMatch(html, /role="alert"/);
+  assert.doesNotMatch(withoutToastRegions(html), /role="alert"/);
   assert.match(view.text(), /Équipe communication/);
   assert.match(view.text(), /Sophie Leroy/);
   assert.match(view.text(), /Bonjour à tous/);
@@ -880,11 +880,11 @@ test('a bootstrap failure is unavailable, not an empty result, and has explicit 
   messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('BFF_UNAVAILABLE', 'La messagerie est en maintenance'), outOfContract: true });
   view = mount(React.createElement(Page));
 
-  const html = await view.waitFor((current) => current.includes('role="alert"'));
+  const html = await view.waitFor((current) => withoutToastRegions(current).includes('role="alert"'));
 
   // MAIR-847: the refused start is the lib ErrorAlert inside a lib Card.
-  const alert = html.match(/<div[^>]*role="alert"[^>]*data-m360-component="[^"]*ErrorAlert[^"]*"[^>]*>[\s\S]*?<\/div>/)?.[0]
-    ?? html.match(/<div[^>]*data-m360-component="[^"]*ErrorAlert[^"]*"[^>]*role="alert"[^>]*>[\s\S]*?<\/div>/)?.[0];
+  const alert = withoutToastRegions(html).match(/<div[^>]*role="alert"[^>]*data-m360-component="[^"]*ErrorAlert[^"]*"[^>]*>[\s\S]*?<\/div>/)?.[0]
+    ?? withoutToastRegions(html).match(/<div[^>]*data-m360-component="[^"]*ErrorAlert[^"]*"[^>]*role="alert"[^>]*>[\s\S]*?<\/div>/)?.[0];
   assert.ok(alert, 'the bootstrap error is a lib ErrorAlert');
   assert.match(alert, /La messagerie est en maintenance/);
   assert.match(html, /<section\b[^>]*data-m360-component="Card"[^>]*>|<section\b[^>]*aria-labelledby="messages-bootstrap-title"/);
@@ -1058,7 +1058,7 @@ test('selecting a conversation loads its messages and renders them', async () =>
     call.pathParams.conversationId === 'conversation-5'));
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
   assert.match(html, /Salut, tu as vu le dossier \?/);
-  assert.doesNotMatch(html, /role="alert"/);
+  assert.doesNotMatch(withoutToastRegions(html), /role="alert"/);
 });
 
 for (const cause of ['redirect', '401']) {
@@ -1181,7 +1181,7 @@ test('a refused send is shown as an alert without losing the thread', async () =
 
   const sendResult = await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-4', content: 'Encore là ?', attachments: [], mentions: [] }));
   assert.equal(sendResult, false);
-  const html = await view.waitFor((current) => current.includes('role="alert"'));
+  const html = await view.waitFor((current) => withoutToastRegions(current).includes('role="alert"'));
 
   assert.deepEqual(errorAlertTitles(), ['Vous ne faites plus partie de cette conversation']);
   // MAIR-854: the action error can be closed, the conversation stays.
@@ -1486,7 +1486,7 @@ for (const [label, reply] of [
     assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-4', 'conversation-5']);
     assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
     assert.match(view.text(), /Bonjour à tous/);
-    assert.match(view.html, /role="alert"[^]*?La suppression de la conversation n’a pas été confirmée/);
+    assert.match(withoutToastRegions(view.html), /role="alert"[^]*?La suppression de la conversation n’a pas été confirmée/);
     assert.equal(typeof view.props('Messaging').onConversationDelete, 'function', 'retry is available');
   });
 }
@@ -1792,7 +1792,7 @@ for (const mode of ['delete', 'sync']) {
       messageBff.on('get', '/conversations', { body: { conversations: [body.conversations[1]] } });
       browser.setHidden(false);
     }
-    await view.waitFor(html => html.includes('role="alert"') && view.props('Messaging').activeConversationId === 'conversation-5');
+    await view.waitFor(html => withoutToastRegions(html).includes('role="alert"') && view.props('Messaging').activeConversationId === 'conversation-5');
     assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
     assert.match(view.text(), /Historique déjà connu/);
     assert.doesNotMatch(view.text(), /Bonjour à tous/);
@@ -1800,7 +1800,7 @@ for (const mode of ['delete', 'sync']) {
     messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
     await view.act(() => view.props('Messaging').onConversationSelect(body.conversations[1]));
     await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
-    assert.doesNotMatch(view.html, /role="alert"/);
+    assert.doesNotMatch(withoutToastRegions(view.html), /role="alert"/);
     assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 2);
     assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
   });
@@ -1813,7 +1813,7 @@ test('a selected read carrying another conversation ID cannot resurrect a remove
   // The default mock returns conversation-4 even though fallback requests conversation-5.
   await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
   await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
-  await view.waitFor(html => html.includes('role="alert"'));
+  await view.waitFor(html => withoutToastRegions(html).includes('role="alert"'));
   assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
   assert.doesNotMatch(view.text(), /Bonjour à tous/);
 });
@@ -1847,7 +1847,7 @@ for (const outcome of ['success', 'refusal']) {
     await view.waitFor(() => responded);
     assert.equal(view.props('Messaging').activeConversationId, 'conversation-6');
     assert.match(view.text(), /Sélection plus récente/);
-    assert.doesNotMatch(view.html, /role="alert"/);
+    assert.doesNotMatch(withoutToastRegions(view.html), /role="alert"/);
     assert.equal(view.props('Messaging').messages.some(item => item.id === 'message-20'), false);
   });
 }
@@ -2287,6 +2287,11 @@ test('MAIR-204: a contact without a direct conversation still gets one from POST
   assert.deepEqual(messageBff.calls('/direct-messages', 'POST').map((call) => call.body), [{ recipientId: `user-${users.thomas.id}`, message: 'Bonjour Thomas' }]);
   assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'POST').length, 0);
   assert.match(view.text(), /Message direct créé\./);
+  // MAIR-865: the confirmation floats in the lib toast region, after the shell (outside the module flow), without title.
+  const html = await view.waitFor((current) => /data-m360-component="Toast"[^>]*>[^]*?Message direct créé\./.test(current));
+  assert.ok(html.indexOf('data-m360-component="Toast"') > html.indexOf('</main>'));
+  assert.doesNotMatch(html, /messages-module-stack[^]*?data-m360-component="Toast"[^]*?<\/main>/);
+  assert.doesNotMatch(html.match(/data-m360-component="Toast"[^]*?Message direct créé/)[0], /font-semibold/);
 });
 
 test('MAIR-204: a refused send into the existing direct conversation never falls back to a new chat', async () => {
@@ -2296,7 +2301,7 @@ test('MAIR-204: a refused send into the existing direct conversation never falls
   assert.equal(await view.act(() => view.props('Messaging').onNewMessageSend({
     recipientId: `user-${users.sophie.id}`, message: 'Re bonjour Sophie',
   })), false);
-  await view.waitFor((html) => html.includes('role="alert"'));
+  await view.waitFor((html) => withoutToastRegions(html).includes('role="alert"'));
 
   assert.equal(messageBff.calls('/direct-messages', 'POST').length, 0);
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');

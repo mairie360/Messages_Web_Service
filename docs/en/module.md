@@ -199,3 +199,6 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
 - **Reception (MAIR-860).** The automatic reception state is a lib `StatusPill` (active: success,
   refreshing: info, connecting: neutral, delayed: warning); « Réessayer la réception » is a lib `Button`
   (44 px target) shown only while delayed.
+- **Confirmations (MAIR-865).** « Message direct créé. », « Groupe … créé. » and the other action
+  confirmations float in a lib toast bottom right, above the footer, without moving the module (5 s, no
+  title, closable with the mouse or the keyboard).
