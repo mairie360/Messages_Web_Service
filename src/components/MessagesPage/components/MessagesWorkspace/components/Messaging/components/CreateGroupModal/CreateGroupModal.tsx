@@ -1,6 +1,6 @@
 import React from 'react';
 import { UsersRound } from 'lucide-react';
-import { CancelButton, CreateButton } from '@mairie360/lib-components/primitives';
+import { CancelButton, CreateButton, ErrorAlert } from '@mairie360/lib-components/primitives';
 
 import { MessagingModalFrame } from '../MessagingModalFrame';
 import { GroupDetailsFields } from './components/GroupDetailsFields';
@@ -140,9 +140,7 @@ export const CreateGroupModal = ({
       }
     >
       {creationFailed && (
-        <p role="alert" className="text-sm text-[var(--mairie-error-text)]">
-          Le groupe n’a pas pu être créé. Vos saisies sont conservées ; vous pouvez réessayer.
-        </p>
+        <ErrorAlert size="s" title="Le groupe n’a pas pu être créé. Vos saisies sont conservées ; vous pouvez réessayer." />
       )}
       <GroupDetailsFields
         nameLabel={nameLabel}

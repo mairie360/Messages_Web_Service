@@ -208,3 +208,7 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
 - **Composer icons (MAIR-872).** Attach, mention, business reference, emoji, send, attachment chips and
   mention suggestions render their lucide glyph through the lib `Icon` (`s`, 16 px token, current text colour);
   buttons keep their accessible names.
+- **Dialogs (MAIR-878).** « Nouveau message » and « Créer un groupe » are small lib `Modal`s (480 px). The primary
+  button (lib `SendButton` / `CreateButton` with its icon) stays disabled until the form is complete (recipient +
+  message; group name + one member). A refusal shows as an `ErrorAlert` above the form, the dialog stays open and
+  keeps the input; Escape, the backdrop and « Annuler » do nothing while the request is pending.
