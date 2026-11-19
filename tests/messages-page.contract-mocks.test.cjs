@@ -873,11 +873,17 @@ test('a bootstrap failure is unavailable, not an empty result, and has explicit 
 
   const html = await view.waitFor((current) => current.includes('role="alert"'));
 
-  assert.match(html, /<p role="alert" class="messages-error">La messagerie est en maintenance<\/p>/);
+  // MAIR-847: the refused start is the lib ErrorAlert inside a lib Card.
+  const alert = html.match(/<div[^>]*role="alert"[^>]*data-m360-component="[^"]*ErrorAlert[^"]*"[^>]*>[\s\S]*?<\/div>/)?.[0]
+    ?? html.match(/<div[^>]*data-m360-component="[^"]*ErrorAlert[^"]*"[^>]*role="alert"[^>]*>[\s\S]*?<\/div>/)?.[0];
+  assert.ok(alert, 'the bootstrap error is a lib ErrorAlert');
+  assert.match(alert, /La messagerie est en maintenance/);
+  assert.match(html, /<section\b[^>]*data-m360-component="Card"[^>]*>|<section\b[^>]*aria-labelledby="messages-bootstrap-title"/);
+  assert.doesNotMatch(html, /messages-error|bg-gray-900/);
   assert.equal(view.find('Messaging').length, 0);
   assert.match(view.text(), /Messagerie indisponible/);
   assert.doesNotMatch(view.text(), /Aucune conversation/);
-  assert.equal([...html.matchAll(/<button\b[^>]*>Réessayer<\/button>/g)].length, 1);
+  assert.equal(view.hostElements((props, text, tag) => tag === 'button' && text === 'Réessayer').length, 1);
   assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
   assert.doesNotMatch(view.text(), /Équipe communication/);
 });
