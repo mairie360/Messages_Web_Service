@@ -15,7 +15,10 @@ export interface MessagingModalFrameProps {
   onSubmit?: React.FormEventHandler<HTMLFormElement>;
 }
 
-/** The lib Modal around a messaging form (MAIR-608); like the lib ConfirmModal, a busy dialog ignores close requests. */
+/**
+ * The lib Modal around a messaging form (MAIR-608), small width (MAIR-878, Figma F5/F6); like the lib ConfirmModal,
+ * a busy dialog ignores close requests.
+ */
 export const MessagingModalFrame = ({
   title,
   subtitle,
@@ -31,7 +34,7 @@ export const MessagingModalFrame = ({
     open
     title={title}
     description={subtitle}
-    size="m"
+    size="s"
     closeLabel="Fermer"
     className={className}
     onClose={closeDisabled ? () => undefined : onClose}
