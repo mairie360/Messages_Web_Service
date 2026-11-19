@@ -193,3 +193,6 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   version (`APP_VERSION`) and the legal notice / privacy policy pages of the Login front.
 - **Start states (MAIR-847).** Loading and unavailable messaging use the lib `Card`, `ErrorAlert`
   (the refused start), `Skeleton` and `RetryButton` (« Chargement en cours… », disabled while loading).
+- **Errors and statuses (MAIR-854).** A refused action is a closable lib `ErrorAlert`, a refused
+  synchronisation a lasting one (the next read clears it); « Suppression de la conversation en cours… » and
+  the thread opening text are info `Alert`s. Texts and `alert` / `status` announcements are unchanged.
