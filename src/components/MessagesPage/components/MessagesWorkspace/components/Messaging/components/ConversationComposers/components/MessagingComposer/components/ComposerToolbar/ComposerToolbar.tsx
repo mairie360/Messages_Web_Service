@@ -1,5 +1,6 @@
 import React from 'react';
 import { AtSign, Hash, Paperclip, Smile } from 'lucide-react';
+import { Icon } from '@mairie360/lib-components/primitives';
 
 import { EmojiPicker } from './components/EmojiPicker';
 
@@ -40,17 +41,17 @@ export const ComposerToolbar = ({
 }: ComposerToolbarProps) => (
   <div className="mt-3 flex items-center gap-2">
     <ToolbarButton label={attachLabel} disabled={disabled} onClick={onAttach}>
-      <Paperclip className="size-4" strokeWidth={1.8} />
+      <Icon icon={Paperclip} size="s" />
     </ToolbarButton>
     <ToolbarButton label="Mentionner un utilisateur" disabled={disabled} onClick={onMention}>
-      <AtSign className="size-4" strokeWidth={1.8} />
+      <Icon icon={AtSign} size="s" />
     </ToolbarButton>
     <ToolbarButton label="Mentionner un élément métier" disabled={disabled} onClick={onBusinessReference}>
-      <Hash className="size-4" strokeWidth={1.8} />
+      <Icon icon={Hash} size="s" />
     </ToolbarButton>
     <div className="relative">
       <ToolbarButton label={emojiLabel} disabled={disabled} onClick={onToggleEmoji}>
-        <Smile className="size-4" strokeWidth={1.8} />
+        <Icon icon={Smile} size="s" />
       </ToolbarButton>
       {emojiOpen && <EmojiPicker disabled={busy} onPick={onPickEmoji} />}
     </div>

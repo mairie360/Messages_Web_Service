@@ -1,5 +1,6 @@
 import React from 'react';
 import { Send } from 'lucide-react';
+import { Icon } from '@mairie360/lib-components/primitives';
 
 import { joinClasses } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-style';
 import { ComposerAttachmentChips } from './components/ComposerAttachmentChips';
@@ -270,7 +271,7 @@ export const MessagingComposer = ({
           disabled={!canSend}
           className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-[var(--mairie-action-background)] text-[var(--mairie-on-action)] shadow-sm transition hover:bg-[var(--mairie-action-hover-background)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/35 disabled:cursor-not-allowed disabled:bg-[var(--mairie-border)]"
         >
-          <Send className="size-4" strokeWidth={1.8} />
+          <Icon icon={Send} size="s" />
         </button>
       </div>
       <ComposerAttachmentChips attachments={attachments} disabled={isBusy} onRemove={removeAttachment} />
