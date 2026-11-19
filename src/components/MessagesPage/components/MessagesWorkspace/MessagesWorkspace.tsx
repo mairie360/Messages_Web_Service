@@ -1,11 +1,12 @@
 'use client';
 
 import { Messaging } from './components/Messaging';
-import { DataState, Skeleton, Toast } from "@mairie360/lib-components/primitives";
+import { DataState, Toast } from "@mairie360/lib-components/primitives";
 import { toMessagingUserId } from '@/lib/messaging-state';
 import { AppShell, totalUnread } from './components/AppShell';
 import { prepareMessagingScrollRegions } from './messaging-scroll-regions';
 import { MobileConversationSwitch } from './components/MobileConversationSwitch';
+import { MessagesBootstrapState } from './components/MessagesBootstrapState';
 import type { useMessagingController } from '../../use-messaging-controller';
 
 type MessagesWorkspaceProps = ReturnType<typeof useMessagingController>;
@@ -48,32 +49,7 @@ export function MessagesWorkspace({
     <AppShell activeItem="messages" unreadCount={currentUser ? totalUnread(displayedConversations) : 0}>
       <div className="messages-module-stack">
         {loading || !currentUser ? (
-          <section
-            aria-labelledby="messages-bootstrap-title"
-            aria-busy={loading}
-            className="min-h-0 overflow-y-auto rounded-lg bg-white p-6 shadow-sm"
-          >
-            <h1 id="messages-bootstrap-title" className="text-xl font-semibold">
-              {loading ? "Chargement de la messagerie" : "Messagerie indisponible"}
-            </h1>
-            {bootstrapError ? (
-              <p role="alert" className="messages-error">{bootstrapError}</p>
-            ) : null}
-            <p role="status" className="my-4">
-              {loading
-                ? "Les conversations sont en cours de chargement."
-                : "Les conversations n’ont pas pu être chargées. Vous pouvez réessayer."}
-            </p>
-            {loading && <Skeleton className="mb-4 h-64" />}
-            <button
-              type="button"
-              disabled={loading}
-              onClick={retryBootstrap}
-              className="rounded-md bg-gray-900 px-4 py-2 text-white disabled:cursor-wait disabled:opacity-60"
-            >
-              {loading ? "Chargement en cours…" : "Réessayer"}
-            </button>
-          </section>
+          <MessagesBootstrapState loading={loading} error={bootstrapError} onRetry={retryBootstrap} />
         ) : (
           <>
             <h1 className="sr-only">Messagerie</h1>

@@ -85,7 +85,7 @@ async function messagesDom(t, { unavailable = false } = {}) {
     assert.ok(predicate(), 'Actual messaging page must reach the expected state');
   }
   await waitFor(() => dom.window.document.body.textContent.includes('Agent Mairie') &&
-    dom.window.document.querySelector(unavailable ? '.messages-error' : '.messages-module'));
+    dom.window.document.querySelector(unavailable ? '[aria-labelledby="messages-bootstrap-title"] [role="alert"]' : '.messages-module'));
   const button = (name) => [...dom.window.document.querySelectorAll('button')]
     .find((element) => element.getAttribute('aria-label') === name || element.textContent.trim() === name);
   const click = async (element) => {

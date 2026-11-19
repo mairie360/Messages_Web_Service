@@ -191,3 +191,5 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
 - **Shell (MAIR-844).** The navigation band shows the lib logo and the commune name (`COMMUNE_NAME`),
   « Messagerie » is active with the unread total as its badge (99+ beyond 99), and the footer shows the
   version (`APP_VERSION`) and the legal notice / privacy policy pages of the Login front.
+- **Start states (MAIR-847).** Loading and unavailable messaging use the lib `Card`, `ErrorAlert`
+  (the refused start), `Skeleton` and `RetryButton` (« Chargement en cours… », disabled while loading).
