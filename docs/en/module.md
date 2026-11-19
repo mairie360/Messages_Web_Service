@@ -196,3 +196,6 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
 - **Errors and statuses (MAIR-854).** A refused action is a closable lib `ErrorAlert`, a refused
   synchronisation a lasting one (the next read clears it); « Suppression de la conversation en cours… » and
   the thread opening text are info `Alert`s. Texts and `alert` / `status` announcements are unchanged.
+- **Reception (MAIR-860).** The automatic reception state is a lib `StatusPill` (active: success,
+  refreshing: info, connecting: neutral, delayed: warning); « Réessayer la réception » is a lib `Button`
+  (44 px target) shown only while delayed.
