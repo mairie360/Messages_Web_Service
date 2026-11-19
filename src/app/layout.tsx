@@ -37,7 +37,7 @@ export default async function RootLayout({
   const appearance = parseAppearanceCookie(cookieStore.get(APPEARANCE_COOKIE)?.value);
   const timeZone = instanceTimeZone(process.env.INSTANCE_TIMEZONE);
   return (
-    <html lang="fr" data-theme={appearance?.theme ?? "system"} data-density={appearance?.density ?? "normal"}>
+    <html lang="fr" data-theme="light" data-density={appearance?.density ?? "normal"}>
       <head>
         <meta name="apple-mobile-web-app-title" content="Mairie360" />
       </head>
