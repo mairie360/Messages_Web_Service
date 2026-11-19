@@ -205,3 +205,6 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
 - **Empty states (MAIR-870).** « Sélectionnez une conversation » (empty header, large semibold), « Aucune
   conversation trouvée. » (local search without result), « Aucun contact trouvé. » and the thread placeholders
   are lib `Text` (muted), no hand-styled paragraph; the thread keeps a ready-made `DataState` as is.
+- **Composer icons (MAIR-872).** Attach, mention, business reference, emoji, send, attachment chips and
+  mention suggestions render their lucide glyph through the lib `Icon` (`s`, 16 px token, current text colour);
+  buttons keep their accessible names.

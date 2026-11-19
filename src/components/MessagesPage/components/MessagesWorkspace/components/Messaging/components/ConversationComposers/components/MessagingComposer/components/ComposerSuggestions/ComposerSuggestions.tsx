@@ -1,4 +1,5 @@
 import { AtSign } from 'lucide-react';
+import { Icon } from '@mairie360/lib-components/primitives';
 
 import { BusinessReferenceIcon, businessReferenceKindLabel } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/BusinessReferenceIcon';
 import type { MessagingBusinessReference, MessagingMention } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
@@ -10,7 +11,7 @@ export const MentionSuggestion = ({ mention, disabled, onSelect }: {
 }) => (
   <button type="button" disabled={disabled} className={suggestionClassName} onClick={() => onSelect(mention)}>
     <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--mairie-action-background)] text-[var(--mairie-on-action)]">
-      <AtSign className="size-4" strokeWidth={1.8} />
+      <Icon icon={AtSign} size="s" />
     </span>
     <span className="min-w-0 flex-1">
       <span className="block truncate font-semibold">@{mention.name}</span>
