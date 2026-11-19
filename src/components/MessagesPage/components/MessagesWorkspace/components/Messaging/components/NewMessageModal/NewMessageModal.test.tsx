@@ -29,14 +29,16 @@ it('MAIR-878 shows a BFF refusal as an ErrorAlert above the form, stays open and
   render(<NewMessageModal isOpen contacts={[{ id: 1, name: 'Anne Marie' }]} onCancel={onCancel} onSendMessage={onSendMessage} />);
   await user.selectOptions(screen.getByLabelText('Destinataire'), '1');
   await user.type(screen.getByLabelText('Message'), 'Bonjour');
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  const sendAndExpectRefusal = async () => {
     await user.click(screen.getByRole('button', { name: 'Envoyer' }));
     const alert = await screen.findByRole('alert');
     expect(alert.getAttribute('data-m360-component')).toContain('ErrorAlert');
     expect(alert).toHaveTextContent('Le message n’a pas pu être envoyé. Vos saisies sont conservées ; vous pouvez réessayer.');
     expect(screen.getByLabelText('Destinataire')).toHaveValue('1');
     expect(screen.getByLabelText('Message')).toHaveValue('Bonjour');
-  }
+  };
+  await sendAndExpectRefusal(); // rejected promise
+  await sendAndExpectRefusal(); // resolved false
   expect(screen.getByRole('dialog', { name: 'Nouveau message' })).toBeVisible();
   expect(onCancel).not.toHaveBeenCalled();
 });
