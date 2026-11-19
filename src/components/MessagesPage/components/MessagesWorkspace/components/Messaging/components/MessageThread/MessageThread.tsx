@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from '@mairie360/lib-components/primitives';
 
 import { MessagingMessageBubble } from './components/MessagingMessageBubble';
 import type { MessagingAttachment, MessagingBusinessReference, MessagingMention, MessagingMessage } from '../../messaging-types';
@@ -13,8 +14,11 @@ export interface MessageThreadProps {
   onBusinessReferenceClick?: (reference: MessagingBusinessReference) => void;
 }
 
+/** Centred empty state of the thread (MAIR-870, Figma F1); a ready-made DataState is rendered as is. */
 const ThreadPlaceholder = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex h-full items-center justify-center text-sm text-[var(--mairie-muted)]">{children}</div>
+  <div className="flex h-full items-center justify-center text-center">
+    {typeof children === 'string' ? <Text as="p" size="s" tone="muted">{children}</Text> : children}
+  </div>
 );
 
 /** Scrollable message region; the ref lets the read action measure what is visible. */
