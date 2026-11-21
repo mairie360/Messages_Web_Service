@@ -57,7 +57,6 @@ export function MessagesWorkspace({
           <MessagesBootstrapState loading={loading} error={bootstrapError} onRetry={retryBootstrap} />
         ) : (
           <>
-            <h1 className="sr-only">Messagerie</h1>
             <ReceptionStatus state={streamState} onRetry={retryReception} />
             <MessagesNotices
               deletingConversation={deletingConversation}

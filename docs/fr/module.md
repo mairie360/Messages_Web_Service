@@ -187,12 +187,12 @@ DA claire option 1 : tokens et police communs, navigation accessible et contenu 
 
 La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://www.figma.com/design/aZKHSHhAj0NQnutKdS82jk/?node-id=18-902)) sur `@mairie360/lib-components` 2.
 
-- **Cadre (MAIR-838).** Lib 2.1.0 : le bandeau de navigation repliable, la barre du haut, le pied de page,
+- **Cadre (MAIR-838).** Lib 2 : le bandeau de navigation repliable, la barre du haut,
   la typographie et la zone principale pleine hauteur (`mainLayout="fill"` : pas de défilement de page,
   marges 20 px / 24 px) viennent du cadre de la lib ; `app-shell.css` ne garde que la géométrie du module
   de messagerie. Le thème est toujours clair.
 - **Cadre (MAIR-844).** Le bandeau affiche le logo de la lib et le nom de la commune (`COMMUNE_NAME`),
-  « Messagerie » est actif avec le total des non-lus en badge (99+ au-delà de 99), et le pied de page affiche
+  « Messagerie » est actif avec le total des non-lus en badge (« 9+ » au-delà de 9 depuis MAIR-1156), et le pied de page affiche
   la version (`APP_VERSION`) ainsi que les mentions légales et la politique de confidentialité du front Login.
 - **États de démarrage (MAIR-847).** Le chargement et l'indisponibilité de la messagerie utilisent
   `Card`, `ErrorAlert` (le démarrage refusé), `Skeleton` et `RetryButton` de la lib (« Chargement en
@@ -219,3 +219,7 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   tant que le formulaire est incomplet (destinataire + message ; nom du groupe + un membre). Un refus s'affiche
   dans un `ErrorAlert` au-dessus du formulaire, la fenêtre reste ouverte et garde la saisie ; Échap, le fond et
   « Annuler » sont sans effet pendant l'envoi.
+- **Base de page (MAIR-1156).** Base de page de la lib 2.3.0 : pas de pied de page (`showFooter={false}`), le
+  module est la carte blanche bordée (rayon 12 px, `--mairie-radius-l`) de la zone principale, et le seul titre de
+  la page est le `h1` « Messagerie » de la liste. « Messagerie » est actif dans la navigation avec le total des
+  non-lus dans le `Counter` de la lib, « 9+ » au-delà de 9 ; Administration reste réservée au rôle.

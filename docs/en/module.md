@@ -185,11 +185,11 @@ Approved light option 1: shared tokens and font, accessible navigation, and pres
 
 Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.figma.com/design/aZKHSHhAj0NQnutKdS82jk/?node-id=18-902)) on `@mairie360/lib-components` 2.
 
-- **Frame (MAIR-838).** Lib 2.1.0: the collapsible navigation band, top bar, footer, typography and the
+- **Frame (MAIR-838).** Lib 2: the collapsible navigation band, top bar, typography and the
   full-height main area (`mainLayout="fill"`: no page scroll, 20 px / 24 px padding) come from the lib
   frame; `app-shell.css` keeps only the messaging module geometry. The theme is always light.
 - **Shell (MAIR-844).** The navigation band shows the lib logo and the commune name (`COMMUNE_NAME`),
-  « Messagerie » is active with the unread total as its badge (99+ beyond 99), and the footer shows the
+  « Messagerie » is active with the unread total as its badge (« 9+ » beyond 9 since MAIR-1156), and the footer shows the
   version (`APP_VERSION`) and the legal notice / privacy policy pages of the Login front.
 - **Start states (MAIR-847).** Loading and unavailable messaging use the lib `Card`, `ErrorAlert`
   (the refused start), `Skeleton` and `RetryButton` (« Chargement en cours… », disabled while loading).
@@ -212,3 +212,7 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   button (lib `SendButton` / `CreateButton` with its icon) stays disabled until the form is complete (recipient +
   message; group name + one member). A refusal shows as an `ErrorAlert` above the form, the dialog stays open and
   keeps the input; Escape, the backdrop and « Annuler » do nothing while the request is pending.
+- **Page base (MAIR-1156).** Lib 2.3.0 page base: no footer (`showFooter={false}`), the module is the white
+  bordered card (12 px radius, `--mairie-radius-l`) of the main area, and the only page title is the « Messagerie »
+  `h1` of the list. « Messagerie » is active in the navigation with the unread total in the lib `Counter`, « 9+ »
+  beyond 9; Administration stays role-gated.

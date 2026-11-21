@@ -788,15 +788,8 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
   const reception = view.props('ReceptionStatus');
   assert.ok(['connecting', 'polling', 'connected', 'offline'].includes(reception.state));
   assert.match(view.html, /<div class="messages-reception-status[^"]*" role="status" aria-live="polite"><span[^>]*data-m360-component="StatusPill"/);
-  assert.match(view.html, /<footer/);
-  const footer = view.html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/)?.[0];
-  assert.ok(footer);
-  assert.doesNotMatch(view.html, /<aside\b[^]*?<footer\b[^]*?<\/footer>[^]*?<\/aside>/);
-  assert.match(view.html, /<\/main>[\s\S]*<div class="app-shell-footer shrink-0"[^>]*><footer\b/);
-  assert.match(footer.replace(/<[^>]*>/g, ''), new RegExp(`© ${new Date().getFullYear()} Mairie360`));
-  // MAIR-844: no APP_VERSION here, so no version; the legal pages come from the Login front.
-  assert.doesNotMatch(footer, /Version|<button\b/);
-  assert.deepEqual([...footer.matchAll(/<a href="([^"]+)"/g)].map((match) => new URL(match[1]).pathname), ['/mentions-legales', '/confidentialite']);
+  // MAIR-1156: the lib 2.3 page base of the messaging has no footer.
+  assert.doesNotMatch(view.html, /<footer\b|role="contentinfo"|app-shell-footer/);
 });
 
 test('narrow screens can switch to the conversation list and return to the selected thread', async () => {

@@ -21,7 +21,8 @@ type AppShellProps = {
 
 /**
  * Bind the BFF-backed session and bounded messaging viewport to the shared shell: lib logo,
- * commune name, footer with version and legal links (MAIR-844).
+ * commune name (MAIR-844). MAIR-1156: the page base of lib 2.3 has no footer (`showFooter={false}`);
+ * version and legal links stay passed for a page that would show it.
  */
 export function AppShell({ activeItem, unreadCount = 0, children }: AppShellProps) {
   const session = useAuthSession();
@@ -44,6 +45,7 @@ export function AppShell({ activeItem, unreadCount = 0, children }: AppShellProp
       mainLayout="fill"
       sidebarProps={{ brandLabel: communeName, items: navigationItems(unreadCount) }}
       footerProps={{ version, legalLinks: legalLinksFor(frontUrl("LOGIN_FRONT_URL")) }}
+      showFooter={false}
     >
       <div className="messages-main-inner">
         {logoutError && <div className="mb-4 shrink-0">
