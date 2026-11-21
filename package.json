@@ -46,7 +46,7 @@
     "@jridgewell/trace-mapping": "0.3.31",
     "@tailwindcss/postcss": "^4.0.12",
     "@testing-library/dom": "^10.4.2",
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
     "@types/jest-axe": "3.5.9",
