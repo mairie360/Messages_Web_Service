@@ -27,6 +27,11 @@ function installBrowser() {
   };
   const document = {
     hidden: false,
+    // MAIR-865: the lib ToastProvider pauses its timers while the window is blurred or hidden.
+    visibilityState: 'visible',
+    hasFocus: () => true,
+    // The bottom-end toasts sit above the shell footer, looked up in the document.
+    querySelector: () => null,
     addEventListener(name, callback) { add(documentListeners, name, callback); },
     removeEventListener(name, callback) { remove(documentListeners, name, callback); },
   };

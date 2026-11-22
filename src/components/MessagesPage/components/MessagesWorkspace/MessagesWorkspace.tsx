@@ -1,7 +1,7 @@
 'use client';
 
 import { Messaging } from './components/Messaging';
-import { DataState, Toast } from "@mairie360/lib-components/primitives";
+import { DataState, ToastProvider } from "@mairie360/lib-components/primitives";
 import { toMessagingUserId } from '@/lib/messaging-state';
 import { AppShell, totalUnread } from './components/AppShell';
 import { prepareMessagingScrollRegions } from './messaging-scroll-regions';
@@ -9,6 +9,7 @@ import { MobileConversationSwitch } from './components/MobileConversationSwitch'
 import { MessagesBootstrapState } from './components/MessagesBootstrapState';
 import { MessagesNotices } from './components/MessagesNotices';
 import { ReceptionStatus } from './components/ReceptionStatus';
+import { FeedbackToast } from './components/FeedbackToast';
 import type { useMessagingController } from '../../use-messaging-controller';
 
 type MessagesWorkspaceProps = ReturnType<typeof useMessagingController>;
@@ -49,6 +50,7 @@ export function MessagesWorkspace({
   toggleConversationList,
 }: MessagesWorkspaceProps) {
   return (
+    <ToastProvider regionLabel="Notifications de la messagerie" placement="bottom-end">
     <AppShell activeItem="messages" unreadCount={currentUser ? totalUnread(displayedConversations) : 0}>
       <div className="messages-module-stack">
         {loading || !currentUser ? (
@@ -56,7 +58,6 @@ export function MessagesWorkspace({
         ) : (
           <>
             <h1 className="sr-only">Messagerie</h1>
-            {feedback && <Toast variant="success" message={feedback} onClose={dismissFeedback} />}
             <ReceptionStatus state={streamState} onRetry={retryReception} />
             <MessagesNotices
               deletingConversation={deletingConversation}
@@ -108,5 +109,7 @@ export function MessagesWorkspace({
         )}
       </div>
     </AppShell>
+    <FeedbackToast feedback={feedback} dismissFeedback={dismissFeedback} />
+    </ToastProvider>
   );
 }
