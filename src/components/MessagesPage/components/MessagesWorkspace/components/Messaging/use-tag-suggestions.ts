@@ -117,3 +117,7 @@ export const insertTag = (value: string, match: TagMatch, label: string) => `${v
 
 /** The label a tag shows in the text. */
 export const tagLabel = (option: TagOption) => (option.mention ? option.mention.name : option.reference?.title ?? '');
+
+/** The `@` / `#` buttons add the trigger at the end of the text, after a space. */
+export const appendTagTrigger = (value: string, trigger: '@' | '#') =>
+  `${value}${value.trim() && !/\s$/.test(value) ? ` ${trigger}` : trigger}`;

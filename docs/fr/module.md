@@ -310,6 +310,12 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   `replyTo` et la barre disparaît une fois le message confirmé. Une réponse affiche `MessageQuote` au-dessus de sa
   bulle (auteur et extrait de `quoted`) ; un clic fait défiler en douceur jusqu'au message d'origine et le met en
   évidence. La citation d'un message supprimé indique « Message supprimé ».
+- **Modifier un message (MAIR-1168).** « Modifier » (barre d'actions, mes messages seulement) remplace la bulle par
+  `MessageEditBox` : un `TextArea` de la lib avec les mêmes boutons et suggestions `@` / `#` que la saisie (les tags du
+  message restent des tags), l'aide « Échap pour annuler · Entrée pour enregistrer », Annuler et Enregistrer
+  (désactivé tant que le texte est vide ou inchangé). L'enregistrement (`PATCH /conversations/{id}/messages/{messageId}`,
+  tous les champs de tags envoyés pour qu'un tag retiré disparaisse) remplace le message ; son heure est alors suivie
+  de « · modifié ». Un refus est un `ErrorAlert` de la lib sous la zone, le texte conservé.
 - **États vides (MAIR-1171).** Un seul visuel illustré par écran, avec le `DataState` de la lib 2.3 : sans aucune
   conversation, la liste dit seulement « Aucune conversation pour l'instant. » et le fil affiche « Commencez à
   échanger » (taille m, illustré) ; avec des conversations sans sélection, « Sélectionnez une conversation » (taille

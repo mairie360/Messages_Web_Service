@@ -298,6 +298,12 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   carries `replyTo` and the bar goes once the message is confirmed. A reply shows `MessageQuote` above its bubble
   (author and excerpt from `quoted`); a click scrolls smoothly to the original and highlights it. The quote of a
   deleted message reads « Message supprimé ».
+- **Edit a message (MAIR-1168).** « Modifier » (toolbar, my messages only) replaces the bubble with
+  `MessageEditBox`: a lib `TextArea` with the same `@` / `#` buttons and suggestions as the composer (the tags of the
+  message stay tags), the help « Échap pour annuler · Entrée pour enregistrer », Annuler and Enregistrer (disabled
+  while the text is empty or unchanged). The save (`PATCH /conversations/{id}/messages/{messageId}`, every tag field
+  sent so that a removed tag goes) replaces the message; its time is then followed by « · modifié ». A refusal is a
+  lib `ErrorAlert` under the box, the text kept.
 - **Empty states (MAIR-1171).** One illustrated visual per screen, from the lib 2.3 `DataState`: without any
   conversation, the list only says « Aucune conversation pour l'instant. » and the thread shows « Commencez à
   échanger » (size m, illustrated); with conversations but none selected, « Sélectionnez une conversation » (size m);

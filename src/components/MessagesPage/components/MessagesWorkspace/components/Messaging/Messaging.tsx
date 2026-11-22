@@ -29,6 +29,7 @@ import type {
   MessagingMember,
   MessagingMembers,
   MessagingMentionSuggestions,
+  MessagingEditPayload,
   MessagingSearchPage,
   MessagingSearchPersonItem,
   MessagingSearchRequest,
@@ -87,6 +88,11 @@ export interface MessagingProps extends React.HTMLAttributes<HTMLElement> {
   onSuggestMentions?: (conversation: MessagingConversation, query: string, signal: AbortSignal) => Promise<MessagingMentionSuggestions>;
   /** MAIR-1166: `#` suggestions (projects, events, tasks the agent may read, with the URL of their page). */
   onSuggestLinks?: (query: string, signal: AbortSignal) => Promise<MessagingBusinessReference[]>;
+  /**
+   * MAIR-1168: save the edit of one of my messages; « Modifier » is offered only with it. Answers whether it was
+   * saved; a rejection carries the message shown under the edit box.
+   */
+  onEditMessage?: (message: MessagingMessage, payload: MessagingEditPayload) => Promise<boolean | void>;
 }
 
 const emptyConversations: MessagingConversation[] = [];
@@ -128,6 +134,7 @@ export const Messaging = ({
   onLeaveConversation,
   onSuggestMentions,
   onSuggestLinks,
+  onEditMessage,
   className = '',
   ...props
 }: MessagingProps) => {
@@ -272,6 +279,20 @@ export const Messaging = ({
       });
     });
   };
+  // MAIR-1168: one of my messages edited in place, closed once saved or when the conversation changes.
+  const [editingId, setEditingId] = React.useState<MessagingContactId | null>(null);
+  React.useEffect(() => { setEditingId(null); }, [activeKey]);
+  const saveEdit = async (message: MessagingMessage, payload: MessagingEditPayload) => {
+    const saved = await onEditMessage?.(message, payload);
+    if (saved !== false) setEditingId(null);
+    return saved;
+  };
+  const suggestionSources = {
+    mentions: onSuggestMentions && activeConversation
+      ? (query: string, signal: AbortSignal) => onSuggestMentions(activeConversation, query, signal) : undefined,
+    links: onSuggestLinks,
+  };
+
   const openQuote = (messageId: MessagingContactId) => {
     if (!revealMessage(messageRegionRef.current, messageId) && activeConversation) onMessageNotLoaded?.(activeConversation, messageId);
   };
@@ -345,6 +366,11 @@ export const Messaging = ({
           currentUserId={currentUserId}
           onReply={onSendMessage && activeConversation ? (message) => setReply(activeConversation.id, message) : undefined}
           onOpenQuote={openQuote}
+          onEdit={onEditMessage ? (message) => { if (!message.deleted) setEditingId(message.id); } : undefined}
+          editingId={editingId}
+          onSaveEdit={saveEdit}
+          onCancelEdit={() => setEditingId(null)}
+          suggestionSources={suggestionSources}
         />
 
         {contextReference && <ContextReferenceBar reference={contextReference} onOpen={onBusinessReferenceClick} />}

@@ -6,7 +6,7 @@ import { NewMessagesSeparator } from './components/NewMessagesSeparator';
 import { SystemNote } from './components/SystemNote';
 import { UnreadMessagesPill } from './components/UnreadMessagesPill';
 import { useUnreadTracking } from './use-unread-tracking';
-import type { MessagingAttachment, MessagingBusinessReference, MessagingContactId, MessagingMention, MessagingMessage } from '../../messaging-types';
+import type { MessagingAttachment, MessagingBusinessReference, MessagingContactId, MessagingEditPayload, MessagingMention, MessagingMessage, MessagingTagSuggestionSources } from '../../messaging-types';
 
 export interface MessageThreadProps {
   hasConversation: boolean;
@@ -38,6 +38,11 @@ export interface MessageThreadProps {
   onEdit?: (message: MessagingMessage) => void;
   onDelete?: (message: MessagingMessage) => void;
   onOpenQuote?: (messageId: MessagingContactId) => void;
+  /** MAIR-1168: the message being edited in place, its save and cancel, and the suggestions of its edit box. */
+  editingId?: MessagingContactId | null;
+  onSaveEdit?: (message: MessagingMessage, payload: MessagingEditPayload) => Promise<boolean | void> | boolean | void;
+  onCancelEdit?: () => void;
+  suggestionSources?: MessagingTagSuggestionSources;
 }
 
 const noMessages: MessagingMessage[] = [];
@@ -68,7 +73,7 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
   hasConversation, messages, emptyStateLabel, mentionOptions, businessReferenceOptions,
   onAttachmentDownload, onBusinessReferenceClick, conversationKey = null, unreadIds = noIds, onRead,
   pendingMessages = noMessages, onRetrySend, sendAnnouncement = '', conversationCount = 0, currentUserId,
-  onReact, onReply, onEdit, onDelete, onOpenQuote,
+  onReact, onReply, onEdit, onDelete, onOpenQuote, editingId = null, onSaveEdit, onCancelEdit, suggestionSources,
 }, ref) => {
   // MAIR-1167: a quote of a loaded message that was deleted reads « Message supprimé ».
   const deletedIds = React.useMemo(() => new Set(messages.filter((message) => message.deleted).map((message) => String(message.id))), [messages]);
@@ -105,6 +110,10 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
                 onDelete={onDelete}
                 onOpenQuote={onOpenQuote}
                 quoteDeleted={message.citation !== undefined && deletedIds.has(String(message.citation))}
+                editing={editingId !== null && String(editingId) === String(message.id)}
+                onSaveEdit={onSaveEdit}
+                onCancelEdit={onCancelEdit}
+                suggestionSources={suggestionSources}
               />}
             </React.Fragment>
           ))}
