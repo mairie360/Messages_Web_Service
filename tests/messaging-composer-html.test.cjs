@@ -38,7 +38,7 @@ test('MAIR-607 the composer completes mentions and business references, appends 
   assert.match(view.text(), /Projet mairie/);
   await view.fire(input, 'onKeyDown', { key: 'Enter' });
   assert.equal(values.at(-1), 'Bonjour @Marie Dubois #Projet mairie ');
-  await view.click(byAriaLabel('Ajouter une réaction'));
+  await view.click(byAriaLabel('Insérer un emoji'));
   await view.click(byAriaLabel('Ajouter 👍'));
   assert.deepEqual(emojis, ['👍']);
   assert.equal(values.at(-1), 'Bonjour @Marie Dubois #Projet mairie 👍');
@@ -68,7 +68,7 @@ test('MAIR-607 the composer keeps the draft when the send is refused and clears 
 
 test('MAIR-607 a disabled composer offers no action', () => {
   view = mount(React.createElement(MessagingComposer, { disabled: true }));
-  for (const label of ['Envoyer', 'Joindre un fichier', 'Mentionner un utilisateur', 'Mentionner un élément métier', 'Ajouter une réaction']) {
+  for (const label of ['Envoyer', 'Joindre un fichier', 'Mentionner une personne', 'Lier un élément', 'Insérer un emoji']) {
     assert.match(view.html, new RegExp(`aria-label="${label}"[^>]*disabled=""`), `${label} is disabled`);
   }
 });

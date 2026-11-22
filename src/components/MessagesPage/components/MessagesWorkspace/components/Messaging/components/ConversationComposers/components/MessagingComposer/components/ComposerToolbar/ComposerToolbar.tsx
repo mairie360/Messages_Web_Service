@@ -1,23 +1,20 @@
 import React from 'react';
-import { AtSign, Hash, Paperclip, Smile } from 'lucide-react';
-import { Icon } from '@mairie360/lib-components/primitives';
+import type { LucideIcon } from 'lucide-react';
+import { IconButton, ToolTip, icons } from '@mairie360/lib-components/primitives';
 
 import { EmojiPicker } from './components/EmojiPicker';
 
-export const ToolbarButton = ({ label, disabled, onClick, children }: {
-  label: string; disabled: boolean; onClick: () => void; children: React.ReactNode;
+/** MAIR-1158: every toolbar action is a lib `IconButton` with an explicit glyph, described by its lib `ToolTip`. */
+export const ToolbarButton = ({ label, tooltip, icon, disabled, onClick }: {
+  label: string; tooltip?: string; icon: LucideIcon; disabled: boolean; onClick: () => void;
 }) => (
-  <button
-    type="button"
-    aria-label={label}
-    title={label}
-    disabled={disabled}
-    className="inline-flex size-8 items-center justify-center rounded-md text-[var(--mairie-text)] transition hover:bg-[var(--mairie-background)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/30"
-    onClick={onClick}
-  >
-    {children}
-  </button>
+  <ToolTip text={tooltip ?? label}>
+    <IconButton icon={icon} label={label} title="" size="s" disabled={disabled} onClick={onClick} />
+  </ToolTip>
 );
+
+export const MENTION_LABEL = 'Mentionner une personne';
+export const LINK_LABEL = 'Lier un élément';
 
 export interface ComposerToolbarProps {
   attachLabel: string;
@@ -34,25 +31,17 @@ export interface ComposerToolbarProps {
   onPickEmoji: (emoji: string) => void;
 }
 
-/** Attach, @mention, #reference and emoji actions under the input. */
+/** Attach (file-up), @mention (at-sign), #link (hash) and emoji (smile-plus) actions under the input. */
 export const ComposerToolbar = ({
   attachLabel, emojiLabel, disabled, busy, emojiOpen,
   onAttach, onMention, onBusinessReference, onToggleEmoji, onPickEmoji,
 }: ComposerToolbarProps) => (
   <div className="mt-3 flex items-center gap-2">
-    <ToolbarButton label={attachLabel} disabled={disabled} onClick={onAttach}>
-      <Icon icon={Paperclip} size="s" />
-    </ToolbarButton>
-    <ToolbarButton label="Mentionner un utilisateur" disabled={disabled} onClick={onMention}>
-      <Icon icon={AtSign} size="s" />
-    </ToolbarButton>
-    <ToolbarButton label="Mentionner un élément métier" disabled={disabled} onClick={onBusinessReference}>
-      <Icon icon={Hash} size="s" />
-    </ToolbarButton>
+    <ToolbarButton label={attachLabel} icon={icons['file-up']} disabled={disabled} onClick={onAttach} />
+    <ToolbarButton label={MENTION_LABEL} tooltip={`${MENTION_LABEL} (@)`} icon={icons['at-sign']} disabled={disabled} onClick={onMention} />
+    <ToolbarButton label={LINK_LABEL} tooltip={`${LINK_LABEL} : projet, tâche, dossier, événement (#)`} icon={icons.hash} disabled={disabled} onClick={onBusinessReference} />
     <div className="relative">
-      <ToolbarButton label={emojiLabel} disabled={disabled} onClick={onToggleEmoji}>
-        <Icon icon={Smile} size="s" />
-      </ToolbarButton>
+      <ToolbarButton label={emojiLabel} icon={icons['smile-plus']} disabled={disabled} onClick={onToggleEmoji} />
       {emojiOpen && <EmojiPicker disabled={busy} onPick={onPickEmoji} />}
     </div>
   </div>

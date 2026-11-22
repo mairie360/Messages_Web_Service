@@ -4,7 +4,7 @@ export type MessagingContactId = string | number;
 export type MessagingConversationKind = 'direct' | 'group';
 export type MessagingPresence = 'online' | 'offline' | 'away';
 export type MessagingMessageDirection = 'incoming' | 'outgoing';
-export type MessagingBusinessReferenceKind = 'project' | 'task' | 'event';
+export type MessagingBusinessReferenceKind = 'project' | 'task' | 'event' | 'folder' | 'service';
 export type MessagingSendResult = void | boolean | Promise<void | boolean>;
 
 export interface MessagingAttachment {

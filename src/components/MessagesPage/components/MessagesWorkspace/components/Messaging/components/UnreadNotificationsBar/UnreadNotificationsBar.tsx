@@ -1,4 +1,5 @@
 import { Bell } from 'lucide-react';
+import { Icon } from '@mairie360/lib-components/primitives';
 
 import type { MessagingConversation } from '../../messaging-types';
 
@@ -15,7 +16,7 @@ export const UnreadNotificationsBar = ({ count, firstUnreadConversation, onOpen 
     aria-label="Notifications de messagerie"
     className="flex flex-wrap items-center gap-3 border-b border-[var(--mairie-border)] bg-[var(--mairie-warning-surface)] px-4 py-2.5 text-sm text-[var(--mairie-warning-text)] sm:px-5"
   >
-    <Bell className="size-4 shrink-0" strokeWidth={1.8} />
+    <Icon icon={Bell} size="s" className="shrink-0" />
     <span className="font-semibold">
       {count} notification{count > 1 ? 's' : ''} non lue
       {count > 1 ? 's' : ''}

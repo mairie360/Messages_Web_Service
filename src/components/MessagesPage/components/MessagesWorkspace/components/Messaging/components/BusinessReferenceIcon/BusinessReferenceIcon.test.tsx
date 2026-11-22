@@ -14,3 +14,17 @@ describe('BusinessReferenceIcon', () => {
     expect(container.querySelectorAll('svg')).toHaveLength(3);
   });
 });
+
+describe('BusinessReferenceIcon MAIR-1158', () => {
+  it('draws the explicit lib glyph of each kind through the lib Icon', () => {
+    const kinds = ['project', 'task', 'folder', 'event', 'service'] as const;
+    const glyphs = ['lucide-folder-kanban', 'lucide-list-checks', 'lucide-folder-open', 'lucide-calendar', 'lucide-building-2'];
+    const { container } = render(<>{kinds.map((kind) => <BusinessReferenceIcon key={kind} reference={{ kind }} />)}</>);
+    const svgs = [...container.querySelectorAll('svg')];
+    svgs.forEach((svg, index) => {
+      expect(svg).toHaveAttribute('data-m360-component', 'Icon');
+      expect(svg.getAttribute('class')).toContain(glyphs[index]);
+    });
+    expect(kinds.map((kind) => businessReferenceLabel({ kind }))).toEqual(['Projet', 'Tâche', 'Dossier', 'Événement', 'Service']);
+  });
+});

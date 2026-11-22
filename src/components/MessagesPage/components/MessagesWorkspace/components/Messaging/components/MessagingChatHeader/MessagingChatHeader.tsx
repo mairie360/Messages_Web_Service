@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from '@mairie360/lib-components/primitives';
+import { Text, icons } from '@mairie360/lib-components/primitives';
 import { Phone, Video } from 'lucide-react';
 
 import { joinClasses } from '../../messaging-style';
@@ -12,10 +12,11 @@ export interface MessagingChatHeaderProps extends React.HTMLAttributes<HTMLDivEl
   conversation?: MessagingConversation | null;
   callLabel?: string;
   videoCallLabel?: string;
+  searchLabel?: string;
   moreActionsLabel?: string;
   deleteConversationLabel?: string;
-  onCall?: (conversation: MessagingConversation) => void;
-  onVideoCall?: (conversation: MessagingConversation) => void;
+  /** MAIR-1158: « Rechercher dans la conversation », shown only when given (MAIR-1164 wires it). */
+  onSearchConversation?: (conversation: MessagingConversation) => void;
   onMoreActions?: (conversation: MessagingConversation) => void;
   onDeleteConversation?: (conversation: MessagingConversation) => void;
   onReadVisibleMessages?: (conversation: MessagingConversation) => void;
@@ -25,11 +26,11 @@ export interface MessagingChatHeaderProps extends React.HTMLAttributes<HTMLDivEl
 export const MessagingChatHeader = ({
   conversation,
   callLabel = 'Appeler',
-  videoCallLabel = 'Appel vidéo',
+  videoCallLabel = 'Lancer une visio',
+  searchLabel = 'Rechercher dans la conversation',
   moreActionsLabel = "Plus d'actions",
   deleteConversationLabel = 'Supprimer la conversation',
-  onCall,
-  onVideoCall,
+  onSearchConversation,
   onMoreActions,
   onDeleteConversation,
   onReadVisibleMessages,
@@ -59,15 +60,11 @@ export const MessagingChatHeader = ({
       <HeaderIdentity conversation={conversation} />
 
       <div className="flex shrink-0 items-center gap-1.5">
-        {onCall && (
-          <HeaderIconButton label={callLabel} onClick={() => onCall(conversation)}>
-            <Phone className="size-4" strokeWidth={1.8} />
-          </HeaderIconButton>
-        )}
-        {onVideoCall && (
-          <HeaderIconButton label={videoCallLabel} onClick={() => onVideoCall(conversation)}>
-            <Video className="size-4" strokeWidth={1.8} />
-          </HeaderIconButton>
+        {/* MAIR-1158: calls are not available yet; the buttons are shown disabled with their tooltip. */}
+        <HeaderIconButton label={callLabel} tooltip={`${callLabel} · bientôt disponible`} icon={Phone} unavailable />
+        <HeaderIconButton label={videoCallLabel} tooltip={`${videoCallLabel} · bientôt disponible`} icon={Video} unavailable />
+        {onSearchConversation && (
+          <HeaderIconButton label={searchLabel} icon={icons['text-search']} onClick={() => onSearchConversation(conversation)} />
         )}
         {(onMoreActions || onDeleteConversation || onReadVisibleMessages) && (
           <ConversationActionsMenu

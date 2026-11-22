@@ -80,3 +80,13 @@ describe('NewConversationMenu', () => {
     expect(onNewMessageClick).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('NewConversationMenu MAIR-1158', () => {
+  it('draws message-square-plus and users through the lib Icon in front of the entries', async () => {
+    const { trigger } = setup();
+    await userEvent.click(trigger);
+    expect(screen.getByRole('menuitem', { name: 'Nouveau message' }).querySelector('svg')?.getAttribute('class')).toContain('lucide-message-square-plus');
+    expect(screen.getByRole('menuitem', { name: 'Créer un groupe' }).querySelector('svg')?.getAttribute('class')).toContain('lucide-users');
+    expect(trigger.querySelector('svg')?.getAttribute('class')).toContain('lucide-plus');
+  });
+});

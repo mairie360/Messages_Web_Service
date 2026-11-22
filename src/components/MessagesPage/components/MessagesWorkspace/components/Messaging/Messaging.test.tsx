@@ -268,23 +268,12 @@ describe('Messaging components', () => {
     expect(screen.getAllByText('Pierre Martin')[0]).toBeInTheDocument();
   });
 
-  it('only exposes supplied call callbacks and dismisses the actions menu on outside click', () => {
-    const handleCall = vi.fn();
-    const handleVideoCall = vi.fn();
+  it('MAIR-1158 shows the calls as unavailable and dismisses the actions menu on outside click', () => {
     const handleMoreActions = vi.fn();
-    render(
-      <DemoMessaging
-        onCall={handleCall}
-        onVideoCall={handleVideoCall}
-        onMoreActions={handleMoreActions}
-        onConversationDelete={vi.fn()}
-      />
-    );
+    render(<DemoMessaging onMoreActions={handleMoreActions} onConversationDelete={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Appeler' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Appel vidéo' }));
-    expect(handleCall).toHaveBeenCalledWith(expect.objectContaining({ id: 'marie-dubois' }));
-    expect(handleVideoCall).toHaveBeenCalledWith(expect.objectContaining({ id: 'marie-dubois' }));
+    expect(screen.getByRole('button', { name: 'Appeler' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Lancer une visio' })).toHaveAttribute('aria-disabled', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: "Plus d'actions" }));
     expect(handleMoreActions).toHaveBeenCalledWith(expect.objectContaining({ id: 'marie-dubois' }));
@@ -297,8 +286,7 @@ describe('Messaging components', () => {
     const handleSendMessage = vi.fn();
     render(<Messaging conversations={[defaultMessagingConversations[0]]} onSendMessage={handleSendMessage} />);
 
-    expect(screen.queryByRole('button', { name: 'Appeler' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Appel vidéo' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Appeler' })).toHaveAttribute('aria-disabled', 'true');
     expect(screen.queryByRole('button', { name: "Plus d'actions" })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), {
@@ -394,7 +382,7 @@ describe('Messaging components', () => {
   it('adds a system emoji to the composer', () => {
     render(<DemoMessaging />);
 
-    fireEvent.click(screen.getByLabelText('Ajouter une réaction'));
+    fireEvent.click(screen.getByLabelText('Insérer un emoji'));
     fireEvent.click(screen.getByLabelText('Ajouter 👍'));
 
     expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('👍');
@@ -595,7 +583,7 @@ describe('Messaging components', () => {
   it('opens user mention suggestions from the @ toolbar button', () => {
     render(<DemoMessaging />);
 
-    fireEvent.click(screen.getByLabelText('Mentionner un utilisateur'));
+    fireEvent.click(screen.getByLabelText('Mentionner une personne'));
     expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('@');
 
     fireEvent.click(screen.getByText('@Marie Dubois'));

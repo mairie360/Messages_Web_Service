@@ -20,7 +20,16 @@ test('MAIR-872 the composer renders lucide glyphs only through the lib Icon, wit
     const glyphs = (source.match(/import \{([^}]*)\} from 'lucide-react';/)?.[1] ?? '').split(',').map((item) => item.trim()).filter(Boolean);
     for (const glyph of glyphs) {
       assert.doesNotMatch(source, new RegExp(`<${glyph}\\b`), `${name} renders <${glyph}> directly`);
-      assert.match(source, new RegExp(`<Icon icon=\\{${glyph}\\}`), `${name} imports ${glyph} without an Icon`);
+      // MAIR-1158: a lib IconButton renders its glyph through the lib Icon too.
+      assert.match(source, new RegExp(`<(Icon|IconButton)\\b[^>]*\\bicon=\\{${glyph}\\}`), `${name} imports ${glyph} without an Icon`);
     }
   }
+});
+
+test('MAIR-1158 the composer actions use the explicit lib glyphs (file-up, at-sign, hash, smile-plus, send) on lib icon buttons', () => {
+  const toolbar = fs.readFileSync(path.join(COMPOSER, 'components/ComposerToolbar/ComposerToolbar.tsx'), 'utf8');
+  for (const glyph of ["icons['file-up']", "icons['at-sign']", 'icons.hash', "icons['smile-plus']"]) assert.ok(toolbar.includes(`icon={${glyph}}`), glyph);
+  assert.doesNotMatch(toolbar, /<button\b/);
+  const composer = fs.readFileSync(path.join(COMPOSER, 'MessagingComposer.tsx'), 'utf8');
+  assert.match(composer, /<IconButton type="submit" icon=\{Send\}/);
 });
