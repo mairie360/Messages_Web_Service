@@ -5,12 +5,13 @@ import { CreateGroupModal } from './components/CreateGroupModal';
 import { MessagingChatHeader } from './components/MessagingChatHeader';
 import { MessagingSidebar } from './components/MessagingSidebar';
 import { NewMessageModal } from './components/NewMessageModal';
-import { buildMentionOptions, buildSendPayload, closeWhenConfirmed, getMessageDirection, mergeMessagesById, messagingIdsMatch, unreadMessageIds } from './messaging-model';
+import { buildMentionOptions, buildSendPayload, closeWhenConfirmed, getMessageDirection, mergeMessagesById, messagingIdsMatch, unreadMessageIds, withSentStatus } from './messaging-model';
 import { ContextReferenceBar } from './components/ContextReferenceBar';
 import { ConversationComposers } from './components/ConversationComposers';
 import { MessageThread } from './components/MessageThread';
 import { ReadFailureAlert } from './components/ReadFailureAlert';
 import { useVisibleMessagesRead } from './use-visible-messages-read';
+import { attemptMessage, useSendAttempts } from './use-send-attempts';
 import type {
   CreateGroupPayload,
   MessagingAttachment,
@@ -138,13 +139,21 @@ export const Messaging = ({
     onCreateGroupClick?.();
   };
 
+  // MAIR-1162: my sends are shown in the thread with their state until the consumer confirms them.
+  const sends = useSendAttempts(onSendMessage);
   const handleSendMessage = (
     conversationId: MessagingContactId,
     content: string,
     attachments?: MessagingAttachment[],
     mentions?: MessagingMention[],
     businessLinks?: MessagingBusinessReference[]
-  ) => onSendMessage?.(buildSendPayload(conversationId, content, { attachments, mentions, businessLinks, context: contextReference }));
+  ) => sends.send(buildSendPayload(conversationId, content, { attachments, mentions, businessLinks, context: contextReference }));
+  const pendingMessages = sends.attempts
+    .filter((attempt) => messagingIdsMatch(attempt.conversationId, resolvedActiveId))
+    .map(attemptMessage);
+  const threadMessages = React.useMemo(() => withSentStatus(visibleMessages),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recomputed with the displayed messages
+    [displayedMessages, resolvedActiveId, currentUserId]);
 
   const handleSendNewMessage = (payload: NewMessagePayload) =>
     closeWhenConfirmed(onNewMessageSend?.(payload), () => setNewMessageOpen(false));
@@ -190,7 +199,7 @@ export const Messaging = ({
         <MessageThread
           ref={messageRegionRef}
           hasConversation={activeConversation !== null}
-          messages={visibleMessages}
+          messages={threadMessages}
           emptyStateLabel={emptyStateLabel}
           mentionOptions={displayedMentionOptions}
           businessReferenceOptions={businessReferences}
@@ -199,6 +208,9 @@ export const Messaging = ({
           conversationKey={activeConversation ? String(activeConversation.id) : null}
           unreadIds={activeUnreadIds}
           onRead={onReadVisibleMessages && activeConversation ? () => void readVisibleMessages(activeConversation) : undefined}
+          pendingMessages={pendingMessages}
+          onRetrySend={(message) => message.conversationId !== undefined && sends.retry(message.conversationId)}
+          sendAnnouncement={sends.announcement}
         />
 
         {contextReference && <ContextReferenceBar reference={contextReference} onOpen={onBusinessReferenceClick} />}
@@ -210,6 +222,7 @@ export const Messaging = ({
           mentionOptions={displayedMentionOptions}
           businessReferenceOptions={businessReferences}
           onSendMessage={onSendMessage ? handleSendMessage : undefined}
+          releasedDrafts={sends.released}
           onAttach={onAttach}
           onEmoji={onEmoji}
         />

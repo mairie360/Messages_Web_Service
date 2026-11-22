@@ -24,6 +24,8 @@ export interface ConversationComposersProps {
   ) => MessagingSendResult;
   onAttach?: (files: File[], attachments: MessagingAttachment[]) => void;
   onEmoji?: (emoji: string) => void;
+  /** MAIR-1162: drafts delivered from their failed bubble, per conversation id. */
+  releasedDrafts?: Record<string, { content: string; token: number }>;
 }
 
 // Keep only visited drafts mounted: switching threads must neither move a draft
@@ -31,7 +33,7 @@ export interface ConversationComposersProps {
 // The account key on this component clears the entire in-memory draft session.
 export const ConversationComposers = ({
   conversations, activeConversation, mentionOptions, businessReferenceOptions,
-  onSendMessage, onAttach, onEmoji,
+  onSendMessage, onAttach, onEmoji, releasedDrafts,
 }: ConversationComposersProps) => {
   const [visitedIds, setVisitedIds] = React.useState<string[]>([]);
   const availableIds = new Set(conversations.map(conversation => String(conversation.id)));
@@ -59,6 +61,7 @@ export const ConversationComposers = ({
                 onSendMessage(conversation.id, content, attachments, mentions, businessLinks) : undefined}
               onAttach={onAttach}
               onEmoji={onEmoji}
+              releaseDraft={releasedDrafts?.[id]}
             />
           </div>
         );

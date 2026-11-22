@@ -843,3 +843,72 @@ describe('Messaging components', () => {
     expect(screen.queryByText('Groupe confirmé')).not.toBeInTheDocument();
   });
 });
+
+describe('Messaging send status (MAIR-1162)', () => {
+  const conversation = { id: 'c1', name: 'Sophie Leroy' };
+  const thread = [
+    { id: 'm1', conversationId: 'c1', content: 'Bonjour', authorId: 'u2' },
+    { id: 'm2', conversationId: 'c1', content: 'Déjà envoyé', authorId: 'me' },
+  ];
+  const deferred = () => {
+    let resolve!: (value: boolean) => void;
+    const promise = new Promise<boolean>((done) => { resolve = done; });
+    return { promise, resolve };
+  };
+  const type = (text: string) => fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), { target: { value: text } });
+  const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
+  const announcement = () => document.querySelector('.sr-only[role="status"][aria-live="polite"]');
+
+  it('shows « Envoyé » under my last confirmed message, then « Envoi… » on a dimmed bubble until the send is confirmed', async () => {
+    const pending = deferred();
+    const onSendMessage = vi.fn(() => pending.promise);
+    render(<Messaging conversations={[conversation]} messages={thread} activeConversationId="c1" currentUserId="me" onSendMessage={onSendMessage} />);
+    expect(screen.getByText('Déjà envoyé').closest('[data-messaging-message-id]')).toHaveTextContent('Envoyé');
+    type('Nouveau message'); submit();
+    const bubble = document.querySelector('[data-send-status="sending"][data-direction="outgoing"]')!;
+    expect(bubble).toHaveTextContent('Nouveau message'); expect(bubble).toHaveClass('opacity-60');
+    expect(screen.getByText('Envoi…')).toBeVisible();
+    expect(announcement()).toHaveTextContent('Envoi du message…');
+    await act(async () => { pending.resolve(true); await pending.promise; });
+    expect(document.querySelector('[data-send-status="sending"]')).toBeNull();
+    expect(announcement()).toHaveTextContent('Message envoyé.');
+    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('');
+  });
+
+  it('keeps a failed send as a dashed « Non envoyé » bubble and retries it once without duplicating, releasing the draft', async () => {
+    const retry = deferred();
+    const onSendMessage = vi.fn().mockResolvedValueOnce(false).mockImplementationOnce(() => retry.promise);
+    render(<Messaging conversations={[conversation]} messages={thread} activeConversationId="c1" currentUserId="me" onSendMessage={onSendMessage} />);
+    type('À renvoyer'); submit();
+    await waitFor(() => expect(document.querySelector('[data-send-status="failed"][data-direction="outgoing"]')).not.toBeNull());
+    const failed = document.querySelector('[data-send-status="failed"][data-direction="outgoing"]')!;
+    expect(failed.className).toContain('!border-dashed');
+    expect(screen.getByText('Non envoyé ·')).toBeVisible();
+    expect(announcement()).toHaveTextContent('Message non envoyé.');
+    // MAIR-370: the composer keeps the draft until a send is confirmed.
+    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('À renvoyer');
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer l’envoi' }));
+    expect(screen.getByText('Envoi…')).toBeVisible();
+    expect(onSendMessage).toHaveBeenCalledTimes(2);
+    expect(onSendMessage.mock.calls[1][0]).toEqual(onSendMessage.mock.calls[0][0]);
+    // A second click while it is sending does not write again.
+    expect(screen.queryByRole('button', { name: 'Réessayer l’envoi' })).toBeNull();
+    submit();
+    expect(onSendMessage).toHaveBeenCalledTimes(2);
+    await act(async () => { retry.resolve(true); await retry.promise; });
+    expect(document.querySelector('[data-send-status="failed"], [data-send-status="sending"]')).toBeNull();
+    await waitFor(() => expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue(''));
+  });
+
+  it('keeps a draft changed after the failure when the bubble retry succeeds, and never sends the delivered message twice', async () => {
+    const onSendMessage = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true).mockResolvedValue(true);
+    render(<Messaging conversations={[conversation]} messages={thread} activeConversationId="c1" currentUserId="me" onSendMessage={onSendMessage} />);
+    type('Premier'); submit();
+    await screen.findByText('Non envoyé ·');
+    type('Premier modifié');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Réessayer l’envoi' })); });
+    await waitFor(() => expect(screen.queryByText('Envoi…')).toBeNull());
+    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('Premier modifié');
+    expect(onSendMessage).toHaveBeenCalledTimes(2);
+  });
+});

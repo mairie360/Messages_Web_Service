@@ -4,6 +4,7 @@ import { joinClasses } from '@/components/MessagesPage/components/MessagesWorksp
 import { BubbleAttachments } from './components/BubbleAttachments';
 import { BubbleReferences } from './components/BubbleReferences';
 import { MentionedContent } from './components/MentionedContent';
+import { MessageSendStatus } from './components/MessageSendStatus';
 import { uniqueBusinessReferences } from './bubble-model';
 import type {
   MessagingAttachment,
@@ -18,6 +19,8 @@ export interface MessagingMessageBubbleProps extends React.HTMLAttributes<HTMLDi
   businessReferenceOptions?: MessagingBusinessReference[];
   onAttachmentDownload?: (attachment: MessagingAttachment, message: MessagingMessage) => Promise<void>;
   onBusinessReferenceClick?: (reference: MessagingBusinessReference) => void;
+  /** MAIR-1162: « Réessayer l'envoi » of a failed send. */
+  onRetrySend?: () => void;
 }
 
 export const MessagingMessageBubble = ({
@@ -26,6 +29,7 @@ export const MessagingMessageBubble = ({
   businessReferenceOptions = [],
   onBusinessReferenceClick,
   onAttachmentDownload,
+  onRetrySend,
   className = '',
   ...props
 }: MessagingMessageBubbleProps) => {
@@ -60,8 +64,12 @@ export const MessagingMessageBubble = ({
       )}
       <div
         data-direction={outgoing ? 'outgoing' : 'incoming'}
+        data-send-status={message.sendStatus}
         className={joinClasses(
-          'max-w-[min(560px,82%)] rounded-md px-4 py-3 text-sm leading-5 shadow-[var(--mairie-shadow)]',
+          'max-w-[min(560px,82%)] rounded-md px-4 py-3 text-sm leading-5 shadow-[var(--mairie-shadow)] motion-safe:transition-opacity',
+          // MAIR-1162: dimmed while sending, dashed error border when the send failed.
+          message.sendStatus === 'sending' && 'opacity-60',
+          message.sendStatus === 'failed' && '!border-dashed !border-[var(--mairie-error-text)]',
           outgoing
             ? // MAIR-1159: my messages on the lib message-own tokens (muted beige, contrasted text, 8.8:1).
               'border border-[var(--mairie-message-own-border)] bg-[var(--mairie-message-own-background)] text-[var(--mairie-message-own-on)]'
@@ -82,6 +90,7 @@ export const MessagingMessageBubble = ({
           onDownload={onAttachmentDownload ? attachment => void download(attachment) : undefined}
         />
       </div>
+      {outgoing && message.sendStatus && <MessageSendStatus status={message.sendStatus} onRetry={onRetrySend} />}
     </div>
   );
 };

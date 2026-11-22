@@ -56,7 +56,11 @@ export interface MessagingMessage {
   direction?: MessagingMessageDirection;
   authorId?: MessagingContactId;
   authorName?: string;
+  /** MAIR-1162: state of my send, shown under the bubble (« Envoyé », « Envoi… », « Non envoyé »). */
+  sendStatus?: MessagingSendStatus;
 }
+
+export type MessagingSendStatus = 'sending' | 'sent' | 'failed';
 
 export interface MessagingSendMessagePayload {
   conversationId?: MessagingContactId;

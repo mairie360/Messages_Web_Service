@@ -37,6 +37,8 @@ export interface MessagingComposerProps extends React.HTMLAttributes<HTMLFormEle
   ) => MessagingSendResult;
   onAttach?: (files: File[], attachments: MessagingAttachment[]) => void;
   onEmoji?: (emoji: string) => void;
+  /** MAIR-1162: a draft delivered by « Réessayer l'envoi » of its bubble; released when the draft is unchanged. */
+  releaseDraft?: { content: string; token: number };
 }
 
 export const MessagingComposer = ({
@@ -53,6 +55,7 @@ export const MessagingComposer = ({
   onSendMessage,
   onAttach,
   onEmoji,
+  releaseDraft,
   className = '',
   ...props
 }: MessagingComposerProps) => {
@@ -107,6 +110,27 @@ export const MessagingComposer = ({
     updateValue(event.target.value);
   };
 
+  const clearDraft = () => {
+    if (!mountedRef.current) return;
+    ownedUrlsRef.current.forEach(revokeDraftUrl);
+    ownedUrlsRef.current.clear();
+    if (value === undefined) setInternalValue('');
+    setAttachments([]);
+    setMentions([]);
+    setBusinessLinks([]);
+    setEmojiOpen(false);
+    onValueChange?.('');
+  };
+
+  // MAIR-1162: the bubble delivered this draft; a draft changed since then is kept (MAIR-370).
+  const releasedToken = React.useRef(releaseDraft?.token);
+  React.useEffect(() => {
+    if (!releaseDraft || releaseDraft.token === releasedToken.current) return;
+    releasedToken.current = releaseDraft.token;
+    if (!sendingRef.current && (currentValue.trim() || 'Pièce jointe') === releaseDraft.content) clearDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new release token is an event
+  }, [releaseDraft]);
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -115,18 +139,6 @@ export const MessagingComposer = ({
 
     const messageMentions = mentions.filter((mention) => currentValue.includes(`@${mention.name}`));
     const messageBusinessLinks = businessLinks.filter((reference) => currentValue.includes(`#${reference.title}`));
-
-    const clearDraft = () => {
-      if (!mountedRef.current) return;
-      ownedUrlsRef.current.forEach(revokeDraftUrl);
-      ownedUrlsRef.current.clear();
-      if (value === undefined) setInternalValue('');
-      setAttachments([]);
-      setMentions([]);
-      setBusinessLinks([]);
-      setEmojiOpen(false);
-      onValueChange?.('');
-    };
 
     sendingRef.current = true;
     try {

@@ -116,3 +116,12 @@ export const unreadMessageIds = (messages: MessagingMessage[], unreadCount: numb
 
 /** « 1 nouveau message » / « N nouveaux messages ». */
 export const newMessagesLabel = (count: number) => (count === 1 ? '1 nouveau message' : `${count} nouveaux messages`);
+
+/** MAIR-1162: « Envoyé » under my last confirmed message (the server messages are confirmed sends). */
+export const withSentStatus = (messages: MessagingMessage[]): MessagingMessage[] => {
+  let last = -1;
+  messages.forEach((message, index) => { if (message.direction === 'outgoing') last = index; });
+  return last < 0 || messages[last].sendStatus
+    ? messages
+    : messages.map((message, index) => (index === last ? { ...message, sendStatus: 'sent' as const } : message));
+};

@@ -93,3 +93,9 @@ test('MAIR-838 app-shell.css keeps only the module geometry and never targets th
   }
   assert.doesNotMatch(stylesheet, /font-size:\s*17px|system-ui/);
 });
+
+test('MAIR-1162 only the thread scrolls: the composer and the header keep their height', (t) => {
+  const { last } = policyDocument(t);
+  assert.equal(last('.messages-module > div:nth-child(2) > :not(.flex-1)', 'flex-shrink'), '0');
+  assert.equal(last('.messages-module > div:nth-child(2) > .flex-1', 'overflow-y'), 'auto');
+});
