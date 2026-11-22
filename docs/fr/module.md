@@ -182,3 +182,12 @@ Le brouillon et ses aperçus restent disponibles si la réponse de succès est i
 ## Direction visuelle commune — MAIR-547
 
 DA claire option 1 : tokens et police communs, navigation accessible et contenu métier conservé. Voir la [recette visuelle](../qa/design-qa.md) pour les preuves, vérifications et limites RGAA.
+
+## Écran V2 (epic MAIR-821)
+
+La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://www.figma.com/design/aZKHSHhAj0NQnutKdS82jk/?node-id=18-902)) sur `@mairie360/lib-components` 2.
+
+- **Cadre (MAIR-838).** Lib 2.1.0 : le bandeau de navigation repliable, la barre du haut, le pied de page,
+  la typographie et la zone principale pleine hauteur (`mainLayout="fill"` : pas de défilement de page,
+  marges 20 px / 24 px) viennent du cadre de la lib ; `app-shell.css` ne garde que la géométrie du module
+  de messagerie. Le thème est toujours clair.

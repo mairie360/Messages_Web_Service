@@ -18,41 +18,49 @@ function shadow(window, value) {
   });
 }
 
-test('actual messaging shell applies reference typography and bounded viewport preparation', async (t) => {
-  const dom = await messagesDom(t), shell = dom.document.querySelector('.messages-app-root');
-  assert.equal(dom.style(dom.document.documentElement).fontSize, '17px');
-  assert.equal(dom.style(dom.document.body).fontFamily, 'system-ui, sans-serif');
-  assert.equal(dom.style(shell).height, '100dvh'); assert.equal(Number.parseFloat(dom.style(shell).minHeight), 0);
-  assert.equal(dom.style(shell).overflow, 'hidden');
-  const wrapper = shell.querySelector(':scope > .flex');
-  assert.equal(dom.style(wrapper).height, '100%'); assert.equal(Number.parseFloat(dom.style(wrapper).minHeight), 0);
-  assert.equal(Number.parseFloat(dom.style(wrapper.querySelector(':scope > .flex')).minHeight), 0);
-  assert.equal(dom.style(shell.querySelector('header')).flexShrink, '0');
+test('MAIR-838 actual messaging shell keeps the lib typography and fills the main area through mainLayout', async (t) => {
+  const dom = await messagesDom(t);
+  assert.equal(dom.document.querySelector('.messages-app-root'), null, 'No local frame class');
+  assert.notEqual(dom.style(dom.document.documentElement).fontSize, '17px', 'No local root font size');
+  assert.notEqual(dom.style(dom.document.body).fontFamily, 'system-ui, sans-serif', 'No local body font family');
+  const main = dom.document.querySelector('main');
+  assert.equal(main.getAttribute('data-layout'), 'fill');
+  assert.ok(main.querySelector('.messages-main-inner'));
 });
 
-test('actual messaging sidebar applies the reference row rhythm, position and outer shadow', async (t) => {
-  const dom = await messagesDom(t), sidebar = dom.document.querySelector('.app-published-sidebar');
-  assert.equal(dom.style(sidebar).position, 'relative'); assert.equal(dom.style(sidebar).zIndex, '20');
-  assert.deepEqual(shadow(dom.window, dom.style(sidebar).boxShadow), [{ lengths: [8, 0, 24, 0], color: 'rgba(12, 28, 48, 0.28)' }]);
-  const buttons = [...sidebar.querySelectorAll('nav button')];
+test('MAIR-838 the lib fill layout bounds the main area (flex, no overflow, 20px / 24px padding)', () => {
+  const postcss = require('postcss');
+  const { readFileSync } = require('node:fs');
+  const lib = postcss.parse(readFileSync(require.resolve('@mairie360/lib-components/styles.css'), 'utf8'));
+  const declarations = {};
+  lib.walkRules('.app-shell-main-area[data-layout="fill"]', (rule) => {
+    if (rule.parent.type === 'atrule') return;
+    rule.walkDecls((decl) => { declarations[decl.prop] = decl.value; });
+  });
+  assert.deepEqual(
+    { display: declarations.display, overflow: declarations.overflow, minHeight: declarations['min-height'], padding: declarations.padding },
+    { display: 'flex', overflow: 'hidden', minHeight: '0', padding: '20px 24px' },
+  );
+});
+
+test('actual messaging desktop navigation lists the active modules without local overrides', async (t) => {
+  const dom = await messagesDom(t), navigation = dom.document.querySelector('aside[aria-label="Navigation principale"]');
+  assert.ok(navigation);
+  assert.equal(dom.style(navigation).position, 'static', 'No local position override');
+  assert.ok(!dom.style(navigation).boxShadow || dom.style(navigation).boxShadow === 'none', 'No local shadow override');
+  const buttons = [...navigation.querySelectorAll('nav button')];
   assert.deepEqual(buttons.map((button) => button.textContent), ['Tableau de bord', 'Projets', 'Messagerie', 'Formation', 'Calendrier', 'Administration', 'Paramètres']);
-  for (const button of buttons) {
-    assert.equal(dom.style(button).minHeight, '44px'); assert.equal(dom.style(button).flexShrink, '0');
-  }
 });
 
-test('actual published messaging drawer applies its lower layer and closes through its command', async (t) => {
+test('actual published messaging drawer opens and closes through its commands', async (t) => {
   const dom = await messagesDom(t); await dom.click(dom.button('Ouvrir la navigation'));
-  const drawer = dom.document.querySelector('[role="dialog"][aria-label="Navigation mobile"]'); assert.ok(drawer);
-  assert.equal(dom.style(drawer.querySelector('aside')).zIndex, '0');
+  assert.ok(dom.document.querySelector('[role="dialog"][aria-label="Navigation mobile"]'));
   await dom.click(dom.button('Fermer la navigation'));
   assert.equal(dom.document.querySelector('[role="dialog"][aria-label="Navigation mobile"]'), null);
 });
 
 test('actual messaging card fills its prepared space without clipping its outer shadow', async (t) => {
-  const dom = await messagesDom(t), main = dom.document.querySelector('.messages-app-root main');
-  assert.equal(dom.style(main).padding, '20px'); assert.equal(dom.style(main).display, 'flex');
-  assert.equal(dom.style(main).overflow, 'hidden'); assert.equal(Number.parseFloat(dom.style(main).minHeight), 0);
+  const dom = await messagesDom(t);
   const inner = dom.document.querySelector('.messages-main-inner');
   assert.equal(dom.style(inner).width, '100%'); assert.equal(dom.style(inner).maxWidth, 'none');
   for (const selector of ['.messages-module-frame', '.messages-module-stack']) {

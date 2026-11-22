@@ -180,3 +180,11 @@ An incomplete or unrelated successful receipt retains the draft and previews. Th
 ## Shared visual direction — MAIR-547
 
 Approved light option 1: shared tokens and font, accessible navigation, and preserved business layouts. See the [visual QA](../qa/design-qa.md) for evidence, checks, and RGAA limitations.
+
+## V2 screen (epic MAIR-821)
+
+Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.figma.com/design/aZKHSHhAj0NQnutKdS82jk/?node-id=18-902)) on `@mairie360/lib-components` 2.
+
+- **Frame (MAIR-838).** Lib 2.1.0: the collapsible navigation band, top bar, footer, typography and the
+  full-height main area (`mainLayout="fill"`: no page scroll, 20 px / 24 px padding) come from the lib
+  frame; `app-shell.css` keeps only the messaging module geometry. The theme is always light.
