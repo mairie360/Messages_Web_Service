@@ -223,3 +223,12 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   module est la carte blanche bordée (rayon 12 px, `--mairie-radius-l`) de la zone principale, et le seul titre de
   la page est le `h1` « Messagerie » de la liste. « Messagerie » est actif dans la navigation avec le total des
   non-lus dans le `Counter` de la lib, « 9+ » au-delà de 9 ; Administration reste réservée au rôle.
+- **Liste des conversations (MAIR-1157).** La liste a pour titre « Messagerie » et un seul « + » (`IconButton` de la
+  lib, infobulle `ToolTip` « Nouvelle conversation ») qui ouvre un `DropdownMenu` de la lib : « Nouveau message » et
+  « Créer un groupe » ouvrent les fenêtres existantes. Le menu est annoncé comme tel, s'ouvre avec Entrée / Espace /
+  ↓, se parcourt avec ↑ ↓ Début Fin, se ferme avec Échap, Tab ou un clic à l'extérieur et rend le focus au « + »
+  (`use-menu-keyboard.ts`, partagé avec le menu de l'en-tête). « Rechercher une conversation » est le `SearchField`
+  de la lib qui filtre au fil de la saisie (nom, groupe, service) ; sans résultat, « Aucune conversation trouvée. ».
+  Chaque ligne affiche l'`Avatar` de la lib (photo ou initiales, groupes compris) avec sa pastille de présence, le nom
+  et l'aperçu tronqués sur une ligne, l'heure dans une colonne fixe à droite et le `Counter` des non-lus de la lib
+  (« 9+ »), lu « N messages non lus ».

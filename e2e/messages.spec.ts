@@ -33,9 +33,12 @@ test('an agent sends a direct message', async ({ page, context, baseURL }) => {
   await openMessaging(page);
 
   // The page is server-rendered first: retry the opening until the button is hydrated.
+  // MAIR-1157: « Nouveau message » is an entry of the « + » menu of the list.
   const dialog = page.getByRole('dialog', { name: 'Nouveau message' });
   await expect(async () => {
-    await page.getByRole('button', { name: 'Nouveau message' }).click();
+    const menu = page.getByRole('menu', { name: 'Nouvelle conversation' });
+    if (!(await menu.isVisible())) await page.getByRole('button', { name: 'Nouvelle conversation' }).click();
+    await menu.getByRole('menuitem', { name: 'Nouveau message' }).click({ timeout: 1_000 });
     await expect(dialog).toBeVisible({ timeout: 1_000 });
   }).toPass();
   await dialog.getByRole('combobox', { name: 'Destinataire' }).selectOption({ label: 'Contact Sample' });

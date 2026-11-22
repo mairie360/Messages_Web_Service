@@ -26,7 +26,7 @@ export const MessagingSidebar = ({
   conversations,
   activeConversationId,
   title = 'Messagerie',
-  searchPlaceholder = 'Rechercher un contact...',
+  searchPlaceholder = 'Rechercher une conversation',
   searchValue,
   newMessageLabel = 'Nouveau message',
   createGroupLabel = 'Créer un groupe',
