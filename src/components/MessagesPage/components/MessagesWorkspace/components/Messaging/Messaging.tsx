@@ -7,6 +7,8 @@ import { MessagingSidebar } from './components/MessagingSidebar';
 import { NewMessageModal } from './components/NewMessageModal';
 import { buildMentionOptions, buildSendPayload, closeWhenConfirmed, getMessageDirection, mergeMessagesById, messagingIdsMatch, directContactIds, unreadMessageIds, withSentStatus } from './messaging-model';
 import { ContextReferenceBar } from './components/ContextReferenceBar';
+import { ConversationSearchPanel } from './components/ConversationSearchPanel';
+import { revealMessage } from './reveal-message';
 import { ConversationComposers } from './components/ConversationComposers';
 import { MessageThread } from './components/MessageThread';
 import { ReadFailureAlert } from './components/ReadFailureAlert';
@@ -22,6 +24,9 @@ import type {
   MessagingMessage,
   MessagingSendMessagePayload,
   MessagingSendResult,
+  MessagingSearchPage,
+  MessagingSearchPersonItem,
+  MessagingSearchRequest,
   NewMessagePayload,
 } from './messaging-types';
 
@@ -54,6 +59,16 @@ export interface MessagingProps extends React.HTMLAttributes<HTMLElement> {
   /** MAIR-1163: « Gérer les membres » in « Plus d'actions », shown only when given. */
   onManageMembers?: (conversation: MessagingConversation) => void;
   onMoreActions?: (conversation: MessagingConversation) => void;
+  /**
+   * MAIR-1164: search in the open conversation. With it, « Rechercher dans la conversation » (header and
+   * « Plus d'actions ») opens the search panel instead of calling `onSearchConversation`.
+   */
+  onSearch?: (conversation: MessagingConversation, request: MessagingSearchRequest) => Promise<MessagingSearchPage>;
+  /**
+   * MAIR-1164: a message chosen in the search is not in the loaded page of the thread; the consumer may load
+   * around it. Without it nothing more happens.
+   */
+  onMessageNotLoaded?: (conversation: MessagingConversation, messageId: MessagingContactId) => void;
 }
 
 const emptyConversations: MessagingConversation[] = [];
@@ -87,6 +102,8 @@ export const Messaging = ({
   onSearchConversation,
   onManageMembers,
   onMoreActions,
+  onSearch,
+  onMessageNotLoaded,
   className = '',
   ...props
 }: MessagingProps) => {
@@ -134,9 +151,36 @@ export const Messaging = ({
     onConversationSelect?.(conversation);
   };
 
-  const handleNewMessageClick = () => {
+  const [newMessageRecipient, setNewMessageRecipient] = React.useState<MessagingContactId | undefined>();
+  const handleNewMessageClick = (recipientId?: MessagingContactId) => {
+    setNewMessageRecipient(recipientId);
     setNewMessageOpen(true);
     onNewMessageClick?.();
+  };
+
+  // MAIR-1164: « Rechercher dans la conversation » opens the search panel of the open conversation.
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const activeKey = activeConversation ? String(activeConversation.id) : null;
+  React.useEffect(() => { setSearchOpen(false); }, [activeKey]);
+  const searchActive = React.useCallback(
+    (request: MessagingSearchRequest) => (activeConversation && onSearch
+      ? onSearch(activeConversation, request)
+      : Promise.reject(new Error('Aucune conversation ouverte.'))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one search function per open conversation
+    [activeKey, onSearch],
+  );
+  const openSearchResult = (messageId: MessagingContactId) => {
+    const conversation = activeConversation;
+    // The drawer gives the focus back to its opener first; the thread then moves to the message.
+    window.setTimeout(() => {
+      if (!revealMessage(messageRegionRef.current, messageId) && conversation) onMessageNotLoaded?.(conversation, messageId);
+    }, 0);
+  };
+  const writeTo = (person: MessagingSearchPersonItem) => {
+    const direct = displayedConversations.find((conversation) => conversation.kind !== 'group' &&
+      conversation.contactId !== undefined && String(conversation.contactId).replace(/^user-/, '') === String(person.id).replace(/^user-/, ''));
+    if (direct) handleConversationSelect(direct);
+    else if (onNewMessageSend) handleNewMessageClick(person.id);
   };
 
   const groupWithIds = React.useMemo(
@@ -188,7 +232,7 @@ export const Messaging = ({
         conversations={displayedConversations}
         activeConversationId={resolvedActiveId}
         onConversationSelect={handleConversationSelect}
-        onNewMessageClick={onNewMessageSend ? handleNewMessageClick : undefined}
+        onNewMessageClick={onNewMessageSend ? () => handleNewMessageClick() : undefined}
         onCreateGroupClick={onCreateGroup ? () => handleCreateGroupClick() : undefined}
       />
 
@@ -196,7 +240,7 @@ export const Messaging = ({
         <MessagingChatHeader
           key={activeConversation ? String(activeConversation.id) : 'no-conversation'}
           conversation={activeConversation}
-          onSearchConversation={onSearchConversation}
+          onSearchConversation={onSearch ? () => setSearchOpen(true) : onSearchConversation}
           onMoreActions={onMoreActions}
           onDeleteConversation={onConversationDelete ? handleDeleteConversation : undefined}
           onReadVisibleMessages={onReadVisibleMessages ? conversation => void readVisibleMessages(conversation, { untilLast: true }) : undefined}
@@ -242,10 +286,22 @@ export const Messaging = ({
         />
       </div>
 
+      {onSearch && (
+        <ConversationSearchPanel
+          open={searchOpen}
+          conversation={activeConversation}
+          currentUserId={currentUserId}
+          onClose={() => setSearchOpen(false)}
+          onSearch={searchActive}
+          onOpenMessage={openSearchResult}
+          onWriteTo={writeTo}
+        />
+      )}
       {onNewMessageSend && (
         <NewMessageModal
           isOpen={newMessageOpen}
           contacts={displayedContacts}
+          initialRecipientId={newMessageRecipient}
           onCancel={() => setNewMessageOpen(false)}
           onSendMessage={handleSendNewMessage}
         />

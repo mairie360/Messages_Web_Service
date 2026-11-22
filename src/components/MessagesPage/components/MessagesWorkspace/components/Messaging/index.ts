@@ -6,3 +6,4 @@ export * from './use-visible-messages-read';
 export * from './visible-message';
 export * from './use-menu-keyboard';
 export * from './use-send-attempts';
+export * from './reveal-message';

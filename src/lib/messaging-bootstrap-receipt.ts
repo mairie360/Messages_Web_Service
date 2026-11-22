@@ -1,5 +1,5 @@
 // Field projection derived from the pinned published GetMessagingBootstrap200 response.
-import { choice, list, number, optional, record, text, union } from './receipt-readers';
+import { boolean, choice, list, number, optional, record, text, union } from './receipt-readers';
 const dto2 = choice(["online", "offline", "away"]);
 const dto1 = record({ "avatarUrl": optional(text), "department": optional(text), "email": optional(text), "id": union(text, number), "initials": optional(text), "name": text, "presence": optional(dto2) });
 const dto4 = choice(["direct", "group"]);
@@ -12,7 +12,13 @@ const dto9 = choice(["incoming", "outgoing"]);
 const dto11 = choice(["direct", "group"]);
 const dto10 = record({ "description": optional(text), "id": union(text, number), "kind": optional(dto11), "name": text });
 const dto12 = record({ "authorId": optional(union(text, number)), "authorName": optional(text), "excerpt": text, "id": union(text, number) });
-const dto7 = record({ "attachments": optional(list(dto8)), "authorId": optional(union(text, number)), "authorName": optional(text), "citation": optional(union(text, number)), "content": text, "conversationId": union(text, number), "direction": optional(dto9), "id": union(text, number), "mentions": optional(list(dto10)), "quoted": optional(dto12), "sentAt": text });
+// MAIR-1154: messaging V2 fields (system notes, edits, tombstones, tags, reactions).
+const dto13 = record({ "action": choice(["members_added", "member_removed", "member_left"]), "actorId": union(text, number), "actorName": optional(text), "userIds": list(union(text, number)), "userNames": list(text) });
+const dto14 = record({ "id": union(text, number), "name": optional(text) });
+const dto15 = record({ "id": union(text, number), "kind": choice(["project", "task", "event"]), "title": optional(text), "url": optional(text) });
+const dto16 = record({ "emoji": text, "count": number, "reactedByMe": boolean, "userNames": list(text) });
+const dto7 = record({ "attachments": optional(list(dto8)), "authorId": optional(union(text, number)), "authorName": optional(text), "citation": optional(union(text, number)), "content": text, "conversationId": union(text, number), "direction": optional(dto9), "id": union(text, number), "mentions": optional(list(dto10)), "quoted": optional(dto12), "sentAt": text,
+  "kind": choice(["user", "system"]), "systemEvent": optional(dto13), "editedAt": optional(text), "deleted": boolean, "mentionsEveryone": boolean, "groupMentions": list(dto14), "links": list(dto15), "reactions": list(dto16) });
 const dto0 = record({ "activeConversationId": optional(union(text, number)), "contacts": list(dto1), "conversations": list(dto3), "currentUser": dto6, "messages": list(dto7) });
 
 export const readGetMessagingBootstrap200 = dto0;

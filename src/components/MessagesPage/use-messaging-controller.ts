@@ -836,6 +836,12 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       }
     };
 
+  // MAIR-1164: a page of the search panel; the panel owns the debounce and aborts the requests it no longer needs.
+  const handleSearch: NonNullable<MessagingProps["onSearch"]> = (conversation, request) =>
+    messageClient.searchConversation(conversation.id, {
+      q: request.query, type: request.type, limit: 20, offset: request.offset ?? 0,
+    }, request.signal);
+
   const handleAttach: NonNullable<MessagingProps["onAttach"]> = (files, attachments) => {
     attachments.forEach((attachment, index) => {
       if (files[index]) attachmentFilesRef.current.set(attachment, files[index]);
@@ -890,6 +896,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     handleNewMessageSend,
     handleCreateGroup,
     handleConversationDelete,
+    handleSearch,
     toggleConversationList: () => setShowConversationList((current) => !current),
   };
 }

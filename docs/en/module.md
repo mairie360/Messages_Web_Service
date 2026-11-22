@@ -263,6 +263,15 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   « Marquer comme lus » acknowledges up to the last message, so the list and navigation counters reach zero. The
   deletion is confirmed in the lib `ConfirmModal` (danger), then the toast « Conversation supprimée. »; a failure is the
   danger `ErrorAlert` above the module.
+- **Search in the conversation (MAIR-1164).** « Rechercher dans la conversation » (header button or « Plus
+  d'actions ») opens a lib `Drawer` (size m, focus kept inside, given back to the button on close): a search field,
+  fixed lib `Tabs` « Messages · Fichiers · Personnes » with their counters, and the results scrolling below them
+  (`GET /conversations/{id}/search`, the three tabs searched together 300 ms after the last key, older requests
+  cancelled). The matches the BFF located are highlighted in each excerpt; « Afficher plus de résultats » loads the
+  next page. Choosing a message closes the panel, scrolls the thread smoothly to it (instantly under reduced motion)
+  and highlights it for two seconds; « Écrire » of a person opens the direct conversation with them, or « Nouveau
+  message » to them. Loading, error (with « Réessayer ») and no result are lib `DataState`s. The files tab stays empty
+  while the BFF stores no attachment.
 - **Empty states (MAIR-1171).** One illustrated visual per screen, from the lib 2.3 `DataState`: without any
   conversation, the list only says « Aucune conversation pour l'instant. » and the thread shows « Commencez à
   échanger » (size m, illustrated); with conversations but none selected, « Sélectionnez une conversation » (size m);

@@ -28,7 +28,9 @@ const conversation = (id, name, extra = {}) => ({ id: `conversation-${id}`, name
 
 const message = (id, conversationId, content, author = users.agent, extra = {}) => ({
   id: `message-${id}`, conversationId: `conversation-${conversationId}`, content, sentAt: '2026-09-15T09:30:00.000Z',
-  authorId: `user-${author.id}`, authorName: author.name, direction: author === users.agent ? 'outgoing' : 'incoming', ...extra,
+  authorId: `user-${author.id}`, authorName: author.name, direction: author === users.agent ? 'outgoing' : 'incoming',
+  // MAIR-1154: fields every message of the BFF carries since messaging V2.
+  kind: 'user', deleted: false, mentionsEveryone: false, groupMentions: [], links: [], reactions: [], ...extra,
 });
 
 /** Réponse `GET /me` : utilisateur courant. */

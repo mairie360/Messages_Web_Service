@@ -50,7 +50,8 @@ export const MessagingMessageBubble = ({
 
   return (
     <div
-      className={joinClasses('flex w-full flex-col', outgoing ? 'items-end' : 'items-start', className)}
+      // MAIR-1164: a message reached from the search (or a quote) is highlighted for a moment (`data-revealed`).
+      className={joinClasses('flex w-full flex-col rounded-md data-[revealed]:bg-[var(--mairie-accent-surface)] motion-safe:transition-colors', outgoing ? 'items-end' : 'items-start', className)}
       {...props}
     >
       {/* MAIR-1159: the time sits above the bubble, right-aligned for my messages. */}

@@ -7,6 +7,7 @@ import type {
   PostDirectMessagesBody,
   PostGroupsBody,
   PostConversationsConversationIdReadBody,
+  GetConversationsConversationIdSearchParams,
 } from "@mairie360/bff-message-openapi/model";
 import { bffMessage } from "../lib/bff-client";
 
@@ -61,6 +62,11 @@ export const messageClient = {
       throw new Error("L’acquittement des messages n’a pas été confirmé.");
     }
     return reply;
+  },
+
+  /** MAIR-1164: one page of the messages, files or people of a conversation matching `q`. */
+  async searchConversation(conversationId: MessageId, params: GetConversationsConversationIdSearchParams, signal?: AbortSignal) {
+    return (await bffMessage.getConversationsConversationIdSearch(encodeId(conversationId), params, { signal })).data;
   },
 
   async uploadAttachments(files: File[]) {
