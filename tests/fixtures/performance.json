@@ -53,7 +53,13 @@
           "sentAt": "2026-09-15T09:30:00.000Z",
           "authorId": "user-7",
           "authorName": "Sophie Leroy",
-          "direction": "incoming"
+          "direction": "incoming",
+          "kind": "user",
+          "deleted": false,
+          "mentionsEveryone": false,
+          "groupMentions": [],
+          "links": [],
+          "reactions": []
         }
       ],
       "activeConversationId": "conversation-4"
@@ -141,7 +147,13 @@
           "sentAt": "2026-09-15T09:30:00.000Z",
           "authorId": "user-7",
           "authorName": "Sophie Leroy",
-          "direction": "incoming"
+          "direction": "incoming",
+          "kind": "user",
+          "deleted": false,
+          "mentionsEveryone": false,
+          "groupMentions": [],
+          "links": [],
+          "reactions": []
         }
       ]
     },
@@ -239,7 +251,13 @@
           "sentAt": "2026-09-15T10:00:00.000Z",
           "authorId": "user-7",
           "authorName": "Sophie Leroy",
-          "direction": "incoming"
+          "direction": "incoming",
+          "kind": "user",
+          "deleted": false,
+          "mentionsEveryone": false,
+          "groupMentions": [],
+          "links": [],
+          "reactions": []
         }
       ]
     }
