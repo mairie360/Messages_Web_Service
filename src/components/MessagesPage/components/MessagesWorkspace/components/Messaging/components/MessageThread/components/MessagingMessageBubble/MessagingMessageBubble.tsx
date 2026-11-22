@@ -49,11 +49,22 @@ export const MessagingMessageBubble = ({
       className={joinClasses('flex w-full flex-col', outgoing ? 'items-end' : 'items-start', className)}
       {...props}
     >
+      {/* MAIR-1159: the time sits above the bubble, right-aligned for my messages. */}
+      {message.sentAt && (
+        <span
+          data-bubble-time=""
+          className={joinClasses('mb-1 text-xs leading-5 text-[var(--mairie-muted)]', outgoing ? 'mr-1 self-end text-right' : 'ml-1')}
+        >
+          {message.sentAt}
+        </span>
+      )}
       <div
+        data-direction={outgoing ? 'outgoing' : 'incoming'}
         className={joinClasses(
           'max-w-[min(560px,82%)] rounded-md px-4 py-3 text-sm leading-5 shadow-[var(--mairie-shadow)]',
           outgoing
-            ? 'bg-[var(--mairie-action-background)] text-[var(--mairie-on-action)]'
+            ? // MAIR-1159: my messages on the lib message-own tokens (muted beige, contrasted text, 8.8:1).
+              'border border-[var(--mairie-message-own-border)] bg-[var(--mairie-message-own-background)] text-[var(--mairie-message-own-on)]'
             : 'border border-[var(--mairie-border)] bg-[var(--mairie-surface)] text-[var(--mairie-text)]'
         )}
       >
@@ -71,11 +82,6 @@ export const MessagingMessageBubble = ({
           onDownload={onAttachmentDownload ? attachment => void download(attachment) : undefined}
         />
       </div>
-      {message.sentAt && (
-        <span className={joinClasses('mt-1 text-xs leading-5 text-[var(--mairie-muted)]', outgoing ? 'mr-1' : 'ml-1')}>
-          {message.sentAt}
-        </span>
-      )}
     </div>
   );
 };

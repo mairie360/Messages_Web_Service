@@ -231,3 +231,7 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   tooltip « … · bientôt disponible »), « Rechercher dans la conversation » `text-search` only when wired, « Plus
   d'actions » `more-horizontal`. Menus: `check-check`, `trash`, `message-square-plus`, `users`. Linked elements:
   project `folder-kanban`, task `list-checks`, folder `folder-open`, event `calendar`, service `building-2`.
+- **My bubbles (MAIR-1159).** My messages use the lib 2.3 tokens `--mairie-message-own-background` (#efebe2),
+  `--mairie-message-own-on` (#383f51, contrast 8.8:1) and `--mairie-message-own-border` (#d6d0c3), their links and
+  attachments too; received bubbles keep the white surface and `--mairie-border`. The time sits above the bubble,
+  right-aligned for my messages.
