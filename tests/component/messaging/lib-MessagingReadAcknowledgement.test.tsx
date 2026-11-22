@@ -51,7 +51,8 @@ it('offers an explicit command and reports only the last geometrically visible m
     conversations[0], expect.objectContaining({ id: 'message-1' }),
   ));
   expect(screen.queryByText('Message du service B')).not.toBeInTheDocument();
-  expect(screen.getByText('4 notifications non lues')).toBeInTheDocument();
+  // MAIR-1160: no banner any more; the list counters stay.
+  expect(document.querySelectorAll('[data-m360-component~="Counter"]')).toHaveLength(2);
 });
 
 it('keeps the existing actions without a read callback', () => {
@@ -152,7 +153,8 @@ it('keeps a refused command attached to its conversation and never clears unread
   await requestRead();
   setVisibleGeometry();
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('n’ont pas pu être marqués comme lus'));
-  expect(screen.getByText('4 notifications non lues')).toBeInTheDocument();
+  // MAIR-1160: no banner any more; the list counters stay.
+  expect(document.querySelectorAll('[data-m360-component~="Counter"]')).toHaveLength(2);
   rerender(<Messaging conversations={conversations} messages={messages} activeConversationId="chat-b"
     onConversationDelete={vi.fn()} {...props} />);
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
