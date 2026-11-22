@@ -99,3 +99,21 @@ it('keeps a refused command attached to its conversation and never clears unread
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   expect(onReadVisibleMessages).toHaveBeenCalledTimes(1);
 });
+
+it('shows the read failure when the consumer throws, then lets a new command through', async () => {
+  const onReadVisibleMessages = vi.fn(() => { throw new Error('network'); });
+  render(<Messaging conversations={conversations} messages={messages} activeConversationId="chat-a"
+    onConversationDelete={vi.fn()} onReadVisibleMessages={onReadVisibleMessages} />);
+  requestRead();
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('n’ont pas pu être marqués comme lus'));
+  requestRead();
+  await waitFor(() => expect(onReadVisibleMessages).toHaveBeenCalledTimes(2));
+});
+
+it('acknowledges an empty thread without a last message', async () => {
+  const onReadVisibleMessages = vi.fn(() => true);
+  render(<Messaging conversations={conversations} messages={[]} activeConversationId="chat-a"
+    onConversationDelete={vi.fn()} onReadVisibleMessages={onReadVisibleMessages} />);
+  requestRead();
+  await waitFor(() => expect(onReadVisibleMessages).toHaveBeenCalledWith(conversations[0], null));
+});
