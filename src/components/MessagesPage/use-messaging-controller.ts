@@ -863,6 +863,28 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     }
   };
 
+  // MAIR-1169: delete one of my messages; its tombstone replaces it, and the preview of the list follows when it
+  // was the last message of the conversation.
+  const handleDeleteMessage: NonNullable<MessagingProps["onDeleteMessage"]> = async (message) => {
+    if (message.conversationId === undefined) return false;
+    const conversationId = message.conversationId;
+    beginMutation();
+    try {
+      const { message: tombstone } = await messageClient.deleteMessage(conversationId, message.id);
+      if (!idsMatch(tombstone?.id, message.id) || tombstone.deleted !== true) throw new Error("La suppression du message n’a pas été confirmée.");
+      const thread = confirmedMessagesRef.current.filter(item => idsMatch(item.conversationId, conversationId));
+      const wasLast = idsMatch(thread[thread.length - 1]?.id, message.id);
+      setMessages(current => appendMessage(current, tombstone));
+      if (wasLast) setConversations(current => current.map(item => idsMatch(item.id, conversationId) ? { ...item, lastMessage: "Message supprimé" } : item));
+      return true;
+    } catch (failure) {
+      if (await recoverSessionNavigation(failure)) return false;
+      throw new Error(describeBffError(failure, "Le message n’a pas pu être supprimé."));
+    } finally {
+      endMutation(true);
+    }
+  };
+
   // MAIR-1166: suggestions of `@` (members, groups and services, everyone) and of `#` (projects, events, tasks).
   const handleSuggestMentions: NonNullable<MessagingProps["onSuggestMentions"]> = (conversation, query, signal) =>
     messageClient.getMentionSuggestions(conversation.id, query, signal);
@@ -978,6 +1000,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     handleSuggestMentions,
     handleSuggestLinks,
     handleEditMessage,
+    handleDeleteMessage,
     handleLoadMembers,
     handleAddMembers,
     handleRemoveMember,

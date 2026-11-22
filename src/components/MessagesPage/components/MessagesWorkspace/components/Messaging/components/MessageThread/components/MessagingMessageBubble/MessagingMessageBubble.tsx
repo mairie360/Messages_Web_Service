@@ -3,6 +3,7 @@ import React from 'react';
 import { joinClasses } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-style';
 import { BubbleAttachments } from './components/BubbleAttachments';
 import { BubbleReferences } from './components/BubbleReferences';
+import { DeletedMessage } from './components/DeletedMessage';
 import { MentionedContent } from './components/MentionedContent';
 import { MessageActionsToolbar } from './components/MessageActionsToolbar';
 import { MessageEditBox } from './components/MessageEditBox';
@@ -71,7 +72,8 @@ export const MessagingMessageBubble = ({
   const pressTimer = React.useRef<number | undefined>(undefined);
   const stopPress = () => { window.clearTimeout(pressTimer.current); pressTimer.current = undefined; };
   React.useEffect(() => stopPress, []);
-  const hasActions = !message.sendStatus || message.sendStatus === 'sent'
+  // MAIR-1169: no action on a deleted message.
+  const hasActions = !message.deleted && (!message.sendStatus || message.sendStatus === 'sent')
     ? !!(onReact || onReply || onEdit || onDelete) : false;
   const [downloadError, setDownloadError] = React.useState('');
   const [downloadPending, setDownloadPending] = React.useState(false);
@@ -113,7 +115,7 @@ export const MessagingMessageBubble = ({
           {message.editedAt && !message.deleted ? ' · modifié' : ''}
         </span>
       )}
-      {message.citation !== undefined && (
+      {message.citation !== undefined && !message.deleted && (
         <MessageQuote
           authorName={message.quoted?.authorName}
           excerpt={message.quoted?.excerpt}
@@ -122,7 +124,9 @@ export const MessagingMessageBubble = ({
           onOpen={onOpenQuote ? () => onOpenQuote(message.citation!) : undefined}
         />
       )}
-      {editing && onSaveEdit ? (
+      {message.deleted ? (
+        <DeletedMessage outgoing={outgoing} />
+      ) : editing && onSaveEdit ? (
         <MessageEditBox
           message={message}
           initialText={messageText(message)}

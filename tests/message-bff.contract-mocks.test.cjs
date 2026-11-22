@@ -89,6 +89,12 @@ const clientScenarios = {
     const [call] = messageBff.calls('/conversations/{conversationId}/messages/{messageId}', 'patch');
     assert.deepEqual({ path: call.pathParams, body: call.body }, { path: { conversationId: 'conversation-4', messageId: 'message-3' }, body: payload });
   },
+  async deleteMessage() {
+    const body = { message: message(3, 4, '', users.agent, { deleted: true }) };
+    messageBff.on('delete', '/conversations/{conversationId}/messages/{messageId}', { body });
+    assert.deepEqual(await messageClient.deleteMessage('conversation-4', 'message-3'), body);
+    assert.deepEqual(upstream(), ['DELETE /conversations/conversation-4/messages/message-3']);
+  },
   async getMentionSuggestions() {
     const body = { everyone: true, groups: [{ id: 'group-4', name: 'Service urbanisme' }], people: [{ id: `user-${users.sophie.id}`, name: users.sophie.name }] };
     messageBff.on('get', '/conversations/{conversationId}/mention-suggestions', { body });

@@ -304,6 +304,12 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   while the text is empty or unchanged). The save (`PATCH /conversations/{id}/messages/{messageId}`, every tag field
   sent so that a removed tag goes) replaces the message; its time is then followed by « · modifié ». A refusal is a
   lib `ErrorAlert` under the box, the text kept.
+- **Delete a message (MAIR-1169).** « Supprimer » (toolbar, my messages only) opens the lib `ConfirmModal` (danger)
+  « Supprimer le message ? » / « Le message sera remplacé par « Message supprimé » pour tous les participants. ».
+  Once confirmed (`DELETE /conversations/{id}/messages/{messageId}`), `DeletedMessage` (ban icon, muted italics)
+  replaces the bubble, its tags, quote and reactions; no action is offered on it any more, and the preview of the list
+  reads « Message supprimé » when it was the last message. A failure is a danger `ErrorAlert` above the thread, the
+  message kept.
 - **Empty states (MAIR-1171).** One illustrated visual per screen, from the lib 2.3 `DataState`: without any
   conversation, the list only says « Aucune conversation pour l'instant. » and the thread shows « Commencez à
   échanger » (size m, illustrated); with conversations but none selected, « Sélectionnez une conversation » (size m);

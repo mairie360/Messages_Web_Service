@@ -1,4 +1,5 @@
 import React from 'react';
+import { ConfirmModal, ErrorAlert } from '@mairie360/lib-components/primitives';
 
 import { joinClasses } from './messaging-style';
 import { CreateGroupModal } from './components/CreateGroupModal';
@@ -93,6 +94,11 @@ export interface MessagingProps extends React.HTMLAttributes<HTMLElement> {
    * saved; a rejection carries the message shown under the edit box.
    */
   onEditMessage?: (message: MessagingMessage, payload: MessagingEditPayload) => Promise<boolean | void>;
+  /**
+   * MAIR-1169: delete one of my messages (« Message supprimé » for everyone); « Supprimer » is offered only with it.
+   * A rejection carries the message of the danger alert shown above the thread.
+   */
+  onDeleteMessage?: (message: MessagingMessage) => Promise<boolean | void>;
 }
 
 const emptyConversations: MessagingConversation[] = [];
@@ -135,6 +141,7 @@ export const Messaging = ({
   onSuggestMentions,
   onSuggestLinks,
   onEditMessage,
+  onDeleteMessage,
   className = '',
   ...props
 }: MessagingProps) => {
@@ -293,6 +300,22 @@ export const Messaging = ({
     links: onSuggestLinks,
   };
 
+  // MAIR-1169: the deletion of one of my messages, confirmed first; a failure keeps the message and says why.
+  const [deleting, setDeleting] = React.useState<MessagingMessage | null>(null);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
+  React.useEffect(() => { setDeleting(null); setDeleteError(null); }, [activeKey]);
+  const confirmDelete = async () => {
+    const message = deleting;
+    setDeleting(null);
+    if (!message || !onDeleteMessage) return;
+    setDeleteError(null);
+    try {
+      if (await onDeleteMessage(message) === false) setDeleteError('Le message n’a pas pu être supprimé.');
+    } catch (failure) {
+      setDeleteError(failure instanceof Error && failure.message ? failure.message : 'Le message n’a pas pu être supprimé.');
+    }
+  };
+
   const openQuote = (messageId: MessagingContactId) => {
     if (!revealMessage(messageRegionRef.current, messageId) && activeConversation) onMessageNotLoaded?.(activeConversation, messageId);
   };
@@ -347,6 +370,10 @@ export const Messaging = ({
           <ReadFailureAlert message={readFailure.message} />
         )}
 
+        {deleteError && (
+          <ErrorAlert size="s" className="mx-4 mt-3" title={deleteError} onDismiss={() => setDeleteError(null)} />
+        )}
+
         <MessageThread
           ref={messageRegionRef}
           hasConversation={activeConversation !== null}
@@ -367,6 +394,7 @@ export const Messaging = ({
           onReply={onSendMessage && activeConversation ? (message) => setReply(activeConversation.id, message) : undefined}
           onOpenQuote={openQuote}
           onEdit={onEditMessage ? (message) => { if (!message.deleted) setEditingId(message.id); } : undefined}
+          onDelete={onDeleteMessage ? (message) => { if (!message.deleted) setDeleting(message); } : undefined}
           editingId={editingId}
           onSaveEdit={saveEdit}
           onCancelEdit={() => setEditingId(null)}
@@ -401,6 +429,18 @@ export const Messaging = ({
           onSearch={searchActive}
           onOpenMessage={openSearchResult}
           onWriteTo={writeTo}
+        />
+      )}
+      {onDeleteMessage && (
+        <ConfirmModal
+          open={deleting !== null}
+          role="alertdialog"
+          title="Supprimer le message ?"
+          message="Le message sera remplacé par « Message supprimé » pour tous les participants."
+          confirmLabel="Supprimer"
+          initialFocus="cancel"
+          onCancel={() => setDeleting(null)}
+          onConfirm={() => void confirmDelete()}
         />
       )}
       {onLoadMembers && (

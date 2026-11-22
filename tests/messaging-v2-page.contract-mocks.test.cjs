@@ -131,3 +131,16 @@ test('MAIR-1168 an edit replaces the message in the thread, a refusal keeps it',
   bff.on('patch', '/conversations/{conversationId}/messages/{messageId}', { status: 403, outOfContract: true, body: { error: { code: 'FORBIDDEN', message: 'Seul l’auteur peut modifier ce message.', details: [] } } });
   await assert.rejects(view.act(() => messaging().onEditMessage({ ...mine }, { content: 'Autre', mentions: [], businessLinks: [] })), /auteur/);
 });
+
+test('MAIR-1169 a deleted message becomes its tombstone and the preview of the list follows', async () => {
+  await loaded();
+  const mine = message(33, 4, 'Erreur de fil');
+  bff.on('post', '/conversations/{conversationId}/messages', { status: 201, body: { message: mine, conversation: conversation(4, 'Équipe communication', { memberCount: 2, lastMessage: 'Erreur de fil' }) } });
+  await view.act(() => messaging().onSendMessage({ conversationId: 'conversation-4', content: 'Erreur de fil' }));
+  bff.on('delete', '/conversations/{conversationId}/messages/{messageId}', { body: { message: { ...mine, content: '', deleted: true } } });
+  assert.equal(await view.act(() => messaging().onDeleteMessage({ ...mine })), true);
+  await view.waitFor(() => messaging().messages.some(item => item.id === mine.id && item.deleted === true));
+  assert.equal(messaging().conversations.find(item => item.id === 'conversation-4').lastMessage, 'Message supprimé');
+  bff.on('delete', '/conversations/{conversationId}/messages/{messageId}', { status: 404, outOfContract: true, body: { error: { code: 'NOT_FOUND', message: 'Message introuvable.', details: [] } } });
+  await assert.rejects(view.act(() => messaging().onDeleteMessage({ ...mine })), /introuvable|supprimé/);
+});

@@ -51,6 +51,7 @@ export function MessagesWorkspace({
   handleSuggestMentions,
   handleSuggestLinks,
   handleEditMessage,
+  handleDeleteMessage,
   handleLoadMembers,
   handleAddMembers,
   handleRemoveMember,
@@ -113,6 +114,7 @@ export function MessagesWorkspace({
                 onSuggestMentions={handleSuggestMentions}
                 onSuggestLinks={handleSuggestLinks}
                 onEditMessage={hasConfirmedThread ? handleEditMessage : undefined}
+                onDeleteMessage={hasConfirmedThread ? handleDeleteMessage : undefined}
                 onLoadMembers={hasConfirmedThread ? handleLoadMembers : undefined}
                 onAddMembers={handleAddMembers}
                 onRemoveMember={handleRemoveMember}
