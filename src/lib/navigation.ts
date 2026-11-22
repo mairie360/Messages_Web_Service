@@ -1,4 +1,4 @@
-import { parseFrontUrl } from "@/lib/front-url";
+import { parseFrontUrl } from "@mairie360/lib-components/shared";
 import { frontUrl } from "@/lib/front-urls";
 import type { FrontUrlKey } from "@/lib/front-urls";
 import { settingsProfileUrl } from "@/lib/settings-profile";
