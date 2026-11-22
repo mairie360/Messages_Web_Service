@@ -784,10 +784,11 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
   assert.deepEqual(messaging.businessReferences.map((reference) => reference.title), ['Budget participatif', 'Conseil municipal']);
   await view.waitFor(() => view.props('Header').user.name === 'Agent Mairie');
   assert.match(view.html, /<span[^>]*>Agent Mairie<\/span>/);
-  // MAIR-860: the reception state is a lib StatusPill inside the polite status region.
-  const reception = view.props('ReceptionStatus');
+  // MAIR-1161: no reception indicator in normal operation; the polite region of the delayed banner stays mounted.
+  const reception = view.props('MessagesReceptionDelayed');
   assert.ok(['connecting', 'polling', 'connected', 'offline'].includes(reception.state));
-  assert.match(view.html, /<div class="messages-reception-status[^"]*" role="status" aria-live="polite"><span[^>]*data-m360-component="StatusPill"/);
+  assert.doesNotMatch(view.html, /Réception automatique active|Actualisation automatique active|Connexion à la réception automatique/);
+  assert.match(view.html, /<div class="messages-reception-delayed[^"]*" aria-live="polite">/);
   // MAIR-1156: the lib 2.3 page base of the messaging has no footer.
   assert.doesNotMatch(view.html, /<footer\b|role="contentinfo"|app-shell-footer/);
 });

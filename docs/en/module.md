@@ -243,3 +243,8 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   under `prefers-reduced-motion`). Reaching the end by the agent (wheel, touch, keyboard, pointer, pill) hides the pill
   and marks the conversation read; a thread that does not scroll is read when opened; the opening placement and other
   programmatic scrolls never read. The list and navigation counters both follow the refreshed conversation.
+- **Delayed reception (MAIR-1161).** « Réception automatique active » and the other reception pills are gone: nothing
+  is shown while the reception works. Once the real-time connection is lost, `MessagesReceptionDelayed` shows a small
+  lib warning `Alert` « Réception des messages retardée » above the module, announced by its polite live region without
+  taking the focus, with « Réessayer la réception ». On reconnection the stream resumes from its last event
+  (`Last-Event-ID`) and the module reads the missed messages again, then the banner goes away.

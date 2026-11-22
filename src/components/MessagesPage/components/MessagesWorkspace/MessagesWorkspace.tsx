@@ -8,7 +8,7 @@ import { prepareMessagingScrollRegions } from './messaging-scroll-regions';
 import { MobileConversationSwitch } from './components/MobileConversationSwitch';
 import { MessagesBootstrapState } from './components/MessagesBootstrapState';
 import { MessagesNotices } from './components/MessagesNotices';
-import { ReceptionStatus } from './components/ReceptionStatus';
+import { MessagesReceptionDelayed } from './components/MessagesReceptionDelayed';
 import { FeedbackToast } from './components/FeedbackToast';
 import type { useMessagingController } from '../../use-messaging-controller';
 
@@ -57,7 +57,7 @@ export function MessagesWorkspace({
           <MessagesBootstrapState loading={loading} error={bootstrapError} onRetry={retryBootstrap} />
         ) : (
           <>
-            <ReceptionStatus state={streamState} onRetry={retryReception} />
+            <MessagesReceptionDelayed state={streamState} onRetry={retryReception} />
             <MessagesNotices
               deletingConversation={deletingConversation}
               error={error}

@@ -107,9 +107,11 @@ and agree the mockup first, then code it: the sync direction is Figma → code.
   (`dismissError` of the controller), `syncError` → `ErrorAlert` without close, deletion and `threadPlaceholder` →
   info `Alert role="status"`. No `.messages-error` / `.messages-operation-status` class any more; page tests read the
   errors through `view.find('ErrorAlert')` titles.
-  **Reception (MAIR-860):** `MessagesWorkspace/components/ReceptionStatus/` renders `RECEPTION_STATES[streamState]`
-  (`reception-status.ts`: label + tone) as a lib `StatusPill` in the `role="status" aria-live="polite"` region, and a
-  ghost lib `Button` « Réessayer la réception » (`min-h-11`) only when `offline`.
+  **Reception (MAIR-860, replaced by MAIR-1161):** `MessagesWorkspace/components/MessagesReceptionDelayed/` shows
+  nothing unless `streamState === 'offline'`, then a lib `WarningAlert size="s"` « Réception des messages retardée » with
+  « Réessayer la réception » (`onAction` = `retryReception`) inside an always mounted `aria-live="polite"` div
+  (`empty:-mb-3` cancels the stack gap). The `ReceptionStatus` pill and `reception-status.ts` are gone; reconnection
+  catches up through the stream cursor (`tests/message-stream.test.cjs`) and the controller's refresh on `connected`.
   **Toasts (MAIR-865):** `MessagesWorkspace` wraps the shell in the lib `ToastProvider` (`placement="bottom-end"`,
   region « Notifications de la messagerie »); `MessagesWorkspace/components/FeedbackToast/` hands each `feedback` to
   `toast.success` then calls `dismissFeedback`. The provider keeps two hidden live regions (`role="status"` /
