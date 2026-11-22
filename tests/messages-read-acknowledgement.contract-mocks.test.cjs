@@ -247,3 +247,18 @@ for (const status of [403, 503]) test(`a read refusal ${status} preserves the th
   assert.doesNotMatch(view.text(), /Internal SQL|service detail|HTTP 403|HTTP 503/);
   assert.equal(bff.calls('/conversations', 'get').length, initialReads);
 });
+
+test('MAIR-1163 « Marquer les messages comme lus » of the actions menu acknowledges up to the last message', async t => {
+  const target = await loaded();
+  bff.on('post', '/conversations/{conversationId}/read', { body: { conversationId: target.conversation.id, unreadCount: 0 } });
+  bff.on('get', '/conversations', { body: { conversations: [conversation(4, 'Équipe communication', { unreadCount: 0 })] } });
+  // The hook waits one frame for the menu to close; the server view has no animation frames of its own.
+  const previousFrame = global.requestAnimationFrame;
+  global.requestAnimationFrame = callback => setImmediate(() => callback(0));
+  t.after(() => { global.requestAnimationFrame = previousFrame; });
+  await view.click(props => props['aria-label'] === "Plus d'actions");
+  await view.click((props, text) => props.role === 'menuitem' && /Marquer (les messages )?comme lus/.test(text));
+  await view.waitFor(() => reads().length === 1);
+  assert.deepEqual(reads()[0].body, { readUntilMessageId: target.message.id });
+  await view.waitFor(() => view.props('Messaging').conversations[0].unreadCount === 0);
+});
