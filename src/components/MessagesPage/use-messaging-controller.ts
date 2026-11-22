@@ -609,6 +609,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
         content: payload.content,
         attachmentIds,
         ...toTagPayload(payload.mentions, payload.businessLinks),
+        ...(payload.replyTo !== undefined ? { replyTo: payload.replyTo } : {}),
       });
 
       if (!isOwned()) return false;

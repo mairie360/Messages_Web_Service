@@ -303,6 +303,13 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   espace, la suite est du texte). L'envoi porte `mentionIds`, `mentionEveryone`, `groupMentionIds` et `links`. Dans
   les bulles, les tags sont soulignés en couleur d'accent, et un élément lié qui a une page (`url` du BFF) est un
   `Link` de la lib qui l'ouvre. Une personne mentionnée n'a pas encore de page à ouvrir : son tag reste souligné.
+- **Actions d'un message et réponse (MAIR-1167).** Survoler une bulle, lui donner le focus clavier (chaque bulle qui a
+  des actions est focalisable) ou un appui long sur écran tactile affiche `MessageActionsToolbar` (`IconButton` de la
+  lib avec leur `ToolTip`) : « Réagir », « Répondre », et sur mes messages « Modifier » et « Supprimer ». « Répondre »
+  affiche `ReplyBar` au-dessus du champ (auteur, extrait, « Annuler la réponse ») et y place le focus ; l'envoi porte
+  `replyTo` et la barre disparaît une fois le message confirmé. Une réponse affiche `MessageQuote` au-dessus de sa
+  bulle (auteur et extrait de `quoted`) ; un clic fait défiler en douceur jusqu'au message d'origine et le met en
+  évidence. La citation d'un message supprimé indique « Message supprimé ».
 - **États vides (MAIR-1171).** Un seul visuel illustré par écran, avec le `DataState` de la lib 2.3 : sans aucune
   conversation, la liste dit seulement « Aucune conversation pour l'instant. » et le fil affiche « Commencez à
   échanger » (taille m, illustré) ; avec des conversations sans sélection, « Sélectionnez une conversation » (taille

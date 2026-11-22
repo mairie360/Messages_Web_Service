@@ -102,6 +102,8 @@ export function presentMessageAuthors(
 
     return {
       ...message,
+      // MAIR-1167: the raw text stays available (reply excerpt, edit box) once `content` is rendered.
+      ...(typeof message.content === "string" ? { text: message.content } : {}),
       content: (
         <>
           <span className="mb-1 block break-words text-xs font-semibold" data-message-author={message.authorId}>

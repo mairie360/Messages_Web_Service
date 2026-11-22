@@ -1046,3 +1046,53 @@ describe('Messaging mentions and links (MAIR-1166)', () => {
     }));
   });
 });
+
+describe('Messaging reply (MAIR-1167)', () => {
+  const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+  const thread = [
+    { id: 'm1', conversationId: 'g1', content: 'Le permis est signé', authorId: 'u3', authorName: 'Sophie Leroy' },
+    { id: 'm2', conversationId: 'g1', content: 'Bravo', authorId: 'me', citation: 'm1', quoted: { id: 'm1', authorName: 'Sophie Leroy', excerpt: 'Le permis est signé' } },
+    { id: 'm3', conversationId: 'g1', content: 'Supprimé ?', authorId: 'u3', citation: 'm4', quoted: { id: 'm4', excerpt: '' } },
+    { id: 'm4', conversationId: 'g1', content: '', authorId: 'u3', deleted: true },
+  ];
+
+  it('answers a message from its toolbar, sends `replyTo` and clears the reply bar once sent', async () => {
+    const onSendMessage = vi.fn(() => Promise.resolve(true));
+    render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" onSendMessage={onSendMessage} />);
+    const bubble = document.querySelector('[data-messaging-message-id="m1"] [data-direction]') as HTMLElement;
+    expect(bubble).toHaveAttribute('tabindex', '0');
+    fireEvent.click(within(document.querySelector('[data-messaging-message-id="m1"]') as HTMLElement).getByRole('button', { name: 'Répondre' }));
+    expect(screen.getByText('Réponse à Sophie Leroy')).toBeVisible();
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Écrire un message' })).toHaveFocus());
+    fireEvent.change(screen.getByRole('combobox', { name: 'Écrire un message' }), { target: { value: 'Merci !' } });
+    fireEvent.submit(screen.getByRole('combobox', { name: 'Écrire un message' }).closest('form')!);
+    await waitFor(() => expect(onSendMessage).toHaveBeenCalledWith(expect.objectContaining({ content: 'Merci !', replyTo: 'm1' })));
+    await waitFor(() => expect(screen.queryByText('Réponse à Sophie Leroy')).toBeNull());
+  });
+
+  it('shows the quote above the reply, scrolls to the original, and « Message supprimé » for a deleted one', () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" onSendMessage={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Voir le message cité de Sophie Leroy' }));
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect(document.querySelector('[data-messaging-message-id="m1"]')).toHaveAttribute('data-revealed');
+    expect(within(document.querySelector('[data-messaging-message-id="m3"]') as HTMLElement).getByText('Message supprimé')).toBeVisible();
+  });
+
+  it('cancels a reply and opens the toolbar with a long press on a touch screen', () => {
+    vi.useFakeTimers();
+    try {
+      render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" onSendMessage={vi.fn()} />);
+      const row = document.querySelector('[data-messaging-message-id="m1"]') as HTMLElement;
+      fireEvent.pointerDown(row, { pointerType: 'touch' });
+      act(() => { vi.advanceTimersByTime(600); });
+      expect(within(row).getByRole('toolbar')).toHaveAttribute('data-open', 'true');
+      fireEvent.click(within(row).getByRole('button', { name: 'Répondre' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Annuler la réponse' }));
+      expect(screen.queryByText('Réponse à Sophie Leroy')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

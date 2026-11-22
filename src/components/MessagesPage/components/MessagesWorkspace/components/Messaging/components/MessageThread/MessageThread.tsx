@@ -32,6 +32,12 @@ export interface MessageThreadProps {
   sendAnnouncement?: string;
   /** MAIR-1165: the agent, to word the system notes (« Vous avez ajouté… »). */
   currentUserId?: MessagingContactId;
+  /** MAIR-1167: actions of a message (toolbar on hover / focus / long press) and the scroll to a quoted message. */
+  onReact?: (message: MessagingMessage) => void;
+  onReply?: (message: MessagingMessage) => void;
+  onEdit?: (message: MessagingMessage) => void;
+  onDelete?: (message: MessagingMessage) => void;
+  onOpenQuote?: (messageId: MessagingContactId) => void;
 }
 
 const noMessages: MessagingMessage[] = [];
@@ -62,7 +68,10 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
   hasConversation, messages, emptyStateLabel, mentionOptions, businessReferenceOptions,
   onAttachmentDownload, onBusinessReferenceClick, conversationKey = null, unreadIds = noIds, onRead,
   pendingMessages = noMessages, onRetrySend, sendAnnouncement = '', conversationCount = 0, currentUserId,
+  onReact, onReply, onEdit, onDelete, onOpenQuote,
 }, ref) => {
+  // MAIR-1167: a quote of a loaded message that was deleted reads « Message supprimé ».
+  const deletedIds = React.useMemo(() => new Set(messages.filter((message) => message.deleted).map((message) => String(message.id))), [messages]);
   const region = React.useRef<HTMLDivElement | null>(null);
   const setRegion = React.useCallback((node: HTMLDivElement | null) => {
     region.current = node;
@@ -90,6 +99,12 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
                 mentionOptions={mentionOptions}
                 businessReferenceOptions={businessReferenceOptions}
                 onBusinessReferenceClick={onBusinessReferenceClick}
+                onReact={onReact}
+                onReply={onReply}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onOpenQuote={onOpenQuote}
+                quoteDeleted={message.citation !== undefined && deletedIds.has(String(message.citation))}
               />}
             </React.Fragment>
           ))}

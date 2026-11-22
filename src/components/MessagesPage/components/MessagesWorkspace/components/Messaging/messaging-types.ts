@@ -83,6 +83,15 @@ export interface MessagingMessage {
   /** MAIR-1165: `system` for a note the conversation writes itself (a membership change), centred in the thread. */
   kind?: 'user' | 'system';
   systemEvent?: MessagingSystemEvent;
+  /** MAIR-1167: the text as written, when `content` is rendered (author line, tags). */
+  text?: string;
+  /** MAIR-1167: the message this one answers (`citation`) and its author and excerpt (`quoted`). */
+  citation?: MessagingContactId;
+  quoted?: { id: MessagingContactId; authorId?: MessagingContactId; authorName?: string; excerpt: string };
+  /** MAIR-1168: last edit of the content. */
+  editedAt?: string;
+  /** MAIR-1169: a deleted message (tombstone): no content, no tag, no reaction, no action. */
+  deleted?: boolean;
   /** MAIR-1166: tags of the message (BFF). */
   mentionsEveryone?: boolean;
   groupMentions?: Array<{ id: MessagingContactId; name?: string }>;
@@ -126,6 +135,8 @@ export type MessagingSendStatus = 'sending' | 'sent' | 'failed';
 export interface MessagingSendMessagePayload {
   conversationId?: MessagingContactId;
   content: string;
+  /** MAIR-1167: the message this one answers. */
+  replyTo?: MessagingContactId;
   attachments?: MessagingAttachment[];
   mentions?: MessagingMention[];
   businessLinks?: MessagingBusinessReference[];
