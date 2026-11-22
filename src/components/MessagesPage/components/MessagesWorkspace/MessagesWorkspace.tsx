@@ -3,7 +3,7 @@
 import { Messaging } from './components/Messaging';
 import { DataState, Skeleton, Toast } from "@mairie360/lib-components/primitives";
 import { toMessagingUserId } from '@/lib/messaging-state';
-import { AppShell } from './components/AppShell';
+import { AppShell, totalUnread } from './components/AppShell';
 import { prepareMessagingScrollRegions } from './messaging-scroll-regions';
 import { MobileConversationSwitch } from './components/MobileConversationSwitch';
 import type { useMessagingController } from '../../use-messaging-controller';
@@ -45,7 +45,7 @@ export function MessagesWorkspace({
   toggleConversationList,
 }: MessagesWorkspaceProps) {
   return (
-    <AppShell activeItem="messages">
+    <AppShell activeItem="messages" unreadCount={currentUser ? totalUnread(displayedConversations) : 0}>
       <div className="messages-module-stack">
         {loading || !currentUser ? (
           <section
