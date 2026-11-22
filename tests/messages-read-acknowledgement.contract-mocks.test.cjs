@@ -72,7 +72,7 @@ test('an empty confirmed thread offers deletion without a meaningless read actio
   await view.waitFor(() => view.props('Messaging').conversations[0].unreadCount === 3);
   await view.settle();
   await view.click(props => props['aria-label'] === "Plus d'actions");
-  assert.doesNotMatch(view.text(), /Marquer les messages affichés comme lus/);
+  assert.doesNotMatch(view.text(), /Marquer (les messages )?comme lus/);
   assert.match(view.text(), /Supprimer la conversation/);
   assert.equal(reads().length, 0);
   bff.on('get', '/conversations/{conversationId}/messages', { outOfContract: true, body: {
@@ -81,7 +81,7 @@ test('an empty confirmed thread offers deletion without a meaningless read actio
   } });
   browser.tickIntervals(2000);
   await view.waitFor(() => view.text().includes('Premier message reçu dans le fil vide'));
-  assert.match(view.text(), /Marquer les messages affichés comme lus/);
+  assert.match(view.text(), /Marquer (les messages )?comme lus/);
   assert.equal(reads().length, 0, 'new content enables an explicit action without acknowledging automatically');
 });
 

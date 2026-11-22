@@ -125,3 +125,13 @@ export const withSentStatus = (messages: MessagingMessage[]): MessagingMessage[]
     ? messages
     : messages.map((message, index) => (index === last ? { ...message, sendStatus: 'sent' as const } : message));
 };
+
+/** MAIR-1163: user ids compared whatever their form (`user-7` or `7`). */
+const userKey = (id: MessagingContactId | undefined) => String(id ?? '').replace(/^user-/, '');
+
+/** MAIR-1163: the contact of a direct conversation, to preselect it in « Créer un groupe ». */
+export const directContactIds = (conversation: MessagingConversation, contacts: MessagingConversation[]): MessagingContactId[] => {
+  if (conversation.kind === 'group' || conversation.contactId === undefined) return [];
+  const contact = contacts.find((item) => userKey(item.id) === userKey(conversation.contactId));
+  return contact ? [contact.id] : [];
+};

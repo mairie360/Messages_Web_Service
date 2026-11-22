@@ -1,8 +1,17 @@
 import React from 'react';
-import { MoreHorizontal, Trash } from 'lucide-react';
-import { Icon, icons } from '@mairie360/lib-components/primitives';
+import { MoreHorizontal, Trash, Users } from 'lucide-react';
+import {
+  ConfirmModal,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  Icon,
+  icons,
+} from '@mairie360/lib-components/primitives';
 
 import type { MessagingConversation } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
+import { useMenuKeyboard } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/use-menu-keyboard';
 import { HeaderIconButton } from '../HeaderIconButton';
 
 export interface ConversationActionsMenuProps {
@@ -13,73 +22,93 @@ export interface ConversationActionsMenuProps {
   onMoreActions?: (conversation: MessagingConversation) => void;
   onDeleteConversation?: (conversation: MessagingConversation) => void;
   onReadVisibleMessages?: (conversation: MessagingConversation) => void;
+  /** « Rechercher dans la conversation », shown only when given (MAIR-1164). */
+  onSearch?: (conversation: MessagingConversation) => void;
+  /** « Gérer les membres » of a group, shown only when given (MAIR-1165). */
+  onManageMembers?: (conversation: MessagingConversation) => void;
+  /** « Créer un groupe avec <personne> » of a direct conversation. */
+  onCreateGroupWith?: (conversation: MessagingConversation) => void;
 }
 
-/** "More actions" button; it opens a menu only when it holds read or delete. */
+/**
+ * « Plus d'actions » of the header (MAIR-1163, Figma F7 / F8): a lib `DropdownMenu` (keyboard layer of
+ * `use-menu-keyboard.ts`, closed by Échap and an outside click). Direct: mark read, search, create a group with the
+ * person; group: mark read, search, manage the members; then « Supprimer la conversation » (danger, separated),
+ * confirmed by the lib `ConfirmModal`.
+ */
 export const ConversationActionsMenu = ({
   conversation, label, deleteLabel, readPending, onMoreActions, onDeleteConversation, onReadVisibleMessages,
+  onSearch, onManageMembers, onCreateGroupWith,
 }: ConversationActionsMenuProps) => {
   const [open, setOpen] = React.useState(false);
-  const menuRef = React.useRef<HTMLDivElement>(null);
-  const hasMenu = !!(onDeleteConversation || onReadVisibleMessages);
-
-  React.useEffect(() => {
-    if (!open) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [open]);
-
-  const run = (action: (conversation: MessagingConversation) => void) => {
-    setOpen(false);
-    action(conversation);
-  };
+  const [confirming, setConfirming] = React.useState(false);
+  const { triggerProps, menuProps, itemProps } = useMenuKeyboard(open, setOpen);
+  const group = conversation.kind === 'group';
+  const readLabel = group ? 'Marquer comme lus' : 'Marquer les messages comme lus';
+  const items = [
+    onReadVisibleMessages && (
+      <DropdownMenuItem key="read" {...itemProps(readPending)} disabled={readPending} onClick={() => onReadVisibleMessages(conversation)}>
+        <Icon icon={icons['check-check']} size="s" />{readLabel}
+      </DropdownMenuItem>
+    ),
+    onSearch && (
+      <DropdownMenuItem key="search" {...itemProps()} onClick={() => onSearch(conversation)}>
+        <Icon icon={icons['text-search']} size="s" />Rechercher dans la conversation
+      </DropdownMenuItem>
+    ),
+    group && onManageMembers && (
+      <DropdownMenuItem key="members" {...itemProps()} onClick={() => onManageMembers(conversation)}>
+        <Icon icon={icons['users-round']} size="s" />Gérer les membres
+      </DropdownMenuItem>
+    ),
+    !group && onCreateGroupWith && (
+      <DropdownMenuItem key="group" {...itemProps()} onClick={() => onCreateGroupWith(conversation)}>
+        <Icon icon={Users} size="s" />{`Créer un groupe avec ${conversation.name}`}
+      </DropdownMenuItem>
+    ),
+  ].filter(Boolean);
+  const hasMenu = items.length > 0 || !!onDeleteConversation;
 
   return (
-    <div ref={menuRef} className="relative">
-      <HeaderIconButton
-        label={label}
-        icon={MoreHorizontal}
-        expanded={open}
-        onClick={() => {
-          if (hasMenu) setOpen((current) => !current);
-          onMoreActions?.(conversation);
-        }}
-      />
-      {open && hasMenu && (
-        <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-56 overflow-hidden rounded-md border border-[var(--mairie-border)] bg-[var(--mairie-surface)] p-1 text-sm text-[var(--mairie-text)] shadow-lg">
-          {onReadVisibleMessages && (
-            <button
-              type="button"
-              disabled={readPending}
-              className="flex w-full items-center gap-2 rounded px-3 py-2 text-left transition hover:bg-[var(--mairie-background)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/30"
-              onClick={() => run(onReadVisibleMessages)}
-            >
-              <Icon icon={icons['check-check']} size="s" className="shrink-0" />
-              <span>Marquer les messages affichés comme lus</span>
-            </button>
-          )}
+    <>
+      <DropdownMenu open={open && hasMenu} onOpenChange={setOpen}>
+        <HeaderIconButton
+          label={label}
+          icon={MoreHorizontal}
+          {...(hasMenu ? triggerProps : {})}
+          expanded={hasMenu ? open : undefined}
+          onClick={() => {
+            if (hasMenu) setOpen(!open);
+            onMoreActions?.(conversation);
+          }}
+        />
+        <DropdownMenuContent align="end" className="w-64" {...menuProps(label)}>
+          {items}
           {onDeleteConversation && (
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-[var(--mairie-error-text)] transition hover:bg-[var(--mairie-error-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/25"
-              onClick={() => run(onDeleteConversation)}
-            >
-              <Icon icon={Trash} size="s" className="shrink-0" />
-              <span>{deleteLabel}</span>
-            </button>
+            <>
+              {items.length > 0 && <DropdownMenuSeparator />}
+              <DropdownMenuItem {...itemProps()} variant="destructive" className={`${itemProps().className} hover:bg-[var(--mairie-error-surface)]`} onClick={() => setConfirming(true)}>
+                <Icon icon={Trash} size="s" />{deleteLabel}
+              </DropdownMenuItem>
+            </>
           )}
-        </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {onDeleteConversation && (
+        <ConfirmModal
+          open={confirming}
+          role="alertdialog"
+          title="Supprimer la conversation ?"
+          message={`La conversation « ${conversation.name} » et ses messages seront supprimés. Cette action est définitive.`}
+          confirmLabel="Supprimer"
+          initialFocus="cancel"
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false);
+            onDeleteConversation(conversation);
+          }}
+        />
       )}
-    </div>
+    </>
   );
 };

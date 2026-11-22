@@ -820,7 +820,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
             (message) => !idsMatch(message.conversationId, conversationToDelete.id),
           ),
         );
-        if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback(`Conversation « ${conversationToDelete.name} » supprimée.`);
+        if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback('Conversation supprimée.');
       } catch (deleteError) {
         setError(
           deleteError instanceof Error
