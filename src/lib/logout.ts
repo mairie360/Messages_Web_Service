@@ -1,5 +1,5 @@
 import { frontUrl } from './front-urls';
-import { parseFrontUrl } from './front-url';
+import { parseFrontUrl } from '@mairie360/lib-components/shared';
 
 function clearAuthStorage() {
   if (typeof window === 'undefined') return;
