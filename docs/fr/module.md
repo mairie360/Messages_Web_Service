@@ -201,3 +201,6 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   peut fermer, une synchronisation refusée dans un `ErrorAlert` durable (la lecture suivante l'efface) ;
   « Suppression de la conversation en cours… » et le texte d'ouverture d'un fil sont des `Alert` info. Les
   textes et les annonces `alert` / `status` ne changent pas.
+- **Réception (MAIR-860).** L'état de la réception automatique est un `StatusPill` de la lib (active :
+  succès, actualisation : info, connexion : neutre, retardée : avertissement) ; « Réessayer la réception »
+  est un `Button` de la lib (cible de 44 px) affiché seulement quand la réception est retardée.

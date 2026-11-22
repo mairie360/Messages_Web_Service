@@ -784,6 +784,10 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
   assert.deepEqual(messaging.businessReferences.map((reference) => reference.title), ['Budget participatif', 'Conseil municipal']);
   await view.waitFor(() => view.props('Header').user.name === 'Agent Mairie');
   assert.match(view.html, /<span[^>]*>Agent Mairie<\/span>/);
+  // MAIR-860: the reception state is a lib StatusPill inside the polite status region.
+  const reception = view.props('ReceptionStatus');
+  assert.ok(['connecting', 'polling', 'connected', 'offline'].includes(reception.state));
+  assert.match(view.html, /<div class="messages-reception-status[^"]*" role="status" aria-live="polite"><span[^>]*data-m360-component="StatusPill"/);
   assert.match(view.html, /<footer/);
   const footer = view.html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/)?.[0];
   assert.ok(footer);

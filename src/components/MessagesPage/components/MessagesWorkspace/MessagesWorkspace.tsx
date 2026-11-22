@@ -8,6 +8,7 @@ import { prepareMessagingScrollRegions } from './messaging-scroll-regions';
 import { MobileConversationSwitch } from './components/MobileConversationSwitch';
 import { MessagesBootstrapState } from './components/MessagesBootstrapState';
 import { MessagesNotices } from './components/MessagesNotices';
+import { ReceptionStatus } from './components/ReceptionStatus';
 import type { useMessagingController } from '../../use-messaging-controller';
 
 type MessagesWorkspaceProps = ReturnType<typeof useMessagingController>;
@@ -56,10 +57,7 @@ export function MessagesWorkspace({
           <>
             <h1 className="sr-only">Messagerie</h1>
             {feedback && <Toast variant="success" message={feedback} onClose={dismissFeedback} />}
-            <div className="messages-reception-status" role="status" aria-live="polite">
-              {streamState === 'connected' ? 'Réception automatique active.' : streamState === 'polling' ? 'Actualisation automatique active.' : streamState === 'connecting' ? 'Connexion à la réception automatique…' : 'Réception automatique retardée.'}
-              {streamState === 'offline' && <button type="button" onClick={retryReception} className="ml-3 min-h-11 font-semibold underline">Réessayer la réception</button>}
-            </div>
+            <ReceptionStatus state={streamState} onRetry={retryReception} />
             <MessagesNotices
               deletingConversation={deletingConversation}
               error={error}
