@@ -272,6 +272,16 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   and highlights it for two seconds; « Écrire » of a person opens the direct conversation with them, or « Nouveau
   message » to them. Loading, error (with « Réessayer ») and no result are lib `DataState`s. The files tab stays empty
   while the BFF stores no attachment.
+- **Group members (MAIR-1165).** The header of a group shows a lib `AvatarGroup` « N membres, gérer les membres »
+  (also « Gérer les membres » in « Plus d'actions »), which opens the lib `Drawer` « Membres du groupe »
+  (`GET /conversations/{id}/members`, read when the panel opens and again when the size of the group changes). Every
+  member is listed with their service and the « Administrateur » badge (lib `Tag`); the administrator of the group
+  (`canManage`) also gets « Ajouter des membres » (search the directory, tick with lib `Checkbox`, validate) and
+  « Retirer » per member; these actions are hidden from a plain member. Everyone may « Quitter le groupe » after a lib
+  `ConfirmModal`: the conversation leaves the list and a toast confirms it. A refused action is a lib `ErrorAlert`
+  inside the panel, the selection kept. Each change adds the system note the BFF returns to the thread, centred
+  (« Vous avez ajouté Sophie Leroy au groupe. », « Paul Martin vous a retiré du groupe. »…), and the new size of the
+  group to the list; a system note is never unread nor « Envoyé ».
 - **Empty states (MAIR-1171).** One illustrated visual per screen, from the lib 2.3 `DataState`: without any
   conversation, the list only says « Aucune conversation pour l'instant. » and the thread shows « Commencez à
   échanger » (size m, illustrated); with conversations but none selected, « Sélectionnez une conversation » (size m);

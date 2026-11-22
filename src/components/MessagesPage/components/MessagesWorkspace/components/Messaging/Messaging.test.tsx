@@ -991,3 +991,26 @@ describe('Messaging conversation search (MAIR-1164)', () => {
     expect(screen.getByRole('dialog', { name: 'Nouveau message' })).toBeInTheDocument();
   });
 });
+
+describe('Messaging group members (MAIR-1165)', () => {
+  it('opens « Membres du groupe » from the avatar pile, keeps the header in step and renders the system notes', async () => {
+    const group = { id: 'g1', name: 'Conseil', kind: 'group' as const, memberCount: 2 };
+    const members = { canManage: true, members: [{ id: 'user-2', name: 'Moi Agent', isAdmin: true }, { id: 'user-3', name: 'Sophie Leroy', isAdmin: false }] };
+    const onLoadMembers = vi.fn(() => Promise.resolve(members));
+    const onRemoveMember = vi.fn(() => Promise.resolve({ ...members, members: members.members.slice(0, 1) }));
+    const note = { id: 'n1', conversationId: 'g1', content: '', kind: 'system' as const, authorId: 'user-2',
+      systemEvent: { action: 'member_removed' as const, actorId: 'user-2', userIds: ['user-3'], userNames: ['Sophie Leroy'] } };
+    render(<Messaging conversations={[group]} messages={[note]} activeConversationId="g1" currentUserId="user-2"
+      onLoadMembers={onLoadMembers} onRemoveMember={onRemoveMember} onLeaveConversation={vi.fn(() => Promise.resolve(true))} />);
+    expect(screen.getByText('Vous avez retiré Sophie Leroy du groupe.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '2 membres, gérer les membres' }));
+    expect(await screen.findByText('Sophie Leroy')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer Sophie Leroy du groupe' }));
+    await waitFor(() => expect(onRemoveMember).toHaveBeenCalledWith(group, members.members[1]));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Retirer Sophie Leroy du groupe' })).toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: 'Fermer le panneau' }));
+    fireEvent.click(screen.getByRole('button', { name: "Plus d'actions" }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Gérer les membres' }));
+    expect(screen.getByRole('dialog', { name: 'Membres du groupe' })).toBeInTheDocument();
+  });
+});

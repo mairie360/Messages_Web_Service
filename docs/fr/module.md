@@ -284,6 +284,16 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   « Écrire » d'une personne ouvre la conversation directe avec elle, ou « Nouveau message » vers elle. Chargement,
   erreur (avec « Réessayer ») et aucun résultat sont des `DataState` de la lib. L'onglet fichiers reste vide tant que
   le BFF ne stocke pas de pièce jointe.
+- **Membres d'un groupe (MAIR-1165).** L'en-tête d'un groupe affiche un `AvatarGroup` de la lib « N membres, gérer
+  les membres » (aussi « Gérer les membres » dans « Plus d'actions »), qui ouvre le `Drawer` de la lib « Membres du
+  groupe » (`GET /conversations/{id}/members`, lu à l'ouverture du panneau puis quand la taille du groupe change).
+  Chaque membre est listé avec son service et le badge « Administrateur » (`Tag` de la lib) ; l'administrateur du
+  groupe (`canManage`) a aussi « Ajouter des membres » (recherche dans l'annuaire, cases `Checkbox` de la lib,
+  validation) et « Retirer » par membre ; ces actions sont masquées pour un simple membre. Chacun peut « Quitter le
+  groupe » après un `ConfirmModal` de la lib : la conversation quitte la liste et un toast le confirme. Une action
+  refusée est un `ErrorAlert` de la lib dans le panneau, la sélection conservée. Chaque changement ajoute au fil la note
+  système renvoyée par le BFF, centrée (« Vous avez ajouté Sophie Leroy au groupe. », « Paul Martin vous a retiré du
+  groupe. »…), et la nouvelle taille du groupe à la liste ; une note système n'est jamais non lue ni « Envoyé ».
 - **États vides (MAIR-1171).** Un seul visuel illustré par écran, avec le `DataState` de la lib 2.3 : sans aucune
   conversation, la liste dit seulement « Aucune conversation pour l'instant. » et le fil affiche « Commencez à
   échanger » (taille m, illustré) ; avec des conversations sans sélection, « Sélectionnez une conversation » (taille

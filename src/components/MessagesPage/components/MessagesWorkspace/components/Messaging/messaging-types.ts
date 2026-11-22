@@ -44,6 +44,8 @@ export interface MessagingConversation {
   memberIds?: MessagingContactId[];
   /** The other person of a direct conversation (BFF `contactId`, MAIR-204). */
   contactId?: MessagingContactId;
+  /** MAIR-1165: number of members of a group conversation. */
+  memberCount?: number;
 }
 
 export interface MessagingMessage {
@@ -60,6 +62,33 @@ export interface MessagingMessage {
   authorName?: string;
   /** MAIR-1162: state of my send, shown under the bubble (« Envoyé », « Envoi… », « Non envoyé »). */
   sendStatus?: MessagingSendStatus;
+  /** MAIR-1165: `system` for a note the conversation writes itself (a membership change), centred in the thread. */
+  kind?: 'user' | 'system';
+  systemEvent?: MessagingSystemEvent;
+}
+
+/** MAIR-1165: a membership change recorded in the thread as a system note. */
+export interface MessagingSystemEvent {
+  action: 'members_added' | 'member_removed' | 'member_left';
+  actorId: MessagingContactId;
+  actorName?: string;
+  userIds: MessagingContactId[];
+  userNames: string[];
+}
+
+/** MAIR-1165: a member of a conversation (BFF `GET /conversations/{id}/members`). */
+export interface MessagingMember {
+  id: MessagingContactId;
+  name: string;
+  department?: string;
+  /** The administrator of the group: its creator, while they stay a member. */
+  isAdmin: boolean;
+}
+
+export interface MessagingMembers {
+  members: MessagingMember[];
+  /** Whether the agent may add and remove members. */
+  canManage: boolean;
 }
 
 export type MessagingSendStatus = 'sending' | 'sent' | 'failed';

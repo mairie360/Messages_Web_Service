@@ -81,6 +81,30 @@ const clientScenarios = {
     assert.deepEqual(await messageClient.getConversationMessages('conversation-4'), body);
     assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages')[0].pathParams, { conversationId: 'conversation-4' });
   },
+  async getMembers() {
+    const body = { canManage: true, members: [{ id: `user-${users.agent.id}`, name: users.agent.name, isAdmin: true }, { id: `user-${users.sophie.id}`, name: users.sophie.name, department: 'Urbanisme', isAdmin: false }] };
+    messageBff.on('get', '/conversations/{conversationId}/members', { body });
+    assert.deepEqual(await messageClient.getMembers('conversation-4'), body);
+    assert.deepEqual(upstream(), ['GET /conversations/conversation-4/members']);
+  },
+  async addMembers() {
+    const systemMessage = message(9, 4, '', users.agent, { kind: 'system', systemEvent: { action: 'members_added', actorId: `user-${users.agent.id}`, actorName: users.agent.name, userIds: [`user-${users.thomas.id}`], userNames: [users.thomas.name] } });
+    const body = { canManage: true, members: [{ id: `user-${users.thomas.id}`, name: users.thomas.name, isAdmin: false }], systemMessage };
+    messageBff.on('post', '/conversations/{conversationId}/members', { body });
+    assert.deepEqual(await messageClient.addMembers('conversation-4', [`user-${users.thomas.id}`]), body);
+    assert.deepEqual(messageBff.calls('/conversations/{conversationId}/members', 'post')[0].body, { userIds: [`user-${users.thomas.id}`] });
+  },
+  async removeMember() {
+    const body = { canManage: true, members: [{ id: `user-${users.agent.id}`, name: users.agent.name, isAdmin: true }] };
+    messageBff.on('delete', '/conversations/{conversationId}/members/{userId}', { body });
+    assert.deepEqual(await messageClient.removeMember('conversation-4', `user-${users.sophie.id}`), body);
+    assert.deepEqual(upstream(), [`DELETE /conversations/conversation-4/members/user-${users.sophie.id}`]);
+  },
+  async leaveConversation() {
+    messageBff.on('post', '/conversations/{conversationId}/leave', { status: 204 });
+    assert.equal(await messageClient.leaveConversation('conversation-4'), undefined);
+    assert.deepEqual(upstream(), ['POST /conversations/conversation-4/leave']);
+  },
   async searchConversation() {
     const body = {
       type: 'messages', hasMore: false, total: 1,
