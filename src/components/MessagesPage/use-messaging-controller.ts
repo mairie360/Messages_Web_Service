@@ -10,7 +10,8 @@ import {
   getPayloadIds,
   idsMatch,
   replaceConversationMessages,
-  toMentionIds,
+  toLinkReference,
+  toTagPayload,
   toMessagingContacts,
   toMessagingUserId,
   upsertConversation,
@@ -607,7 +608,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       const response = await messageClient.sendMessage(payload.conversationId, {
         content: payload.content,
         attachmentIds,
-        mentionIds: toMentionIds(payload.mentions),
+        ...toTagPayload(payload.mentions, payload.businessLinks),
       });
 
       if (!isOwned()) return false;
@@ -841,6 +842,13 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       }
     };
 
+  // MAIR-1166: suggestions of `@` (members, groups and services, everyone) and of `#` (projects, events, tasks).
+  const handleSuggestMentions: NonNullable<MessagingProps["onSuggestMentions"]> = (conversation, query, signal) =>
+    messageClient.getMentionSuggestions(conversation.id, query, signal);
+
+  const handleSuggestLinks: NonNullable<MessagingProps["onSuggestLinks"]> = async (query, signal) =>
+    (await messageClient.getLinkSuggestions(query, signal)).items.map(toLinkReference);
+
   // MAIR-1165: members of a group. A change appends its system note to the thread and the new size to the list.
   const handleLoadMembers: NonNullable<MessagingProps["onLoadMembers"]> = (conversation, signal) =>
     messageClient.getMembers(conversation.id, signal);
@@ -946,6 +954,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     handleCreateGroup,
     handleConversationDelete,
     handleSearch,
+    handleSuggestMentions,
+    handleSuggestLinks,
     handleLoadMembers,
     handleAddMembers,
     handleRemoveMember,

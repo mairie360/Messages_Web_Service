@@ -1,4 +1,5 @@
 import React, { type ComponentProps } from "react";
+import { Link } from "@mairie360/lib-components/primitives";
 import type { Messaging } from '../components/MessagesPage/components/MessagesWorkspace/components/Messaging';
 import type {
   MessagingBusinessReference,
@@ -9,6 +10,9 @@ import type {
 
 type Mention = NonNullable<ComponentProps<typeof Messaging>["mentionOptions"]>[number];
 type MentionKind = "user" | "business";
+type Tag = { kind: MentionKind; href?: string };
+/** MAIR-1166: label of the « everyone » tag in the text (same as the composer). */
+const EVERYONE_TAG = "@tout le monde";
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -43,19 +47,22 @@ export function buildMessageMentionOptions(
 // presentation when an author label makes the display content a React node.
 function renderMentionedContent(
   content: React.ReactNode,
-  mentions: Mention[],
-  references: MessagingBusinessReference[],
+  mentions: Array<{ name?: string }>,
+  references: Array<{ title?: string; href?: string }>,
+  everyone = false,
 ): React.ReactNode {
   if (typeof content !== "string") return content;
 
-  const kinds = new Map<string, MentionKind>();
+  const kinds = new Map<string, Tag>();
   for (const mention of mentions) {
-    const label = `@${mention.name}`;
-    if (mention.name.trim() && content.includes(label)) kinds.set(label, "user");
+    const label = `@${mention.name ?? ""}`;
+    if (mention.name?.trim() && content.includes(label)) kinds.set(label, { kind: "user" });
   }
+  if (everyone && content.includes(EVERYONE_TAG)) kinds.set(EVERYONE_TAG, { kind: "user" });
   for (const reference of references) {
-    const label = `#${reference.title}`;
-    if (reference.title.trim() && content.includes(label)) kinds.set(label, "business");
+    const label = `#${reference.title ?? ""}`;
+    // A link of the message (with its page) wins over a suggestion of the same title.
+    if (reference.title?.trim() && content.includes(label) && !kinds.get(label)?.href) kinds.set(label, { kind: "business", href: reference.href });
   }
 
   if (kinds.size === 0) return content;
@@ -64,12 +71,16 @@ function renderMentionedContent(
     .map(escapeRegExp).join("|");
   return content.split(new RegExp(`(${pattern})(?![\\p{L}\\p{N}_])`, "gu"))
     .map((part, index) => {
-      const kind = kinds.get(part);
-      return kind ? (
-        <strong key={`${part}-${index}`} className="font-bold underline underline-offset-2" data-mention-kind={kind}>
+      const tag = kinds.get(part);
+      if (!tag) return part;
+      // MAIR-1166: a tag with a page is a lib Link that opens it; the others stay emphasised in the accent colour.
+      return tag.href ? (
+        <Link key={`${part}-${index}`} href={tag.href} size="s" weight="semibold" data-mention-kind={tag.kind}>{part}</Link>
+      ) : (
+        <strong key={`${part}-${index}`} className="font-bold text-[var(--mairie-accent)] underline underline-offset-2" data-mention-kind={tag.kind}>
           {part}
         </strong>
-      ) : part;
+      );
     });
 }
 
@@ -99,8 +110,9 @@ export function presentMessageAuthors(
           <span className="whitespace-pre-wrap break-words">
             {renderMentionedContent(
               message.content,
-              [...mentionOptions, ...(message.mentions ?? [])],
-              [...businessReferences, ...references],
+              [...mentionOptions, ...(message.mentions ?? []), ...(message.groupMentions ?? [])],
+              [...businessReferences, ...references, ...(message.links ?? []).map((link) => ({ title: link.title, href: link.url }))],
+              message.mentionsEveryone === true,
             )}
           </span>
         </>

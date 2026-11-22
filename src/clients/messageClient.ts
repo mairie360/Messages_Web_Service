@@ -64,6 +64,16 @@ export const messageClient = {
     return reply;
   },
 
+  /** MAIR-1166: what the agent may mention after `@` in a conversation. */
+  async getMentionSuggestions(conversationId: MessageId, q: string, signal?: AbortSignal) {
+    return (await bffMessage.getConversationsConversationIdMentionSuggestions(encodeId(conversationId), { q }, { signal })).data;
+  },
+
+  /** MAIR-1166: the projects, events and tasks the agent may link after `#`. */
+  async getLinkSuggestions(q: string, signal?: AbortSignal) {
+    return (await bffMessage.getLinkSuggestions({ q }, { signal })).data;
+  },
+
   /** MAIR-1165: the members of a conversation and whether the agent may manage them. */
   async getMembers(conversationId: MessageId, signal?: AbortSignal) {
     return (await bffMessage.getConversationsConversationIdMembers(encodeId(conversationId), { signal })).data;

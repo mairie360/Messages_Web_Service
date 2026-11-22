@@ -445,9 +445,9 @@ describe('Messaging components', () => {
     );
     const input = screen.getByPlaceholderText('Tapez votre message...');
     fireEvent.change(input, { target: { value: '@Mar' } });
-    fireEvent.click(screen.getByRole('button', { name: /@Marie/ }));
+    fireEvent.click(screen.getByRole('option', { name: /@Marie/ }));
     fireEvent.change(input, { target: { value: '@Marie #Projet' } });
-    fireEvent.click(screen.getByRole('button', { name: /#Projet mairie/ }));
+    fireEvent.click(screen.getByRole('option', { name: /#Projet mairie/ }));
     fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
       target: { files: [new File(['draft'], 'retry.pdf', { type: 'application/pdf' })] },
     });
@@ -640,12 +640,12 @@ describe('Messaging components', () => {
     render(<MessagingComposer businessReferenceOptions={references} onSendMessage={handleSendMessage} />);
 
     fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), { target: { value: '#' } });
-    expect(screen.getByRole('button', { name: /#Conseil municipal/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /#Conseil municipal/ })).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), {
       target: { value: '#conseil muni' },
     });
-    const eventSuggestion = screen.getByRole('button', { name: /#Conseil municipal/ });
+    const eventSuggestion = screen.getByRole('option', { name: /#Conseil municipal/ });
     expect(eventSuggestion).toHaveTextContent('Événement du calendrier');
     expect(eventSuggestion).toHaveAttribute('title', 'Conseil municipal');
 
@@ -1012,5 +1012,37 @@ describe('Messaging group members (MAIR-1165)', () => {
     fireEvent.click(screen.getByRole('button', { name: "Plus d'actions" }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Gérer les membres' }));
     expect(screen.getByRole('dialog', { name: 'Membres du groupe' })).toBeInTheDocument();
+  });
+});
+
+describe('Messaging mentions and links (MAIR-1166)', () => {
+  it('suggests from the BFF, moves with the arrows, chooses with Entrée, freezes the tag and sends on Entrée when closed', async () => {
+    const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+    const onSuggestMentions = vi.fn(() => Promise.resolve({ everyone: true, groups: [{ id: 'group-4', name: 'Urbanisme' }], people: [{ id: 'user-3', name: 'Sophie Leroy' }] }));
+    const onSuggestLinks = vi.fn(() => Promise.resolve([{ id: 'event-5', title: 'Conseil du 12', kind: 'event' as const, description: 'Événement' }]));
+    const onSendMessage = vi.fn(() => true);
+    render(<Messaging conversations={[group]} activeConversationId="g1" onSendMessage={onSendMessage} onSuggestMentions={onSuggestMentions} onSuggestLinks={onSuggestLinks} />);
+    const input = screen.getByRole('combobox', { name: 'Écrire un message' });
+    fireEvent.change(input, { target: { value: 'Bonjour @' } });
+    expect(await screen.findByRole('option', { name: /@tout le monde/ })).toHaveAttribute('aria-selected', 'true');
+    expect(onSuggestMentions).toHaveBeenCalledWith(group, '', expect.any(AbortSignal));
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(input.getAttribute('aria-activedescendant')).toBe(screen.getByRole('option', { name: /@Sophie Leroy/ }).id);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(input).toHaveValue('Bonjour @Sophie Leroy ');
+    fireEvent.change(input, { target: { value: 'Bonjour @Sophie Leroy voir #con' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).toBeNull();
+    fireEvent.change(input, { target: { value: 'Bonjour @Sophie Leroy voir #cons' } });
+    fireEvent.click(await screen.findByRole('option', { name: /#Conseil du 12/ }));
+    expect(input).toHaveValue('Bonjour @Sophie Leroy voir #Conseil du 12 ');
+    fireEvent.submit(input.closest('form')!);
+    expect(onSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      content: 'Bonjour @Sophie Leroy voir #Conseil du 12',
+      mentions: [expect.objectContaining({ id: 'user-3', target: 'person' })],
+      businessLinks: [expect.objectContaining({ id: 'event-5' })],
+    }));
   });
 });

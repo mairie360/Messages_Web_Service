@@ -81,6 +81,18 @@ const clientScenarios = {
     assert.deepEqual(await messageClient.getConversationMessages('conversation-4'), body);
     assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages')[0].pathParams, { conversationId: 'conversation-4' });
   },
+  async getMentionSuggestions() {
+    const body = { everyone: true, groups: [{ id: 'group-4', name: 'Service urbanisme' }], people: [{ id: `user-${users.sophie.id}`, name: users.sophie.name }] };
+    messageBff.on('get', '/conversations/{conversationId}/mention-suggestions', { body });
+    assert.deepEqual(await messageClient.getMentionSuggestions('conversation-4', 'so'), body);
+    assert.deepEqual(Object.fromEntries(messageBff.calls('/conversations/{conversationId}/mention-suggestions')[0].url.searchParams), { q: 'so' });
+  },
+  async getLinkSuggestions() {
+    const body = { items: [{ id: 'project-12', kind: 'project', title: 'Médiathèque', detail: 'Projet', url: 'https://projets.mairie360.fr/projects/12' }], sources: { projects: 'available', calendar: 'unavailable' } };
+    messageBff.on('get', '/link-suggestions', { body });
+    assert.deepEqual(await messageClient.getLinkSuggestions('média'), body);
+    assert.deepEqual(Object.fromEntries(messageBff.calls('/link-suggestions')[0].url.searchParams), { q: 'média' });
+  },
   async getMembers() {
     const body = { canManage: true, members: [{ id: `user-${users.agent.id}`, name: users.agent.name, isAdmin: true }, { id: `user-${users.sophie.id}`, name: users.sophie.name, department: 'Urbanisme', isAdmin: false }] };
     messageBff.on('get', '/conversations/{conversationId}/members', { body });

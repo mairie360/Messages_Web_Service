@@ -88,3 +88,22 @@ test('MAIR-1165 leaving a group removes it from the list with a confirmation toa
   bff.on('post', '/conversations/{conversationId}/leave', { status: 404, outOfContract: true, body: { error: { code: 'NOT_FOUND', message: 'Conversation introuvable.', details: [] } } });
   await assert.rejects(view.act(() => messaging().onLeaveConversation(group)), /introuvable|quitter/);
 });
+
+test('MAIR-1166 the composer suggestions come from the BFF and a send carries every tag of the draft', async () => {
+  const group = await loaded();
+  bff.on('get', '/conversations/{conversationId}/mention-suggestions', { body: { everyone: true, groups: [{ id: 'group-4', name: 'Urbanisme' }], people: [] } });
+  bff.on('get', '/link-suggestions', { body: { items: [{ id: 'project-12', kind: 'project', title: 'Médiathèque', detail: 'Projet', url: 'https://projets.example/12' }], sources: { projects: 'available', calendar: 'available' } } });
+  assert.equal((await messaging().onSuggestMentions(group, 'ur', new AbortController().signal)).groups[0].name, 'Urbanisme');
+  assert.deepEqual(await messaging().onSuggestLinks('média', new AbortController().signal), [{ id: 'project-12', kind: 'project', title: 'Médiathèque', description: 'Projet', href: 'https://projets.example/12' }]);
+
+  const content = 'Pour @tout le monde et @Urbanisme : #Médiathèque';
+  bff.on('post', '/conversations/{conversationId}/messages', { status: 201, body: { message: message(30, 4, content), conversation: conversation(4, 'Équipe communication', { memberCount: 2 }) } });
+  assert.equal(await view.act(() => messaging().onSendMessage({
+    conversationId: 'conversation-4', content,
+    mentions: [{ id: 'everyone', name: 'tout le monde', target: 'everyone' }, { id: 'group-4', name: 'Urbanisme', target: 'group' }],
+    businessLinks: [{ id: 'project-12', title: 'Médiathèque', kind: 'project' }],
+  })), true);
+  assert.deepEqual(bff.calls('/conversations/{conversationId}/messages', 'post')[0].body, {
+    content, attachmentIds: [], mentionIds: [], mentionEveryone: true, groupMentionIds: ['group-4'], links: [{ id: 'project-12' }],
+  });
+});

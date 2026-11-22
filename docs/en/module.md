@@ -282,6 +282,15 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   inside the panel, the selection kept. Each change adds the system note the BFF returns to the thread, centred
   (« Vous avez ajouté Sophie Leroy au groupe. », « Paul Martin vous a retiré du groupe. »…), and the new size of the
   group to the list; a system note is never unread nor « Envoyé ».
+- **Mentions and links (MAIR-1166).** Typing `@` (or the « Mentionner une personne » button) opens
+  `MentionSuggestions` under the sections « Tout le monde », « Groupes et services » and « Personnes »
+  (`GET /conversations/{id}/mention-suggestions`); `#` (« Lier un élément ») lists the projects, events and tasks the
+  agent may read, with their kind icon and detail (`GET /link-suggestions`). The text field is a combobox and the
+  list a listbox: ↑ ↓ move, Entrée / Tab choose, Échap closes, and the list disappears when nothing matches any more;
+  Entrée sends when no list is open. A chosen tag is frozen (followed by a space, what is typed next is plain text).
+  The send carries `mentionIds`, `mentionEveryone`, `groupMentionIds` and `links`. In the bubbles the tags are
+  emphasised in the accent colour, and a linked element with a page (`url` from the BFF) is a lib `Link` that opens
+  it. A mentioned person has no page to open yet: their tag stays emphasised.
 - **Empty states (MAIR-1171).** One illustrated visual per screen, from the lib 2.3 `DataState`: without any
   conversation, the list only says « Aucune conversation pour l'instant. » and the thread shows « Commencez à
   échanger » (size m, illustrated); with conversations but none selected, « Sélectionnez une conversation » (size m);
