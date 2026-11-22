@@ -12,6 +12,7 @@ const MESSAGING = 'components/MessagesPage/components/MessagesWorkspace/componen
 const { highlightSegments } = requireSrc(`${MESSAGING}/components/ConversationSearchPanel/search-highlights.ts`);
 const { useConversationSearch, SEARCH_TYPES } = requireSrc(`${MESSAGING}/components/ConversationSearchPanel/use-conversation-search.ts`);
 const { revealMessage, REVEAL_HIGHLIGHT_MS } = requireSrc(`${MESSAGING}/reveal-message.ts`);
+const { SearchMessageResult } = requireSrc(`${MESSAGING}/components/ConversationSearchPanel/components/SearchMessageResult/SearchMessageResult.tsx`);
 
 let view;
 afterEach(() => { view?.unmount(); view = undefined; });
@@ -87,4 +88,14 @@ test('MAIR-1164 the three tabs are searched together once the agent stops typing
   await view.waitFor(() => search.status === 'ready');
   await view.act(() => setQuery(''));
   assert.equal(search.status, 'idle');
+});
+
+test('MAIR-1164 a found message shows its author and its marked excerpt, and opens the message', () => {
+  const opened = [];
+  const item = { messageId: 'message-7', createdAt: '2026-06-23T12:32:00Z', excerpt: 'Le permis est signé', highlights: [{ start: 3, length: 6 }] };
+  view = mount(React.createElement(SearchMessageResult, { item, onOpen: found => opened.push(found.messageId) }));
+  assert.match(view.html, /<mark[^>]*>permis<\/mark>/);
+  assert.match(view.text(), /Ancien membre/);
+  view.click(props => props['data-search-message-id'] === 'message-7');
+  assert.deepEqual(opened, ['message-7']);
 });
