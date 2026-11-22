@@ -99,6 +99,8 @@ export interface MessagingProps extends React.HTMLAttributes<HTMLElement> {
    * A rejection carries the message of the danger alert shown above the thread.
    */
   onDeleteMessage?: (message: MessagingMessage) => Promise<boolean | void>;
+  /** MAIR-1170: add (`add`) or remove my reaction; a rejection carries the message of the alert above the thread. */
+  onToggleReaction?: (message: MessagingMessage, emoji: string, add: boolean) => Promise<unknown>;
 }
 
 const emptyConversations: MessagingConversation[] = [];
@@ -142,6 +144,7 @@ export const Messaging = ({
   onSuggestLinks,
   onEditMessage,
   onDeleteMessage,
+  onToggleReaction,
   className = '',
   ...props
 }: MessagingProps) => {
@@ -300,19 +303,28 @@ export const Messaging = ({
     links: onSuggestLinks,
   };
 
-  // MAIR-1169: the deletion of one of my messages, confirmed first; a failure keeps the message and says why.
+  // MAIR-1169 / MAIR-1170: the deletion of one of my messages is confirmed first; a failed deletion or reaction keeps
+  // the message and says why above the thread.
   const [deleting, setDeleting] = React.useState<MessagingMessage | null>(null);
-  const [deleteError, setDeleteError] = React.useState<string | null>(null);
-  React.useEffect(() => { setDeleting(null); setDeleteError(null); }, [activeKey]);
+  const [actionError, setActionError] = React.useState<string | null>(null);
+  React.useEffect(() => { setDeleting(null); setActionError(null); }, [activeKey]);
+  const toggleReaction = async (message: MessagingMessage, emoji: string, add: boolean) => {
+    setActionError(null);
+    try {
+      await onToggleReaction?.(message, emoji, add);
+    } catch (failure) {
+      setActionError(failure instanceof Error && failure.message ? failure.message : 'La réaction n’a pas pu être enregistrée.');
+    }
+  };
   const confirmDelete = async () => {
     const message = deleting;
     setDeleting(null);
     if (!message || !onDeleteMessage) return;
-    setDeleteError(null);
+    setActionError(null);
     try {
-      if (await onDeleteMessage(message) === false) setDeleteError('Le message n’a pas pu être supprimé.');
+      if (await onDeleteMessage(message) === false) setActionError('Le message n’a pas pu être supprimé.');
     } catch (failure) {
-      setDeleteError(failure instanceof Error && failure.message ? failure.message : 'Le message n’a pas pu être supprimé.');
+      setActionError(failure instanceof Error && failure.message ? failure.message : 'Le message n’a pas pu être supprimé.');
     }
   };
 
@@ -370,8 +382,8 @@ export const Messaging = ({
           <ReadFailureAlert message={readFailure.message} />
         )}
 
-        {deleteError && (
-          <ErrorAlert size="s" className="mx-4 mt-3" title={deleteError} onDismiss={() => setDeleteError(null)} />
+        {actionError && (
+          <ErrorAlert size="s" className="mx-4 mt-3" title={actionError} onDismiss={() => setActionError(null)} />
         )}
 
         <MessageThread
@@ -395,6 +407,7 @@ export const Messaging = ({
           onOpenQuote={openQuote}
           onEdit={onEditMessage ? (message) => { if (!message.deleted) setEditingId(message.id); } : undefined}
           onDelete={onDeleteMessage ? (message) => { if (!message.deleted) setDeleting(message); } : undefined}
+          onToggleReaction={onToggleReaction ? toggleReaction : undefined}
           editingId={editingId}
           onSaveEdit={saveEdit}
           onCancelEdit={() => setEditingId(null)}

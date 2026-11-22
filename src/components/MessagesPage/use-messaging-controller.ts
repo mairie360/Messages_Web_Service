@@ -885,6 +885,24 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     }
   };
 
+  // MAIR-1170: add or remove my reaction; the answer gives every reaction of the message.
+  const handleToggleReaction: NonNullable<MessagingProps["onToggleReaction"]> = async (message, emoji, add) => {
+    if (message.conversationId === undefined) return;
+    const conversationId = message.conversationId;
+    beginMutation();
+    try {
+      const { reactions } = add
+        ? await messageClient.addReaction(conversationId, message.id, emoji)
+        : await messageClient.removeReaction(conversationId, message.id, emoji);
+      setMessages(current => current.map(item => idsMatch(item.id, message.id) && idsMatch(item.conversationId, conversationId) ? { ...item, reactions } : item));
+    } catch (failure) {
+      if (await recoverSessionNavigation(failure)) return;
+      throw new Error(describeBffError(failure, "La réaction n’a pas pu être enregistrée."));
+    } finally {
+      endMutation(true);
+    }
+  };
+
   // MAIR-1166: suggestions of `@` (members, groups and services, everyone) and of `#` (projects, events, tasks).
   const handleSuggestMentions: NonNullable<MessagingProps["onSuggestMentions"]> = (conversation, query, signal) =>
     messageClient.getMentionSuggestions(conversation.id, query, signal);
@@ -1001,6 +1019,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     handleSuggestLinks,
     handleEditMessage,
     handleDeleteMessage,
+    handleToggleReaction,
     handleLoadMembers,
     handleAddMembers,
     handleRemoveMember,

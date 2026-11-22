@@ -52,6 +52,7 @@ export function MessagesWorkspace({
   handleSuggestLinks,
   handleEditMessage,
   handleDeleteMessage,
+  handleToggleReaction,
   handleLoadMembers,
   handleAddMembers,
   handleRemoveMember,
@@ -115,6 +116,7 @@ export function MessagesWorkspace({
                 onSuggestLinks={handleSuggestLinks}
                 onEditMessage={hasConfirmedThread ? handleEditMessage : undefined}
                 onDeleteMessage={hasConfirmedThread ? handleDeleteMessage : undefined}
+                onToggleReaction={hasConfirmedThread ? handleToggleReaction : undefined}
                 onLoadMembers={hasConfirmedThread ? handleLoadMembers : undefined}
                 onAddMembers={handleAddMembers}
                 onRemoveMember={handleRemoveMember}

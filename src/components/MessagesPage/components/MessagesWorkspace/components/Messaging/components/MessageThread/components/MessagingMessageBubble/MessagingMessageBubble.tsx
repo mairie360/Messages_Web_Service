@@ -9,6 +9,8 @@ import { MessageActionsToolbar } from './components/MessageActionsToolbar';
 import { MessageEditBox } from './components/MessageEditBox';
 import { messageText } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-model';
 import { MessageQuote } from './components/MessageQuote';
+import { MessageReactions } from './components/MessageReactions';
+import { ReactionPicker } from './components/ReactionPicker';
 import { MessageSendStatus } from './components/MessageSendStatus';
 import { uniqueBusinessReferences } from './bubble-model';
 import type {
@@ -42,6 +44,8 @@ export interface MessagingMessageBubbleProps extends React.HTMLAttributes<HTMLDi
   onSaveEdit?: (message: MessagingMessage, payload: MessagingEditPayload) => Promise<boolean | void> | boolean | void;
   onCancelEdit?: () => void;
   suggestionSources?: MessagingTagSuggestionSources;
+  /** MAIR-1170: adds (`add`) or removes my reaction with this emoji. */
+  onToggleReaction?: (message: MessagingMessage, emoji: string, add: boolean) => Promise<unknown> | unknown;
 }
 
 /** Time of a press that opens the actions of a message on a touch screen. */
@@ -64,6 +68,7 @@ export const MessagingMessageBubble = ({
   onSaveEdit,
   onCancelEdit,
   suggestionSources,
+  onToggleReaction,
   className = '',
   ...props
 }: MessagingMessageBubbleProps) => {
@@ -72,9 +77,19 @@ export const MessagingMessageBubble = ({
   const pressTimer = React.useRef<number | undefined>(undefined);
   const stopPress = () => { window.clearTimeout(pressTimer.current); pressTimer.current = undefined; };
   React.useEffect(() => stopPress, []);
+  // MAIR-1170: « Réagir » and « Ajouter une réaction » open the picker; one reaction change at a time.
+  const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [reactionPending, setReactionPending] = React.useState(false);
+  const react = async (emoji: string, add: boolean) => {
+    if (!onToggleReaction || reactionPending) return;
+    setPickerOpen(false);
+    setReactionPending(true);
+    try { await onToggleReaction(message, emoji, add); } finally { setReactionPending(false); }
+  };
+  const openReactions = onToggleReaction ? () => setPickerOpen(true) : onReact ? () => onReact(message) : undefined;
   // MAIR-1169: no action on a deleted message.
   const hasActions = !message.deleted && (!message.sendStatus || message.sendStatus === 'sent')
-    ? !!(onReact || onReply || onEdit || onDelete) : false;
+    ? !!(openReactions || onReply || onEdit || onDelete) : false;
   const [downloadError, setDownloadError] = React.useState('');
   const [downloadPending, setDownloadPending] = React.useState(false);
   const downloadRef = React.useRef(false);
@@ -172,10 +187,26 @@ export const MessagingMessageBubble = ({
         <MessageActionsToolbar
           open={actionsOpen}
           outgoing={outgoing}
-          onReact={onReact ? () => onReact(message) : undefined}
+          onReact={openReactions}
           onReply={onReply ? () => onReply(message) : undefined}
           onEdit={onEdit ? () => onEdit(message) : undefined}
           onDelete={onDelete ? () => onDelete(message) : undefined}
+        />
+      )}
+      {!message.deleted && (message.reactions?.length ?? 0) > 0 && (
+        <MessageReactions
+          reactions={message.reactions ?? []}
+          outgoing={outgoing}
+          pending={reactionPending}
+          onToggle={onToggleReaction ? reaction => void react(reaction.emoji, !reaction.reactedByMe) : undefined}
+          onAdd={onToggleReaction ? () => setPickerOpen(true) : undefined}
+        />
+      )}
+      {pickerOpen && onToggleReaction && !message.deleted && (
+        <ReactionPicker
+          outgoing={outgoing}
+          onPick={emoji => void react(emoji, !message.reactions?.some(reaction => reaction.emoji === emoji && reaction.reactedByMe))}
+          onClose={() => setPickerOpen(false)}
         />
       )}
       {outgoing && message.sendStatus && <MessageSendStatus status={message.sendStatus} onRetry={onRetrySend} />}

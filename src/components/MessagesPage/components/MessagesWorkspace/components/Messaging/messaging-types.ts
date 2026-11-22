@@ -92,6 +92,8 @@ export interface MessagingMessage {
   editedAt?: string;
   /** MAIR-1169: a deleted message (tombstone): no content, no tag, no reaction, no action. */
   deleted?: boolean;
+  /** MAIR-1170: the reactions, one per emoji. */
+  reactions?: MessagingReaction[];
   /** MAIR-1166: tags of the message (BFF). */
   mentionsEveryone?: boolean;
   groupMentions?: Array<{ id: MessagingContactId; name?: string }>;
@@ -193,4 +195,13 @@ export interface MessagingEditPayload {
   content: string;
   mentions: MessagingMention[];
   businessLinks: MessagingBusinessReference[];
+}
+
+/** MAIR-1170: the reactions to a message with one emoji. */
+export interface MessagingReaction {
+  emoji: string;
+  count: number;
+  reactedByMe: boolean;
+  /** Names of the agents who reacted, for the tooltip. */
+  userNames: string[];
 }

@@ -310,6 +310,13 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   replaces the bubble, its tags, quote and reactions; no action is offered on it any more, and the preview of the list
   reads « Message supprimé » when it was the last message. A failure is a danger `ErrorAlert` above the thread, the
   message kept.
+- **Reactions (MAIR-1170).** « Réagir » (toolbar) opens `ReactionPicker` (👍 ❤️ 😂 🎉 👀 🙏 ✅, lib `Button`s that take
+  the focus, ← → to move, Échap to close). `MessageReactions` shows one pill per emoji under the bubble: a toggle
+  button (`aria-pressed`, « 👍 3, dont vous »), mine highlighted, the names of the agents in its lib `ToolTip`, and
+  « Ajouter une réaction ». A click adds or removes my reaction (`POST` / `DELETE
+  /conversations/{id}/messages/{messageId}/reactions`); the reactions the BFF returns replace those of the message.
+  The other participants see them on the next refresh triggered by the `message_reacted` stream event. A failure is
+  the danger `ErrorAlert` above the thread.
 - **Empty states (MAIR-1171).** One illustrated visual per screen, from the lib 2.3 `DataState`: without any
   conversation, the list only says « Aucune conversation pour l'instant. » and the thread shows « Commencez à
   échanger » (size m, illustrated); with conversations but none selected, « Sélectionnez une conversation » (size m);

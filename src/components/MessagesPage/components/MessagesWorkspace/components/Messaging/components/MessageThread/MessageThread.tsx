@@ -43,6 +43,8 @@ export interface MessageThreadProps {
   onSaveEdit?: (message: MessagingMessage, payload: MessagingEditPayload) => Promise<boolean | void> | boolean | void;
   onCancelEdit?: () => void;
   suggestionSources?: MessagingTagSuggestionSources;
+  /** MAIR-1170: adds or removes my reaction to a message. */
+  onToggleReaction?: (message: MessagingMessage, emoji: string, add: boolean) => Promise<unknown> | unknown;
 }
 
 const noMessages: MessagingMessage[] = [];
@@ -74,6 +76,7 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
   onAttachmentDownload, onBusinessReferenceClick, conversationKey = null, unreadIds = noIds, onRead,
   pendingMessages = noMessages, onRetrySend, sendAnnouncement = '', conversationCount = 0, currentUserId,
   onReact, onReply, onEdit, onDelete, onOpenQuote, editingId = null, onSaveEdit, onCancelEdit, suggestionSources,
+  onToggleReaction,
 }, ref) => {
   // MAIR-1167: a quote of a loaded message that was deleted reads « Message supprimé ».
   const deletedIds = React.useMemo(() => new Set(messages.filter((message) => message.deleted).map((message) => String(message.id))), [messages]);
@@ -114,6 +117,7 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
                 onSaveEdit={onSaveEdit}
                 onCancelEdit={onCancelEdit}
                 suggestionSources={suggestionSources}
+                onToggleReaction={onToggleReaction}
               />}
             </React.Fragment>
           ))}

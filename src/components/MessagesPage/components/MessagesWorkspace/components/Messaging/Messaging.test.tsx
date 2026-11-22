@@ -1147,3 +1147,27 @@ describe('Messaging delete (MAIR-1169)', () => {
     expect(onDeleteMessage).not.toHaveBeenCalled();
   });
 });
+
+describe('Messaging reactions (MAIR-1170)', () => {
+  const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+  const message = { id: 'm1', conversationId: 'g1', content: 'Budget voté', authorId: 'u3',
+    reactions: [{ emoji: '👍', count: 2, reactedByMe: true, userNames: ['Moi', 'Paul'] }] };
+
+  it('reacts from the toolbar, toggles my reaction from its pill and shows a refusal above the thread', async () => {
+    const onToggleReaction = vi.fn().mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('La réaction n’a pas pu être enregistrée.'));
+    render(<Messaging conversations={[group]} messages={[message]} activeConversationId="g1" currentUserId="me" onToggleReaction={onToggleReaction} />);
+    const row = document.querySelector('[data-messaging-message-id="m1"]') as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Réagir' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'Réagir avec cœur' }));
+    await waitFor(() => expect(onToggleReaction).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }), '❤️', true));
+    expect(within(row).queryByRole('group', { name: 'Choisir une réaction' })).toBeNull();
+    await waitFor(() => expect(within(row).getByRole('button', { name: '👍 2, dont vous' })).toBeEnabled());
+    fireEvent.click(within(row).getByRole('button', { name: '👍 2, dont vous' }));
+    await waitFor(() => expect(onToggleReaction).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'm1' }), '👍', false));
+    await waitFor(() => expect(within(row).getByRole('button', { name: 'Ajouter une réaction' })).toBeEnabled());
+    fireEvent.click(within(row).getByRole('button', { name: 'Ajouter une réaction' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'Réagir avec pouce levé' }));
+    expect(await screen.findByText('La réaction n’a pas pu être enregistrée.')).toBeVisible();
+    expect(onToggleReaction).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'm1' }), '👍', false);
+  });
+});
