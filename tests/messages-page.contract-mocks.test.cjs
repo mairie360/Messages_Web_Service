@@ -79,6 +79,8 @@ afterEach(() => {
   assert.deepEqual([...messageBff.violations.filter((line) => !KNOWN_CONTRACT_DEFECTS.some((known) => known.test(line))), ...userBff.violations, ...network.violations], []);
 });
 
+// MAIR-854: errors are lib ErrorAlerts; their texts are the `title` props.
+const errorAlertTitles = () => view.find('ErrorAlert').map(({ props }) => props.title);
 const upstream = () => messageBff.requests.map((call) => `${call.method} ${call.url.pathname}`).sort();
 
 async function renderLoadedPage(body = bootstrap(), Component = Page) {
@@ -296,6 +298,8 @@ for (const status of [403, 503]) {
     messageBff.on('get', '/conversations', { status, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true });
     browser.tickIntervals(2000);
     await view.waitFor(html => html.includes('La synchronisation des conversations est momentanément indisponible.'));
+  // MAIR-854: the sync error is a lasting lib ErrorAlert (no close button: the next read clears it).
+  assert.ok(view.find('ErrorAlert').some(({ props }) => props.title === 'La synchronisation des conversations est momentanément indisponible.' && !props.onDismiss));
     assert.equal(browser.window.location.reloads, 0);
     assert.deepEqual(view.props('Messaging').messages, previousMessages);
     messageBff.on('get', '/conversations', { body: { conversations: [conversation(4, 'Équipe communication')] } });
@@ -447,7 +451,8 @@ test('the page offers no onAttach and refuses a draft with attachments before an
   }));
   assert.equal(result, false);
   const html = await view.waitFor((current) => current.includes('role="alert"'));
-  assert.match(html, new RegExp(`<p role="alert" class="messages-error">${ATTACHMENTS_UNAVAILABLE_MESSAGE}</p>`));
+  assert.match(html, new RegExp(ATTACHMENTS_UNAVAILABLE_MESSAGE));
+  assert.deepEqual(errorAlertTitles(), [ATTACHMENTS_UNAVAILABLE_MESSAGE]);
   assert.equal(ATTACHMENTS_UNAVAILABLE_MESSAGE, 'Les pièces jointes ne sont pas encore disponibles. Retirez-les du brouillon pour envoyer votre message.');
   assert.deepEqual(messageBff.requests.filter((call) => call.method === 'POST'), []);
   assert.match(html, /Bonjour à tous/);
@@ -519,8 +524,8 @@ for (const [label, operation, send, reply, expected] of [
 
     assert.equal(await view.act(() => view.props('Messaging')[handler](send)), false);
     const html = await view.waitFor((current) => current.includes('role="alert"'));
-    const text = html.match(/<p role="alert" class="messages-error">([^<]*)<\/p>/)[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, '’');
-    assert.equal(text, expected);
+    assert.match(html, /role="alert"/);
+    assert.deepEqual(errorAlertTitles(), [expected]);
     assert.equal(messageBff.calls(template, method.toUpperCase()).length, 1);
   });
 }
@@ -1174,7 +1179,10 @@ test('a refused send is shown as an alert without losing the thread', async () =
   assert.equal(sendResult, false);
   const html = await view.waitFor((current) => current.includes('role="alert"'));
 
-  assert.match(html, /<p role="alert" class="messages-error">Vous ne faites plus partie de cette conversation<\/p>/);
+  assert.deepEqual(errorAlertTitles(), ['Vous ne faites plus partie de cette conversation']);
+  // MAIR-854: the action error can be closed, the conversation stays.
+  await view.act(() => view.find('ErrorAlert')[0].props.onDismiss());
+  assert.deepEqual(errorAlertTitles(), []);
   assert.match(html, /Bonjour à tous/);
   assert.doesNotMatch(html, /Encore là \?/);
 });
@@ -1515,6 +1523,8 @@ test('a deletion refusal permits one guarded retry and preserves data while pend
     assert.equal(messageBff.calls('/conversations/{conversationId}', 'DELETE').length, 1);
     assert.equal(view.props('Messaging').onConversationDelete, undefined);
     assert.match(view.html, /role="status"[^]*?Suppression de la conversation en cours/);
+    // MAIR-854: the pending deletion is a lib info Alert.
+    assert.match(view.html, /<div[^>]*role="status"[^>]*data-m360-component="Alert"[^>]*>[^]*?Suppression de la conversation en cours…/);
     assert.match(view.text(), /Bonjour à tous/);
     const reads = messageBff.calls('/conversations').length;
     browser.focus();

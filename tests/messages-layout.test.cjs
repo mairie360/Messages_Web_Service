@@ -73,7 +73,8 @@ test('parsed messaging fallback, small-text and focus policies preserve the shar
   };
   outline('.messages-module [role="region"]:focus-visible');
   outline('.messages-pane-switch:focus-visible', '(max-width: 1023px)');
-  assert.equal(last('.messages-operation-status', 'flex-shrink'), '0');
+  // MAIR-854: errors and operation statuses are lib alerts, no local class.
+  assert.deepEqual(rows.filter((row) => row.selectors.some((selected) => /messages-(error|operation-status)/.test(selected))), []);
   // Preserve configuration; native keyboard/scrolling and RGAA certification remain separate.
 });
 
