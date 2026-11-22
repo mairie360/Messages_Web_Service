@@ -86,7 +86,7 @@ const upstream = () => messageBff.requests.map((call) => `${call.method} ${call.
 async function renderLoadedPage(body = bootstrap(), Component = Page) {
   messageBff.on('get', '/messaging/bootstrap', { body });
   view = mount(React.createElement(Component));
-  return view.waitFor(() => view.find('Messaging').length > 0 && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('DataState').some(state => state.props.state === 'empty' && state.props.title === 'Aucune conversation')) &&
+  return view.waitFor(() => view.find('Messaging').length > 0 && view.props('Messaging').emptyStateLabel === undefined /* MAIR-1171: confirmed thread or no conversation */ &&
     view.props('Header').user.name !== 'Chargement…' &&
     view.props('Messaging').conversations[0]?.unreadCount === 0);
 }
@@ -104,7 +104,7 @@ for (const status of [403, 503]) {
     });
     await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
     await view.waitFor(() => /Lecture refusée/.test(view.text()));
-    assert.doesNotMatch(view.text(), /Aucun message dans cette conversation|Aucune conversation/);
+    assert.doesNotMatch(view.text(), /Aucun message pour l’instant|Aucune conversation/);
     assert.match(view.text(), /messages de Sophie Leroy sont indisponibles/);
     assert.equal(view.props('Messaging').onSendMessage, undefined);
     assert.equal(view.find('MessagingComposer').filter(instance => !instance.hidden).length, 1);
@@ -115,7 +115,7 @@ for (const status of [403, 503]) {
     } }));
     await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
     await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5');
-    assert.match(view.text(), /Aucun message dans cette conversation/);
+    assert.match(view.text(), /Aucun message pour l’instant/);
     assert.equal(typeof view.props('Messaging').onSendMessage, 'function');
     assert.equal(view.visibleProps('MessagingComposer').disabled, false);
     assert.doesNotMatch(view.text(), /Lecture refusée|messages de Sophie Leroy sont indisponibles/);
@@ -136,7 +136,7 @@ test('a pending unseen selection retains its recipient draft without exposing it
   try {
     assert.equal(typeof release, 'function');
     assert.match(view.text(), /Chargement des messages de Sophie Leroy/);
-    assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+    assert.doesNotMatch(view.text(), /Aucun message pour l’instant/);
     assert.equal(view.visibleProps('MessagingComposer').disabled, true);
     assert.equal(view.find('MessagingComposer').filter(instance => !instance.hidden).length, composerCount);
     assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, '');
@@ -151,7 +151,7 @@ test('a pending unseen selection retains its recipient draft without exposing it
   }
   await view.settle();
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
-  assert.doesNotMatch(view.text(), /Chargement des messages de Sophie Leroy|Aucun message dans cette conversation/);
+  assert.doesNotMatch(view.text(), /Chargement des messages de Sophie Leroy|Aucun message pour l’instant/);
   assert.equal(view.visibleProps('MessagingComposer').disabled, false);
   assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
 });
@@ -167,7 +167,7 @@ test('a refused already confirmed thread preserves known messages and its draft'
   await view.waitFor(() => /Lecture refusée/.test(view.text()));
   assert.match(view.text(), /Bonjour à tous/);
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
-  assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+  assert.doesNotMatch(view.text(), /Aucun message pour l’instant/);
   assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
 });
 
@@ -637,7 +637,7 @@ test('business suggestions wait for visibility and do not add periodic backgroun
   browser.setHidden(true);
   messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
   view = mount(React.createElement(Page));
-  await view.waitFor(() => view.find('Messaging').length > 0 && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('DataState').some(state => state.props.state === 'empty' && state.props.title === 'Aucune conversation')));
+  await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Messaging').emptyStateLabel === undefined /* MAIR-1171: confirmed thread or no conversation */);
   browser.focus();
   browser.tickIntervals(2_000);
   assert.equal(pending.length, 0);
@@ -779,7 +779,8 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
   const messaging = view.props('Messaging');
   assert.equal(messaging.activeConversationId, 'conversation-4');
   assert.equal(messaging.currentUserId, 'user-2');
-  assert.equal(messaging.emptyStateLabel, 'Aucune conversation');
+  // MAIR-1171: the thread picks its own empty state.
+  assert.equal(messaging.emptyStateLabel, undefined);
   assert.deepEqual(messaging.contacts.map((item) => item.name), ['Sophie Leroy', 'Thomas Bernard']);
   assert.deepEqual(messaging.businessReferences.map((reference) => reference.title), ['Budget participatif', 'Conseil municipal']);
   await view.waitFor(() => view.props('Header').user.name === 'Agent Mairie');
@@ -946,8 +947,9 @@ test('a confirmed empty bootstrap is distinct from refusal and enables the norma
   await view.waitFor(() => view.find('Messaging').length > 0);
   assert.deepEqual(view.props('Messaging').conversations, []);
   assert.deepEqual(view.props('Messaging').contacts, []);
-  assert.equal(view.find('DataState').some(state => state.props.state === 'empty' && state.props.title === 'Aucune conversation'), true);
-  assert.match(view.text(), /Créez un message ou un groupe pour commencer/);
+  // MAIR-1171: one illustrated state in the thread, a short text in the list.
+  assert.equal(view.find('DataState').filter(state => state.props.state === 'empty' && state.props.title === 'Commencez à échanger' && state.props.size === 'm').length, 1);
+  assert.match(view.text(), /Aucune conversation pour l’instant\./);
   assert.equal(typeof view.props('Messaging').onCreateGroup, 'function');
   assert.doesNotMatch(view.text(), /Messagerie indisponible|Réessayer/);
   assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
@@ -1462,7 +1464,7 @@ test('a stale refresh cannot restore a deleted conversation', async () => {
   assert.deepEqual(view.props('Messaging').conversations.map((item) => item.id), ['conversation-5']);
   assert.equal(view.props('Messaging').activeConversationId, '');
   assert.equal(view.props('MessagingComposer').disabled, true);
-  assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+  assert.doesNotMatch(view.text(), /Aucun message pour l’instant/);
 });
 
 for (const [label, reply] of [
@@ -1758,7 +1760,7 @@ for (const label of ['disappeared active thread', 'new first conversation']) {
     }
     messageBff.on('get', '/messaging/bootstrap', { body });
     view = mount(React.createElement(Page));
-    await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Header').user.name !== 'Chargement…' && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('DataState').some(state => state.props.state === 'empty' && state.props.title === 'Aucune conversation')));
+    await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Header').user.name !== 'Chargement…' && view.props('Messaging').emptyStateLabel === undefined /* MAIR-1171: confirmed thread or no conversation */);
     messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
     messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
     browser.setHidden(false);
@@ -1896,7 +1898,7 @@ test('a mismatched fallback refresh reports the failure without restoring the va
   await view.waitFor(html => html.includes('Sélectionnez-la de nouveau pour réessayer'));
   assert.equal(view.props('Messaging').activeConversationId, '');
   assert.equal(view.props('MessagingComposer').disabled, true);
-  assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+  assert.doesNotMatch(view.text(), /Aucun message pour l’instant/);
   assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
   assert.doesNotMatch(view.text(), /Bonjour à tous/);
 });

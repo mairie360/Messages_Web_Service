@@ -15,7 +15,7 @@ describe('MessageThread', () => {
     const { rerender } = render(<MessageThread ref={ref} hasConversation={false} messages={[]} {...threadProps} />);
     expect(screen.getByText('Choisissez un fil')).toBeVisible();
     rerender(<MessageThread ref={ref} hasConversation messages={[]} {...threadProps} />);
-    expect(screen.getByText('Aucun message dans cette conversation.')).toBeVisible();
+    expect(screen.getByText('Aucun message pour l’instant')).toBeVisible();
     rerender(<MessageThread ref={ref} hasConversation messages={[{ id: 'm1', content: 'Bonjour', direction: 'incoming' }]} {...threadProps} />);
     expect(screen.getByText('Bonjour').closest('[data-messaging-message-id="m1"]')).not.toBeNull();
     expect(ref.current).toBeInstanceOf(HTMLDivElement);
@@ -31,8 +31,21 @@ describe('MessageThread empty states', () => {
     expect(text.parentElement?.className).toContain('justify-center');
     rerender(<MessageThread {...base} hasConversation={false} emptyStateLabel={<DataState state="empty" title="Aucune conversation" />} />);
     expect(screen.getByText('Aucune conversation').closest('[data-m360-component~="DataState"]')).not.toBeNull();
-    rerender(<MessageThread {...base} hasConversation emptyStateLabel="" />);
-    expect(screen.getByText('Aucun message dans cette conversation.').getAttribute('data-m360-component')).toContain('Text');
+  });
+
+  it('MAIR-1171 picks one illustrated state: « Commencez à échanger » without conversation, « Sélectionnez une conversation » without selection, a small « Aucun message pour l’instant » in an empty thread', () => {
+    const base = { messages: [], mentionOptions: [], businessReferenceOptions: [] };
+    const state = (title: string) => screen.getByText(title).closest('[data-m360-component~="DataState"]');
+    const { rerender, container } = render(<MessageThread {...base} hasConversation={false} conversationCount={0} />);
+    expect(state('Commencez à échanger')).toHaveAttribute('data-size', 'm');
+    expect(container.querySelectorAll('[data-m360-component~="DataState"]')).toHaveLength(1);
+    rerender(<MessageThread {...base} hasConversation={false} conversationCount={3} />);
+    expect(state('Sélectionnez une conversation')).toHaveAttribute('data-size', 'm');
+    expect(screen.queryByText('Commencez à échanger')).toBeNull();
+    rerender(<MessageThread {...base} hasConversation conversationCount={3} />);
+    const empty = state('Aucun message pour l’instant');
+    expect(empty).toHaveAttribute('data-size', 's');
+    expect(empty?.parentElement?.className).toContain('justify-center');
   });
 });
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { Messaging } from './components/Messaging';
-import { DataState, ToastProvider } from "@mairie360/lib-components/primitives";
+import { ToastProvider } from "@mairie360/lib-components/primitives";
 import { toMessagingUserId } from '@/lib/messaging-state';
 import { AppShell, totalUnread } from './components/AppShell';
 import { prepareMessagingScrollRegions } from './messaging-scroll-regions';
@@ -85,9 +85,9 @@ export function MessagesWorkspace({
                 businessReferences={businessReferences}
                 activeConversationId={hasConfirmedThread ? activeConversationId : ""}
                 currentUserId={toMessagingUserId(currentUser?.id)}
-                emptyStateLabel={activeConversationId === ""
-                  ? <DataState state="empty" title="Aucune conversation" description="Créez un message ou un groupe pour commencer." />
-                  : hasConfirmedThread ? "Aucune conversation" : threadPlaceholder}
+                // MAIR-1171: the thread picks its own empty state (no conversation / no selection); only the
+                // loading text of a thread being opened is passed.
+                emptyStateLabel={activeConversationId === "" || hasConfirmedThread ? undefined : threadPlaceholder}
                 aria-busy={selectionPending}
                 onConversationSelect={(conversation) =>
                   void loadConversationMessages(conversation.id)

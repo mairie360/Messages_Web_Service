@@ -39,8 +39,9 @@ describe('Messaging components', () => {
     render(<Messaging />);
 
     expect(screen.getByRole('heading', { name: 'Messagerie' })).toBeInTheDocument();
-    expect(screen.getByText('Aucune conversation trouvée.')).toBeInTheDocument();
-    expect(screen.getByText('Sélectionnez une conversation pour commencer.')).toBeInTheDocument();
+    // MAIR-1171: a short text in the list, the illustrated state in the thread only.
+    expect(screen.getByText('Aucune conversation pour l’instant.')).toBeInTheDocument();
+    expect(screen.getByText('Commencez à échanger')).toBeInTheDocument();
     expect(screen.queryByText('Marie Dubois')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Nouvelle conversation' })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText('Tapez votre message...')).toBeDisabled();
@@ -307,7 +308,7 @@ describe('Messaging components', () => {
       content: 'Message en attente du serveur',
     });
     expect(screen.queryByText('Message en attente du serveur')).not.toBeInTheDocument();
-    expect(screen.getByText('Aucun message dans cette conversation.')).toBeInTheDocument();
+    expect(screen.getByText('Aucun message pour l’instant')).toBeInTheDocument();
   });
 
   it('delegates group creation without inventing a local conversation', () => {

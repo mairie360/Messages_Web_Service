@@ -66,7 +66,7 @@ test('an empty confirmed thread offers deletion without a meaningless read actio
   } });
   view = mount(React.createElement(Page));
   await view.waitFor(() => view.find('Messaging').length && view.props('Header').user.name !== 'Chargement…' &&
-    view.text().includes('Aucun message dans cette conversation.'));
+    view.text().includes('Aucun message pour l’instant'));
   // The first polling pass returns 3 instead of the bootstrap fixture's 2.
   // Wait for its completion before triggering the next incoming-message pass.
   await view.waitFor(() => view.props('Messaging').conversations[0].unreadCount === 3);
