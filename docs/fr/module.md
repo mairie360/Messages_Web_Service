@@ -194,3 +194,6 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
 - **Cadre (MAIR-844).** Le bandeau affiche le logo de la lib et le nom de la commune (`COMMUNE_NAME`),
   « Messagerie » est actif avec le total des non-lus en badge (99+ au-delà de 99), et le pied de page affiche
   la version (`APP_VERSION`) ainsi que les mentions légales et la politique de confidentialité du front Login.
+- **États de démarrage (MAIR-847).** Le chargement et l'indisponibilité de la messagerie utilisent
+  `Card`, `ErrorAlert` (le démarrage refusé), `Skeleton` et `RetryButton` de la lib (« Chargement en
+  cours… », désactivé pendant le chargement).

@@ -101,12 +101,17 @@ test('actual pane switch changes list state while independent scroll regions and
   // CSS media policies and native compiled panes remain separate from JSDOM.
 });
 
-test('actual unavailable bootstrap keeps the reference error presentation and explicit retry command', async (t) => {
-  const dom = await messagesDom(t, { unavailable: true }), error = dom.document.querySelector('.messages-error');
-  assert.ok(error.textContent.includes('Lecture initiale refusée')); assert.equal(dom.style(error).flexShrink, '0');
-  assert.equal(dom.style(error).fontSize, '14px'); assert.equal(dom.style(error).lineHeight, '20px');
-  assert.equal(dom.style(error).color, 'var(--mairie-error-text)');
-  assert.equal(dom.style(dom.document.documentElement).getPropertyValue('--mairie-error-text').trim(), '#a40e26'); assert.ok(dom.button('Réessayer'));
+test('MAIR-847 actual unavailable bootstrap shows the lib ErrorAlert in a lib Card and an explicit retry', async (t) => {
+  const dom = await messagesDom(t, { unavailable: true });
+  const card = dom.document.querySelector('[data-m360-component~="Card"][aria-labelledby="messages-bootstrap-title"]');
+  assert.ok(card, 'the state is a lib Card');
+  const error = card.querySelector('[data-m360-component~="ErrorAlert"]');
+  assert.ok(error); assert.equal(error.getAttribute('role'), 'alert');
+  assert.ok(error.textContent.includes('Lecture initiale refusée'));
+  assert.equal(card.querySelector('h1').textContent, 'Messagerie indisponible');
+  assert.equal(card.querySelector('[role="status"]').textContent, 'Les conversations n’ont pas pu être chargées. Vous pouvez réessayer.');
+  assert.doesNotMatch(card.outerHTML, /bg-white|bg-gray-|messages-error/);
+  assert.ok(dom.button('Réessayer'));
   assert.equal(dom.document.querySelector('.messages-module'), null);
   assert.ok(dom.upstream.requests.every((request) => request.method === 'GET'));
   assert.ok(dom.fixtureExceptions.includes('Existing bootstrap503 fixture absent from published response statuses'));
