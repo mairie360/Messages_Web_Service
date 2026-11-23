@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from '@mairie360/lib-components/primitives';
 
 import { MessagingConversationItem } from './components/MessagingConversationItem';
 import type { MessagingContactId, MessagingConversation } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
@@ -22,9 +23,8 @@ export const ConversationList = ({ conversations, activeConversationId, emptyLab
         />
       ))
     ) : (
-      <div className="rounded-lg border border-dashed border-[var(--mairie-border)] bg-[var(--mairie-surface)] p-4 text-center text-sm text-[var(--mairie-muted)]">
-        {emptyLabel}
-      </div>
+      // MAIR-870 (Figma F9): a muted lib Text, the search stays a local filter.
+      <Text as="p" size="s" tone="muted" className="p-4 text-center" data-empty-state="conversations">{emptyLabel}</Text>
     )}
   </div>
 );

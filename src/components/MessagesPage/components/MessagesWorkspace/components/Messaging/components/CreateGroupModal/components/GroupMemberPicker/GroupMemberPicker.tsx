@@ -1,4 +1,4 @@
-import { Checkbox, SearchField } from '@mairie360/lib-components/primitives';
+import { Checkbox, SearchField, Text } from '@mairie360/lib-components/primitives';
 
 import type { MessagingContactId, MessagingConversation } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
 import { filterMembers } from '../../group-members';
@@ -41,7 +41,7 @@ export const GroupMemberPicker = ({ label, members, selectedValues, search, disa
             />
           ))
         ) : (
-          <p className="py-2 text-sm text-[var(--mairie-muted)]">Aucun contact trouvé.</p>
+          <Text as="p" size="s" tone="muted" className="py-2">Aucun contact trouvé.</Text>
         )}
       </div>
     </fieldset>

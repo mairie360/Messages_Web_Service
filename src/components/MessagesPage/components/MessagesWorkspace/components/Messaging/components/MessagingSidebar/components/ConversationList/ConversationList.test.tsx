@@ -15,4 +15,13 @@ describe('ConversationList', () => {
     await userEvent.click(screen.getByText('Marie Dubois')); expect(onSelect).toHaveBeenCalledWith(marie);
     rerender(<ConversationList conversations={[]} emptyLabel="Rien" />); expect(screen.getByText('Rien')).toBeVisible();
   });
+
+  it('MAIR-870 shows « Aucune conversation trouvée. » as a muted lib Text', () => {
+    render(<ConversationList conversations={[]} emptyLabel="Aucune conversation trouvée." />);
+    const node = screen.getByText('Aucune conversation trouvée.');
+    expect(node.tagName).toBe('P');
+    expect(node.getAttribute('data-m360-component')).toContain('Text');
+    expect(node.className).not.toMatch(/text-\[var\(--mairie-muted\)\]|border-dashed/);
+    expect(node).toHaveAttribute('data-empty-state', 'conversations');
+  });
 });
