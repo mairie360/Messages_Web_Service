@@ -15,6 +15,7 @@ import { MessageThread } from './components/MessageThread';
 import { ReadFailureAlert } from './components/ReadFailureAlert';
 import { useVisibleMessagesRead } from './use-visible-messages-read';
 import { attemptMessage, useSendAttempts } from './use-send-attempts';
+import { messageExcerpt } from './messaging-model';
 import type {
   CreateGroupPayload,
   MessagingAttachment,
@@ -244,13 +245,36 @@ export const Messaging = ({
 
   // MAIR-1162: my sends are shown in the thread with their state until the consumer confirms them.
   const sends = useSendAttempts(onSendMessage);
+  // MAIR-1167: the message each conversation answers (« Répondre »), until the reply is sent or cancelled.
+  const [replies, setReplies] = React.useState<Record<string, MessagingMessage>>({});
+  const setReply = (conversationId: MessagingContactId, message: MessagingMessage | null) => setReplies((current) => {
+    const next = { ...current };
+    if (message) next[String(conversationId)] = message; else delete next[String(conversationId)];
+    return next;
+  });
   const handleSendMessage = (
     conversationId: MessagingContactId,
     content: string,
     attachments?: MessagingAttachment[],
     mentions?: MessagingMention[],
     businessLinks?: MessagingBusinessReference[]
-  ) => sends.send(buildSendPayload(conversationId, content, { attachments, mentions, businessLinks, context: contextReference }));
+  ) => {
+    const reply = replies[String(conversationId)];
+    const payload = buildSendPayload(conversationId, content, { attachments, mentions, businessLinks, context: contextReference });
+    if (reply) payload.replyTo = reply.id;
+    return closeWhenConfirmed(sends.send(payload), () => {
+      // A newer « Répondre » chosen while sending is kept.
+      if (reply) setReplies((current) => {
+        if (current[String(conversationId)] !== reply) return current;
+        const next = { ...current };
+        delete next[String(conversationId)];
+        return next;
+      });
+    });
+  };
+  const openQuote = (messageId: MessagingContactId) => {
+    if (!revealMessage(messageRegionRef.current, messageId) && activeConversation) onMessageNotLoaded?.(activeConversation, messageId);
+  };
   const pendingMessages = sends.attempts
     .filter((attempt) => messagingIdsMatch(attempt.conversationId, resolvedActiveId))
     .map(attemptMessage);
@@ -319,6 +343,8 @@ export const Messaging = ({
           onRetrySend={(message) => message.conversationId !== undefined && sends.retry(message.conversationId)}
           sendAnnouncement={sends.announcement}
           currentUserId={currentUserId}
+          onReply={onSendMessage && activeConversation ? (message) => setReply(activeConversation.id, message) : undefined}
+          onOpenQuote={openQuote}
         />
 
         {contextReference && <ContextReferenceBar reference={contextReference} onOpen={onBusinessReferenceClick} />}
@@ -331,6 +357,8 @@ export const Messaging = ({
           businessReferenceOptions={businessReferences}
           onSendMessage={onSendMessage ? handleSendMessage : undefined}
           releasedDrafts={sends.released}
+          replies={Object.fromEntries(Object.entries(replies).map(([id, message]) => [id, { id: message.id, authorName: message.authorName, excerpt: messageExcerpt(message) }]))}
+          onCancelReply={(conversationId) => setReply(conversationId, null)}
           onSuggestMentions={onSuggestMentions}
           onSuggestLinks={onSuggestLinks}
           onAttach={onAttach}

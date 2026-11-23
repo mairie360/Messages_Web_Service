@@ -136,3 +136,13 @@ export const directContactIds = (conversation: MessagingConversation, contacts: 
   const contact = contacts.find((item) => userKey(item.id) === userKey(conversation.contactId));
   return contact ? [contact.id] : [];
 };
+
+/** MAIR-1167: the text of a message as written, whatever its rendered `content`. */
+export const messageText = (message: MessagingMessage): string =>
+  message.text ?? (typeof message.content === 'string' ? message.content : '');
+
+/** MAIR-1167: a short excerpt of a message, for the reply bar. */
+export const messageExcerpt = (message: MessagingMessage, length = 100): string => {
+  const text = messageText(message).replace(/\s+/g, ' ').trim();
+  return text.length > length ? `${text.slice(0, length - 1)}…` : text;
+};

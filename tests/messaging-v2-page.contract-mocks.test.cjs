@@ -107,3 +107,14 @@ test('MAIR-1166 the composer suggestions come from the BFF and a send carries ev
     content, attachmentIds: [], mentionIds: [], mentionEveryone: true, groupMentionIds: ['group-4'], links: [{ id: 'project-12' }],
   });
 });
+
+test('MAIR-1167 a reply is sent with the message it answers', async () => {
+  await loaded();
+  bff.on('post', '/conversations/{conversationId}/messages', { status: 201, body: {
+    message: message(31, 4, 'Merci', users.agent, { citation: 'message-1', quoted: { id: 'message-1', authorId: `user-${users.sophie.id}`, authorName: users.sophie.name, excerpt: 'Bonjour à tous' } }),
+    conversation: conversation(4, 'Équipe communication', { memberCount: 2 }),
+  } });
+  assert.equal(await view.act(() => messaging().onSendMessage({ conversationId: 'conversation-4', content: 'Merci', replyTo: 'message-1' })), true);
+  assert.equal(bff.calls('/conversations/{conversationId}/messages', 'post')[0].body.replyTo, 'message-1');
+  await view.waitFor(() => messaging().messages.some(item => item.id === 'message-31' && item.quoted?.excerpt === 'Bonjour à tous'));
+});

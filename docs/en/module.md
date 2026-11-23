@@ -291,6 +291,13 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   The send carries `mentionIds`, `mentionEveryone`, `groupMentionIds` and `links`. In the bubbles the tags are
   emphasised in the accent colour, and a linked element with a page (`url` from the BFF) is a lib `Link` that opens
   it. A mentioned person has no page to open yet: their tag stays emphasised.
+- **Message actions and reply (MAIR-1167).** Hovering a bubble, giving it the keyboard focus (each bubble with actions
+  is focusable) or a long press on a touch screen shows `MessageActionsToolbar` (lib `IconButton`s with their
+  `ToolTip`): « Réagir », « Répondre », and on my messages « Modifier » and « Supprimer ». « Répondre » shows
+  `ReplyBar` above the text field (author, excerpt, « Annuler la réponse ») and moves the focus there; the send
+  carries `replyTo` and the bar goes once the message is confirmed. A reply shows `MessageQuote` above its bubble
+  (author and excerpt from `quoted`); a click scrolls smoothly to the original and highlights it. The quote of a
+  deleted message reads « Message supprimé ».
 - **Empty states (MAIR-1171).** One illustrated visual per screen, from the lib 2.3 `DataState`: without any
   conversation, the list only says « Aucune conversation pour l'instant. » and the thread shows « Commencez à
   échanger » (size m, illustrated); with conversations but none selected, « Sélectionnez une conversation » (size m);

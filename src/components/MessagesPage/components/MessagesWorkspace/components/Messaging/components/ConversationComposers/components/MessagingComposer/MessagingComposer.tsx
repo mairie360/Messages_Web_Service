@@ -5,6 +5,7 @@ import { IconButton, ToolTip } from '@mairie360/lib-components/primitives';
 import { joinClasses } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-style';
 import { ComposerAttachmentChips } from './components/ComposerAttachmentChips';
 import { ComposerToolbar } from './components/ComposerToolbar';
+import { ReplyBar } from './components/ReplyBar';
 import { addOnce, appendTrigger, revokeDraftUrl } from './composer-text';
 import { MentionSuggestions, suggestionOptionId } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/MentionSuggestions';
 import { insertTag, useTagSuggestions, type TagOption } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/use-tag-suggestions';
@@ -33,6 +34,9 @@ export interface MessagingComposerProps extends React.HTMLAttributes<HTMLFormEle
   releaseDraft?: { content: string; token: number };
   /** MAIR-1166: suggestions of `@` and `#` from the BFF; the local options are used without them. */
   suggestionSources?: MessagingTagSuggestionSources;
+  /** MAIR-1167: the message being answered, shown above the text field. */
+  replyTo?: { id: string | number; authorName?: string; excerpt: string };
+  onCancelReply?: () => void;
 }
 
 export const MessagingComposer = ({
@@ -51,6 +55,8 @@ export const MessagingComposer = ({
   onEmoji,
   releaseDraft,
   suggestionSources,
+  replyTo,
+  onCancelReply,
   className = '',
   ...props
 }: MessagingComposerProps) => {
@@ -82,6 +88,9 @@ export const MessagingComposer = ({
   const listId = React.useId();
 
   const focusInputSoon = () => window.setTimeout(() => textInputRef.current?.focus(), 0);
+  // MAIR-1167: « Répondre » takes the agent to the text field.
+  const replyKey = replyTo ? String(replyTo.id) : null;
+  React.useEffect(() => { if (replyKey && !disabled) focusInputSoon(); }, [replyKey, disabled]);
 
   const appendDraftTrigger = (trigger: '@' | '#') => {
     if (disabled) return;
@@ -247,6 +256,13 @@ export const MessagingComposer = ({
         tabIndex={-1}
         onChange={handleFilesChange}
       />
+      {replyTo && (
+        <ReplyBar
+          authorName={replyTo.authorName}
+          excerpt={replyTo.excerpt}
+          onCancel={() => { onCancelReply?.(); focusInputSoon(); }}
+        />
+      )}
       <div className="flex items-center gap-3">
         <div className="relative min-w-0 flex-1">
           <input
