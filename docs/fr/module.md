@@ -211,3 +211,6 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   « Aucune conversation trouvée. » (recherche locale sans résultat), « Aucun contact trouvé. » et les textes
   d'attente du fil sont des `Text` de la lib (ton atténué), sans paragraphe stylé à la main ; le fil affiche
   tel quel un `DataState` déjà construit.
+- **Icônes du champ de saisie (MAIR-872).** Joindre, mentionner, élément métier, emoji, envoyer, les
+  pièces jointes et les suggestions de mention rendent leur glyphe lucide via `Icon` de la lib (`s`, jeton de
+  16 px, couleur du texte courant) ; les boutons gardent leur libellé accessible.

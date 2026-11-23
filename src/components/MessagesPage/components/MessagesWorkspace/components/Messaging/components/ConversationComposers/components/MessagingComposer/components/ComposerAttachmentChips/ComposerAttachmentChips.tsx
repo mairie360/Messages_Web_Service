@@ -1,4 +1,5 @@
 import { FileText, X } from 'lucide-react';
+import { Icon } from '@mairie360/lib-components/primitives';
 
 import type { MessagingAttachment } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
 
@@ -18,7 +19,7 @@ export const ComposerAttachmentChips = ({ attachments, disabled, onRemove }: Com
           key={attachment.id}
           className="inline-flex max-w-full items-center gap-2 rounded-md border border-[var(--mairie-border)] bg-[var(--mairie-surface-raised)] px-2.5 py-1.5 text-xs font-semibold text-[var(--mairie-text)]"
         >
-          <FileText className="size-3.5 shrink-0" strokeWidth={1.8} />
+          <Icon icon={FileText} size="s" />
           <span className="max-w-[180px] truncate">{attachment.name}</span>
           <button
             type="button"
@@ -27,7 +28,7 @@ export const ComposerAttachmentChips = ({ attachments, disabled, onRemove }: Com
             className="inline-flex size-5 items-center justify-center rounded text-[var(--mairie-muted)] transition hover:bg-[var(--mairie-surface-raised)] hover:text-[var(--mairie-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/30"
             onClick={() => onRemove(attachment.id)}
           >
-            <X className="size-3.5" strokeWidth={1.8} />
+            <Icon icon={X} size="s" />
           </button>
         </span>
       ))}
