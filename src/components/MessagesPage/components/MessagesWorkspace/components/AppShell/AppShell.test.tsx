@@ -22,7 +22,7 @@ describe('AppShell', () => {
     expect(screen.getByText('Contenu')).toBeInTheDocument(); expect(screen.getByRole('main')).toBeInTheDocument();
   });
 
-  it('MAIR-844 shows the lib logo, the commune name and a complete footer', () => {
+  it('MAIR-844 shows the lib logo and the commune name; MAIR-1156 hides the footer', () => {
     render(
       <ShellInfoProvider info={{ communeName: 'Villeneuve', version: '3.2.1' }}>
         <AppShell activeItem="messages"><p>Contenu</p></AppShell>
@@ -32,16 +32,18 @@ describe('AppShell', () => {
     expect(band.querySelector('img.app-navigation-logo')).toHaveAttribute('src', mairie360LogoSrc);
     expect(within(band).getByText('Commune de')).toBeInTheDocument();
     expect(within(band).getByText('Villeneuve')).toBeInTheDocument();
-    const footer = screen.getByRole('contentinfo');
-    expect(within(footer).getByText('Version 3.2.1')).toBeInTheDocument();
-    expect(within(footer).getByRole('link', { name: 'Mentions légales' })).toHaveAttribute('href', 'https://login.example/mentions-legales');
-    expect(within(footer).getByRole('link', { name: /confidentialit/i })).toHaveAttribute('href', 'https://login.example/confidentialite');
+    // MAIR-1156: the lib 2.3 page base renders no footer (showFooter={false}).
+    expect(document.querySelector('footer, [role="contentinfo"]')).toBeNull();
+    expect(screen.queryByText('Version 3.2.1')).toBeNull();
   });
 
-  it('MAIR-844 keeps « Messagerie » active with its unread badge, and no badge at zero', () => {
+  it('MAIR-1156 keeps « Messagerie » active with its lib Counter (« 9+ » above nine), and none at zero', () => {
     const { rerender } = render(<AppShell activeItem="messages" unreadCount={3}><p>Contenu</p></AppShell>);
-    const active = within(navigation()).getByRole('button', { name: 'Messagerie (3)', hidden: true });
+    const active = within(navigation()).getByRole('button', { name: 'Messagerie, 3 à traiter', hidden: true });
     expect(active).toHaveAttribute('aria-current', 'page');
+    rerender(<AppShell activeItem="messages" unreadCount={14}><p>Contenu</p></AppShell>);
+    const capped = within(navigation()).getByRole('button', { name: 'Messagerie, plus de 9 à traiter', hidden: true });
+    expect(capped).toHaveAttribute('aria-current', 'page'); expect(capped).toHaveTextContent('9+');
     rerender(<AppShell activeItem="messages" unreadCount={0}><p>Contenu</p></AppShell>);
     expect(within(navigation()).getByRole('button', { name: 'Messagerie', hidden: true })).toHaveAttribute('aria-current', 'page');
   });

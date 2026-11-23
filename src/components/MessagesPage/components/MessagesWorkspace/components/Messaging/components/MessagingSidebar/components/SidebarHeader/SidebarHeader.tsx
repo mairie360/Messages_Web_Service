@@ -1,5 +1,6 @@
 import React from 'react';
 import { MessageSquare, UsersRound } from 'lucide-react';
+import { PageTitle } from '@mairie360/lib-components/primitives';
 
 const SidebarActionButton = ({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) => (
   <button
@@ -21,10 +22,10 @@ export interface SidebarHeaderProps {
   onCreateGroupClick?: () => void;
 }
 
-/** Module title with the "new message" and "create group" shortcuts. */
+/** Module title (the page h1 since MAIR-1156: no title above the module) with the "new message" and "create group" shortcuts. */
 export const SidebarHeader = ({ title, newMessageLabel, createGroupLabel, onNewMessageClick, onCreateGroupClick }: SidebarHeaderProps) => (
   <div className="flex items-center justify-between gap-3">
-    <h2 className="truncate text-lg font-bold leading-7">{title}</h2>
+    <PageTitle size="l" truncate>{title}</PageTitle>
     {(onNewMessageClick || onCreateGroupClick) && (
       <div className="flex shrink-0 gap-1.5">
         {onNewMessageClick && (

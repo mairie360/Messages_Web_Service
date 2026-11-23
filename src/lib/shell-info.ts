@@ -1,5 +1,5 @@
 import type { FooterLegalLinks } from "@mairie360/lib-components/shell";
-import { parseFrontUrl } from "@/lib/front-url";
+import { parseFrontUrl } from "@mairie360/lib-components/shared";
 
 /** Instance details shown by the shared frame (MAIR-844), read at request time on the server. */
 export type ShellInfo = {

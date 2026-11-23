@@ -22,8 +22,17 @@ test('MAIR-844 « Messagerie » carries the unread total as its badge', () => {
   assert.equal(totalUnread([{ unreadCount: 2 }, { unreadCount: 3 }, {}, { unreadCount: -1 }, { unreadCount: 1.5 }]), 5);
   const ids = navigationItems(0).map((item) => item.id);
   assert.deepEqual(ids, ['dashboard', 'projects', 'messages', 'training', 'calendar', 'admin', 'settings']);
-  assert.equal(navigationItems(0).find((item) => item.id === 'messages').badge, undefined);
-  assert.equal(navigationItems(4).find((item) => item.id === 'messages').badge, '4');
-  assert.equal(navigationItems(120).find((item) => item.id === 'messages').badge, '99+');
-  assert.equal(navigationItems(4).filter((item) => item.badge).length, 1);
+  assert.equal(navigationItems(0).find((item) => item.id === 'messages').count, undefined);
+  assert.equal(navigationItems(4).find((item) => item.id === 'messages').count, 4);
+  assert.equal(navigationItems(120).find((item) => item.id === 'messages').count, 120);
+  assert.equal(navigationItems(4).filter((item) => item.count || item.badge).length, 1);
+});
+
+test('MAIR-1156 the navigation counter is the lib count (its Counter shows « 9+ »), the administration stays role-gated and there is no Workflows', () => {
+  assert.equal(navigationItems(-3).find((item) => item.id === 'messages').count, undefined);
+  assert.equal(navigationItems(Number.NaN).find((item) => item.id === 'messages').count, undefined);
+  const items = navigationItems(12);
+  assert.equal(items.find((item) => item.id === 'messages').count, 12);
+  assert.equal(items.find((item) => item.id === 'admin').adminOnly, true);
+  assert.equal(items.some((item) => /workflow/i.test(item.id + item.label)), false);
 });

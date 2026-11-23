@@ -21,7 +21,7 @@ test('the installed shared UI matches the reviewed published artifact', () => {
 });
 
 test('the shared shell keeps sidebar information distinct from a contentinfo landmark and has one skip target', t => {
-  const document = shellDocument(t, { footerProps: { year: 2026 } });
+  const document = shellDocument(t, { showFooter: true, footerProps: { year: 2026 } });
   const sidebar = document.querySelector('aside');
   assert.match(sidebar.textContent, /© 2026 Mairie360/);
   assert.equal(sidebar.querySelectorAll('footer, [role="contentinfo"]').length, 0);
@@ -40,7 +40,7 @@ test('standalone Footer retains its horizontal contentinfo landmark', () => {
 });
 
 test('supplied product, year, real version and actionable links remain in sidebar information', t => {
-  const document = shellDocument(t, { footerProps: {
+  const document = shellDocument(t, { showFooter: true, footerProps: {
     productName: 'Produit fourni', year: 2024, version: '0.6.11',
     links: [{ label: 'Documentation', href: 'https://docs.example/' }],
   } });
@@ -53,10 +53,17 @@ test('supplied product, year, real version and actionable links remain in sideba
 });
 
 test('an explicitly requested content footer has the sole contentinfo landmark outside the sidebar', t => {
-  const document = shellDocument(t, { footerPlacement: 'content', footerProps: { year: 2026 } });
+  const document = shellDocument(t, { showFooter: true, footerPlacement: 'content', footerProps: { year: 2026 } });
   const footer = document.querySelector('footer');
   assert.equal(footer.getAttribute('role'), 'contentinfo');
   assert.equal(document.querySelectorAll('[role="contentinfo"]').length, 1);
   assert.equal(document.querySelector('main').nextElementSibling, footer);
   assert.equal(footer.closest('aside'), null);
+});
+
+test('MAIR-1156 lib 2.3.0: the page base renders no footer unless asked (showFooter)', t => {
+  const document = shellDocument(t, { footerProps: { year: 2026, version: '1.0.0' } });
+  assert.equal(document.querySelectorAll('footer, [role="contentinfo"]').length, 0);
+  assert.doesNotMatch(document.body.textContent, /© 2026|Version 1\.0\.0/);
+  assert.match(document.body.textContent, /Contenu du module/);
 });

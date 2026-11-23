@@ -41,7 +41,7 @@ test('manifest and page metadata expose the branded assets', async () => {
   assert.match(html, /<span id="branding-child">Preserved child<\/span>/);
 });
 
-test('MAIR-844 the shared navigation renders the lib logo, the commune name and the footer', async () => {
+test('MAIR-844 the shared navigation renders the lib logo and the commune name; MAIR-1156 no footer', async () => {
   const saved = { COMMUNE_NAME: process.env.COMMUNE_NAME, APP_VERSION: process.env.APP_VERSION, LOGIN_FRONT_URL: process.env.LOGIN_FRONT_URL };
   Object.assign(process.env, { COMMUNE_NAME: 'Villeneuve', APP_VERSION: '3.2.1', LOGIN_FRONT_URL: 'https://login.example/' });
   try {
@@ -59,10 +59,8 @@ test('MAIR-844 the shared navigation renders the lib logo, the commune name and 
     assert.ok(logo.includes(`src="${mairie360LogoSrc}"`), 'the band shows the lib logo');
     assert.doesNotMatch(band, /mairie360-logo\.png/);
     assert.match(band, /Commune de<\/span><span class="app-navigation-commune-name">Villeneuve<\/span>/);
-    const footer = html.match(/<footer\b[\s\S]*?<\/footer>/)?.[0] ?? '';
-    assert.match(footer, /Version 3\.2\.1/);
-    assert.match(footer, /href="https:\/\/login\.example\/mentions-legales"/);
-    assert.match(footer, /href="https:\/\/login\.example\/confidentialite"/);
+    // MAIR-1156: the page base has no footer, so neither the version nor the legal links are rendered.
+    assert.doesNotMatch(html, /<footer\b|Version 3\.2\.1|mentions-legales/);
   } finally {
     for (const [key, value] of Object.entries(saved)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
   }

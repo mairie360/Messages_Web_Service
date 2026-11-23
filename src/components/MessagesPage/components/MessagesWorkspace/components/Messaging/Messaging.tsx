@@ -163,7 +163,7 @@ export const Messaging = ({
   return (
     <section
       className={joinClasses(
-        'grid min-h-[560px] overflow-hidden rounded-md border border-[var(--mairie-border)] bg-[var(--mairie-surface)] text-[var(--mairie-text)] shadow-[var(--mairie-shadow)] lg:h-[692px] lg:grid-cols-[320px_minmax(0,1fr)]',
+        'grid min-h-[560px] overflow-hidden rounded-[var(--mairie-radius-l)] border border-[var(--mairie-border)] bg-[var(--mairie-surface)] text-[var(--mairie-text)] shadow-[var(--mairie-shadow)] lg:h-[692px] lg:grid-cols-[320px_minmax(0,1fr)]',
         className
       )}
       {...props}

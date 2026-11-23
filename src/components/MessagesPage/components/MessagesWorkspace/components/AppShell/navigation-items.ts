@@ -6,8 +6,12 @@ export function totalUnread(conversations: ReadonlyArray<{ unreadCount?: number 
     sum + (Number.isSafeInteger(item.unreadCount) && (item.unreadCount ?? 0) > 0 ? item.unreadCount! : 0), 0);
 }
 
-/** The lib navigation with the unread badge on « Messagerie » (MAIR-844); no badge at zero. */
+/**
+ * The lib navigation with the unread total on « Messagerie » (MAIR-844, MAIR-1156): the lib 2.3 `count`, shown
+ * with its `Counter` (« 9+ » above nine) and named « Messagerie, N à traiter ». Administration stays `adminOnly`
+ * (shown by role), there is no Workflows item.
+ */
 export function navigationItems(unreadCount: number): SidebarItem[] {
-  const badge = unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : undefined;
-  return defaultSidebarItems.map((item) => (item.id === "messages" && badge ? { ...item, badge } : item));
+  const count = Number.isSafeInteger(unreadCount) && unreadCount > 0 ? unreadCount : undefined;
+  return defaultSidebarItems.map((item) => (item.id === "messages" && count ? { ...item, count } : item));
 }
