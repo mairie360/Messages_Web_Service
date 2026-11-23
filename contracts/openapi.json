@@ -1,6 +1,23 @@
 {
   "components": {
     "schemas": {
+      "AddMembersBody": {
+        "properties": {
+          "userIds": {
+            "items": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "userIds"
+        ],
+        "type": "object"
+      },
       "AttachmentDtoSchema": {
         "properties": {
           "id": {
@@ -335,6 +352,112 @@
           "conversationId"
         ],
         "type": "object"
+      },
+      "ConversationSearchResponse": {
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationSearchResponseItemsItem"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "number"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ConversationSearchResponseType"
+          }
+        },
+        "required": [
+          "type",
+          "items",
+          "hasMore",
+          "total"
+        ],
+        "type": "object"
+      },
+      "ConversationSearchResponseItemsItem": {
+        "anyOf": [
+          {
+            "properties": {
+              "authorId": {
+                "type": [
+                  "string",
+                  "number"
+                ]
+              },
+              "authorName": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "excerpt": {
+                "type": "string"
+              },
+              "highlights": {
+                "items": {
+                  "properties": {
+                    "length": {
+                      "type": "number"
+                    },
+                    "start": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "length"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "messageId": {
+                "type": [
+                  "string",
+                  "number"
+                ]
+              }
+            },
+            "required": [
+              "messageId",
+              "createdAt",
+              "excerpt",
+              "highlights"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "id": {
+                "type": [
+                  "string",
+                  "number"
+                ]
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ConversationSearchResponseType": {
+        "enum": [
+          "messages",
+          "files",
+          "people"
+        ],
+        "type": "string"
       },
       "ConversationsQuery": {
         "properties": {
@@ -687,6 +810,1475 @@
         ],
         "type": "object"
       },
+      "DeleteConversationsConversationIdMembersUserId200": {
+        "properties": {
+          "canManage": {
+            "type": "boolean"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200MembersItem"
+            },
+            "type": "array"
+          },
+          "systemMessage": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessage"
+          }
+        },
+        "required": [
+          "members",
+          "canManage"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMembersUserId200MembersItem": {
+        "properties": {
+          "department": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isAdmin"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessage": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessageAttachmentsItem"
+            },
+            "type": "array"
+          },
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessageDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessageGroupMentionsItem"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessageKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessageLinksItem"
+            },
+            "type": "array"
+          },
+          "mentions": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessageMentionsItem"
+            },
+            "type": "array"
+          },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
+          "quoted": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessageQuoted"
+          },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessageReactionsItem"
+            },
+            "type": "array"
+          },
+          "sentAt": {
+            "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessageSystemEvent"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "content",
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessageAttachmentsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessageDirection": {
+        "enum": [
+          "incoming",
+          "outgoing"
+        ],
+        "type": "string"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessageGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessageKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessageLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessageLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessageLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
+        ],
+        "type": "string"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessageMentionsItem": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessageMentionsItemKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessageMentionsItemKind": {
+        "enum": [
+          "direct",
+          "group"
+        ],
+        "type": "string"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessageQuoted": {
+        "properties": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "excerpt"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessageReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessageSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200SystemMessageSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMembersUserId200SystemMessageSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200": {
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200Message"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200Message": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200MessageAttachmentsItem"
+            },
+            "type": "array"
+          },
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200MessageDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200MessageGroupMentionsItem"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200MessageKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200MessageLinksItem"
+            },
+            "type": "array"
+          },
+          "mentions": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200MessageMentionsItem"
+            },
+            "type": "array"
+          },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
+          "quoted": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200MessageQuoted"
+          },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200MessageReactionsItem"
+            },
+            "type": "array"
+          },
+          "sentAt": {
+            "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200MessageSystemEvent"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "content",
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200MessageAttachmentsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200MessageDirection": {
+        "enum": [
+          "incoming",
+          "outgoing"
+        ],
+        "type": "string"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200MessageGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200MessageKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200MessageLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200MessageLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200MessageLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
+        ],
+        "type": "string"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200MessageMentionsItem": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200MessageMentionsItemKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200MessageMentionsItemKind": {
+        "enum": [
+          "direct",
+          "group"
+        ],
+        "type": "string"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200MessageQuoted": {
+        "properties": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "excerpt"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200MessageReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200MessageSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200MessageSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMessagesMessageId200MessageSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
+      "DeleteConversationsConversationIdMessagesMessageIdReactions200": {
+        "properties": {
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageIdReactions200ReactionsItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "reactions"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMessagesMessageIdReactions200ReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "DeleteConversationsConversationIdMessagesMessageIdReactionsParams": {
+        "properties": {
+          "emoji": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "emoji"
+        ],
+        "type": "object"
+      },
+      "DeleteMessageResponse": {
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/DeleteMessageResponseMessage"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "DeleteMessageResponseMessage": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteMessageResponseMessageAttachmentsItem"
+            },
+            "type": "array"
+          },
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/DeleteMessageResponseMessageDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteMessageResponseMessageGroupMentionsItem"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeleteMessageResponseMessageKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteMessageResponseMessageLinksItem"
+            },
+            "type": "array"
+          },
+          "mentions": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteMessageResponseMessageMentionsItem"
+            },
+            "type": "array"
+          },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
+          "quoted": {
+            "$ref": "#/components/schemas/DeleteMessageResponseMessageQuoted"
+          },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteMessageResponseMessageReactionsItem"
+            },
+            "type": "array"
+          },
+          "sentAt": {
+            "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/DeleteMessageResponseMessageSystemEvent"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "content",
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
+        ],
+        "type": "object"
+      },
+      "DeleteMessageResponseMessageAttachmentsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "DeleteMessageResponseMessageDirection": {
+        "enum": [
+          "incoming",
+          "outgoing"
+        ],
+        "type": "string"
+      },
+      "DeleteMessageResponseMessageGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "DeleteMessageResponseMessageKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "DeleteMessageResponseMessageLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeleteMessageResponseMessageLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "DeleteMessageResponseMessageLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
+        ],
+        "type": "string"
+      },
+      "DeleteMessageResponseMessageMentionsItem": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeleteMessageResponseMessageMentionsItemKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "DeleteMessageResponseMessageMentionsItemKind": {
+        "enum": [
+          "direct",
+          "group"
+        ],
+        "type": "string"
+      },
+      "DeleteMessageResponseMessageQuoted": {
+        "properties": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "excerpt"
+        ],
+        "type": "object"
+      },
+      "DeleteMessageResponseMessageReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "DeleteMessageResponseMessageSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/DeleteMessageResponseMessageSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "DeleteMessageResponseMessageSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
+      "EditMessageBody": {
+        "properties": {
+          "content": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "pattern": "^[^<>]*$",
+            "type": "string"
+          },
+          "groupMentionIds": {
+            "items": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "type": "array"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/EditMessageBodyLinksItem"
+            },
+            "type": "array"
+          },
+          "mentionEveryone": {
+            "type": "boolean"
+          },
+          "mentionIds": {
+            "items": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
+      "EditMessageBodyLinksItem": {
+        "properties": {
+          "id": {
+            "pattern": "^(?:project|task|event)-\\d{1,9}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "EditMessageResponse": {
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/EditMessageResponseMessage"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "EditMessageResponseMessage": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/EditMessageResponseMessageAttachmentsItem"
+            },
+            "type": "array"
+          },
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/EditMessageResponseMessageDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/EditMessageResponseMessageGroupMentionsItem"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EditMessageResponseMessageKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/EditMessageResponseMessageLinksItem"
+            },
+            "type": "array"
+          },
+          "mentions": {
+            "items": {
+              "$ref": "#/components/schemas/EditMessageResponseMessageMentionsItem"
+            },
+            "type": "array"
+          },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
+          "quoted": {
+            "$ref": "#/components/schemas/EditMessageResponseMessageQuoted"
+          },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/EditMessageResponseMessageReactionsItem"
+            },
+            "type": "array"
+          },
+          "sentAt": {
+            "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/EditMessageResponseMessageSystemEvent"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "content",
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
+        ],
+        "type": "object"
+      },
+      "EditMessageResponseMessageAttachmentsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "EditMessageResponseMessageDirection": {
+        "enum": [
+          "incoming",
+          "outgoing"
+        ],
+        "type": "string"
+      },
+      "EditMessageResponseMessageGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "EditMessageResponseMessageKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "EditMessageResponseMessageLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EditMessageResponseMessageLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "EditMessageResponseMessageLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
+        ],
+        "type": "string"
+      },
+      "EditMessageResponseMessageMentionsItem": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EditMessageResponseMessageMentionsItemKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "EditMessageResponseMessageMentionsItemKind": {
+        "enum": [
+          "direct",
+          "group"
+        ],
+        "type": "string"
+      },
+      "EditMessageResponseMessageQuoted": {
+        "properties": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "excerpt"
+        ],
+        "type": "object"
+      },
+      "EditMessageResponseMessageReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "EditMessageResponseMessageSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/EditMessageResponseMessageSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "EditMessageResponseMessageSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
       "ErrorResponse": {
         "properties": {
           "error": {
@@ -1034,8 +2626,20 @@
               "number"
             ]
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "direction": {
             "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemGroupMentionsItem"
+            },
+            "type": "array"
           },
           "id": {
             "type": [
@@ -1043,24 +2647,51 @@
               "number"
             ]
           },
+          "kind": {
+            "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemLinksItem"
+            },
+            "type": "array"
+          },
           "mentions": {
             "items": {
               "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemMentionsItem"
             },
             "type": "array"
           },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
           "quoted": {
             "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemQuoted"
           },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemReactionsItem"
+            },
+            "type": "array"
+          },
           "sentAt": {
             "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemSystemEvent"
           }
         },
         "required": [
           "id",
           "conversationId",
           "content",
-          "sentAt"
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
         ],
         "type": "object"
       },
@@ -1095,6 +2726,62 @@
         "enum": [
           "incoming",
           "outgoing"
+        ],
+        "type": "string"
+      },
+      "GetConversationsConversationId200MessagesItemGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationId200MessagesItemKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "GetConversationsConversationId200MessagesItemLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationId200MessagesItemLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
         ],
         "type": "string"
       },
@@ -1156,6 +2843,78 @@
         ],
         "type": "object"
       },
+      "GetConversationsConversationId200MessagesItemReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationId200MessagesItemSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/GetConversationsConversationId200MessagesItemSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationId200MessagesItemSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
       "GetConversationsConversationId200ParticipantsItem": {
         "properties": {
           "avatarUrl": {
@@ -1196,6 +2955,120 @@
           "away"
         ],
         "type": "string"
+      },
+      "GetConversationsConversationIdMembers200": {
+        "properties": {
+          "canManage": {
+            "type": "boolean"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationIdMembers200MembersItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "members",
+          "canManage"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMembers200MembersItem": {
+        "properties": {
+          "department": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isAdmin"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMentionSuggestions200": {
+        "properties": {
+          "everyone": {
+            "type": "boolean"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationIdMentionSuggestions200GroupsItem"
+            },
+            "type": "array"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationIdMentionSuggestions200PeopleItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "everyone",
+          "groups",
+          "people"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMentionSuggestions200GroupsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMentionSuggestions200PeopleItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMentionSuggestionsParams": {
+        "properties": {
+          "q": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
       },
       "GetConversationsConversationIdMessages200": {
         "properties": {
@@ -1319,8 +3192,20 @@
               "number"
             ]
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "direction": {
             "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemGroupMentionsItem"
+            },
+            "type": "array"
           },
           "id": {
             "type": [
@@ -1328,24 +3213,51 @@
               "number"
             ]
           },
+          "kind": {
+            "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemLinksItem"
+            },
+            "type": "array"
+          },
           "mentions": {
             "items": {
               "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemMentionsItem"
             },
             "type": "array"
           },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
           "quoted": {
             "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemQuoted"
           },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemReactionsItem"
+            },
+            "type": "array"
+          },
           "sentAt": {
             "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemSystemEvent"
           }
         },
         "required": [
           "id",
           "conversationId",
           "content",
-          "sentAt"
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
         ],
         "type": "object"
       },
@@ -1380,6 +3292,62 @@
         "enum": [
           "incoming",
           "outgoing"
+        ],
+        "type": "string"
+      },
+      "GetConversationsConversationIdMessages200MessagesItemGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMessages200MessagesItemKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "GetConversationsConversationIdMessages200MessagesItemLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMessages200MessagesItemLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
         ],
         "type": "string"
       },
@@ -1441,6 +3409,78 @@
         ],
         "type": "object"
       },
+      "GetConversationsConversationIdMessages200MessagesItemReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMessages200MessagesItemSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/GetConversationsConversationIdMessages200MessagesItemSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdMessages200MessagesItemSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
       "GetConversationsConversationIdMessagesParams": {
         "properties": {
           "before": {
@@ -1473,6 +3513,148 @@
         "required": [],
         "type": "object"
       },
+      "GetConversationsConversationIdSearch200": {
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GetConversationsConversationIdSearch200ItemsItem"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "number"
+          },
+          "type": {
+            "$ref": "#/components/schemas/GetConversationsConversationIdSearch200Type"
+          }
+        },
+        "required": [
+          "type",
+          "items",
+          "hasMore",
+          "total"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdSearch200ItemsItem": {
+        "anyOf": [
+          {
+            "properties": {
+              "authorId": {
+                "type": [
+                  "string",
+                  "number"
+                ]
+              },
+              "authorName": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "excerpt": {
+                "type": "string"
+              },
+              "highlights": {
+                "items": {
+                  "properties": {
+                    "length": {
+                      "type": "number"
+                    },
+                    "start": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "length"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "messageId": {
+                "type": [
+                  "string",
+                  "number"
+                ]
+              }
+            },
+            "required": [
+              "messageId",
+              "createdAt",
+              "excerpt",
+              "highlights"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "id": {
+                "type": [
+                  "string",
+                  "number"
+                ]
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "GetConversationsConversationIdSearch200Type": {
+        "enum": [
+          "messages",
+          "files",
+          "people"
+        ],
+        "type": "string"
+      },
+      "GetConversationsConversationIdSearchParams": {
+        "properties": {
+          "limit": {
+            "maximum": 50,
+            "minimum": 1,
+            "type": "number"
+          },
+          "offset": {
+            "maximum": 1000000,
+            "minimum": 0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "q": {
+            "maxLength": 150,
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/GetConversationsConversationIdSearchType"
+          }
+        },
+        "required": [
+          "q"
+        ],
+        "type": "object"
+      },
+      "GetConversationsConversationIdSearchType": {
+        "enum": [
+          "messages",
+          "files",
+          "people"
+        ],
+        "type": "string"
+      },
       "GetConversationsParams": {
         "properties": {
           "cursor": {
@@ -1485,6 +3667,96 @@
             "type": "number"
           },
           "search": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "GetLinkSuggestions200": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GetLinkSuggestions200ItemsItem"
+            },
+            "type": "array"
+          },
+          "sources": {
+            "$ref": "#/components/schemas/GetLinkSuggestions200Sources"
+          }
+        },
+        "required": [
+          "items",
+          "sources"
+        ],
+        "type": "object"
+      },
+      "GetLinkSuggestions200ItemsItem": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GetLinkSuggestions200ItemsItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title"
+        ],
+        "type": "object"
+      },
+      "GetLinkSuggestions200ItemsItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
+        ],
+        "type": "string"
+      },
+      "GetLinkSuggestions200Sources": {
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/GetLinkSuggestions200SourcesCalendar"
+          },
+          "projects": {
+            "$ref": "#/components/schemas/GetLinkSuggestions200SourcesProjects"
+          }
+        },
+        "required": [
+          "projects",
+          "calendar"
+        ],
+        "type": "object"
+      },
+      "GetLinkSuggestions200SourcesCalendar": {
+        "enum": [
+          "available",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "GetLinkSuggestions200SourcesProjects": {
+        "enum": [
+          "available",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "GetLinkSuggestionsParams": {
+        "properties": {
+          "q": {
             "maxLength": 100,
             "type": "string"
           }
@@ -1772,8 +4044,20 @@
               "number"
             ]
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "direction": {
             "$ref": "#/components/schemas/GetMessagingBootstrap200MessagesItemDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/GetMessagingBootstrap200MessagesItemGroupMentionsItem"
+            },
+            "type": "array"
           },
           "id": {
             "type": [
@@ -1781,24 +4065,51 @@
               "number"
             ]
           },
+          "kind": {
+            "$ref": "#/components/schemas/GetMessagingBootstrap200MessagesItemKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/GetMessagingBootstrap200MessagesItemLinksItem"
+            },
+            "type": "array"
+          },
           "mentions": {
             "items": {
               "$ref": "#/components/schemas/GetMessagingBootstrap200MessagesItemMentionsItem"
             },
             "type": "array"
           },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
           "quoted": {
             "$ref": "#/components/schemas/GetMessagingBootstrap200MessagesItemQuoted"
           },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/GetMessagingBootstrap200MessagesItemReactionsItem"
+            },
+            "type": "array"
+          },
           "sentAt": {
             "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/GetMessagingBootstrap200MessagesItemSystemEvent"
           }
         },
         "required": [
           "id",
           "conversationId",
           "content",
-          "sentAt"
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
         ],
         "type": "object"
       },
@@ -1833,6 +4144,62 @@
         "enum": [
           "incoming",
           "outgoing"
+        ],
+        "type": "string"
+      },
+      "GetMessagingBootstrap200MessagesItemGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "GetMessagingBootstrap200MessagesItemKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "GetMessagingBootstrap200MessagesItemLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GetMessagingBootstrap200MessagesItemLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "GetMessagingBootstrap200MessagesItemLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
         ],
         "type": "string"
       },
@@ -1894,11 +4261,180 @@
         ],
         "type": "object"
       },
+      "GetMessagingBootstrap200MessagesItemReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "GetMessagingBootstrap200MessagesItemSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/GetMessagingBootstrap200MessagesItemSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "GetMessagingBootstrap200MessagesItemSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
+      "GroupMentionDtoSchema": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "IdSchema": {
         "type": [
           "string",
           "number"
         ]
+      },
+      "LinkSuggestionsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LinkSuggestionsResponseItemsItem"
+            },
+            "type": "array"
+          },
+          "sources": {
+            "$ref": "#/components/schemas/LinkSuggestionsResponseSources"
+          }
+        },
+        "required": [
+          "items",
+          "sources"
+        ],
+        "type": "object"
+      },
+      "LinkSuggestionsResponseItemsItem": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LinkSuggestionsResponseItemsItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title"
+        ],
+        "type": "object"
+      },
+      "LinkSuggestionsResponseItemsItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
+        ],
+        "type": "string"
+      },
+      "LinkSuggestionsResponseSources": {
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/LinkSuggestionsResponseSourcesCalendar"
+          },
+          "projects": {
+            "$ref": "#/components/schemas/LinkSuggestionsResponseSourcesProjects"
+          }
+        },
+        "required": [
+          "projects",
+          "calendar"
+        ],
+        "type": "object"
+      },
+      "LinkSuggestionsResponseSourcesCalendar": {
+        "enum": [
+          "available",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "LinkSuggestionsResponseSourcesProjects": {
+        "enum": [
+          "available",
+          "unavailable"
+        ],
+        "type": "string"
       },
       "MarkConversationAsReadBody": {
         "properties": {
@@ -1927,6 +4463,441 @@
         "required": [
           "conversationId",
           "unreadCount"
+        ],
+        "type": "object"
+      },
+      "MemberDtoSchema": {
+        "properties": {
+          "department": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isAdmin"
+        ],
+        "type": "object"
+      },
+      "MembersChangeResponse": {
+        "properties": {
+          "canManage": {
+            "type": "boolean"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MembersChangeResponseMembersItem"
+            },
+            "type": "array"
+          },
+          "systemMessage": {
+            "$ref": "#/components/schemas/MembersChangeResponseSystemMessage"
+          }
+        },
+        "required": [
+          "members",
+          "canManage"
+        ],
+        "type": "object"
+      },
+      "MembersChangeResponseMembersItem": {
+        "properties": {
+          "department": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isAdmin"
+        ],
+        "type": "object"
+      },
+      "MembersChangeResponseSystemMessage": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/MembersChangeResponseSystemMessageAttachmentsItem"
+            },
+            "type": "array"
+          },
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/MembersChangeResponseSystemMessageDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/MembersChangeResponseSystemMessageGroupMentionsItem"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MembersChangeResponseSystemMessageKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/MembersChangeResponseSystemMessageLinksItem"
+            },
+            "type": "array"
+          },
+          "mentions": {
+            "items": {
+              "$ref": "#/components/schemas/MembersChangeResponseSystemMessageMentionsItem"
+            },
+            "type": "array"
+          },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
+          "quoted": {
+            "$ref": "#/components/schemas/MembersChangeResponseSystemMessageQuoted"
+          },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/MembersChangeResponseSystemMessageReactionsItem"
+            },
+            "type": "array"
+          },
+          "sentAt": {
+            "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/MembersChangeResponseSystemMessageSystemEvent"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "content",
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
+        ],
+        "type": "object"
+      },
+      "MembersChangeResponseSystemMessageAttachmentsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "MembersChangeResponseSystemMessageDirection": {
+        "enum": [
+          "incoming",
+          "outgoing"
+        ],
+        "type": "string"
+      },
+      "MembersChangeResponseSystemMessageGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "MembersChangeResponseSystemMessageKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "MembersChangeResponseSystemMessageLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MembersChangeResponseSystemMessageLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "MembersChangeResponseSystemMessageLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
+        ],
+        "type": "string"
+      },
+      "MembersChangeResponseSystemMessageMentionsItem": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MembersChangeResponseSystemMessageMentionsItemKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "MembersChangeResponseSystemMessageMentionsItemKind": {
+        "enum": [
+          "direct",
+          "group"
+        ],
+        "type": "string"
+      },
+      "MembersChangeResponseSystemMessageQuoted": {
+        "properties": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "excerpt"
+        ],
+        "type": "object"
+      },
+      "MembersChangeResponseSystemMessageReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "MembersChangeResponseSystemMessageSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/MembersChangeResponseSystemMessageSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "MembersChangeResponseSystemMessageSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
+      "MembersResponse": {
+        "properties": {
+          "canManage": {
+            "type": "boolean"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MembersResponseMembersItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "members",
+          "canManage"
+        ],
+        "type": "object"
+      },
+      "MembersResponseMembersItem": {
+        "properties": {
+          "department": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isAdmin"
         ],
         "type": "object"
       },
@@ -1961,6 +4932,67 @@
         ],
         "type": "string"
       },
+      "MentionSuggestionsResponse": {
+        "properties": {
+          "everyone": {
+            "type": "boolean"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/MentionSuggestionsResponseGroupsItem"
+            },
+            "type": "array"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/MentionSuggestionsResponsePeopleItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "everyone",
+          "groups",
+          "people"
+        ],
+        "type": "object"
+      },
+      "MentionSuggestionsResponseGroupsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "MentionSuggestionsResponsePeopleItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "MessageDtoSchema": {
         "properties": {
           "attachments": {
@@ -1993,8 +5025,20 @@
               "number"
             ]
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "direction": {
             "$ref": "#/components/schemas/MessageDtoSchemaDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/MessageDtoSchemaGroupMentionsItem"
+            },
+            "type": "array"
           },
           "id": {
             "type": [
@@ -2002,24 +5046,51 @@
               "number"
             ]
           },
+          "kind": {
+            "$ref": "#/components/schemas/MessageDtoSchemaKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/MessageDtoSchemaLinksItem"
+            },
+            "type": "array"
+          },
           "mentions": {
             "items": {
               "$ref": "#/components/schemas/MessageDtoSchemaMentionsItem"
             },
             "type": "array"
           },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
           "quoted": {
             "$ref": "#/components/schemas/MessageDtoSchemaQuoted"
           },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/MessageDtoSchemaReactionsItem"
+            },
+            "type": "array"
+          },
           "sentAt": {
             "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/MessageDtoSchemaSystemEvent"
           }
         },
         "required": [
           "id",
           "conversationId",
           "content",
-          "sentAt"
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
         ],
         "type": "object"
       },
@@ -2054,6 +5125,62 @@
         "enum": [
           "incoming",
           "outgoing"
+        ],
+        "type": "string"
+      },
+      "MessageDtoSchemaGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "MessageDtoSchemaKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "MessageDtoSchemaLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MessageDtoSchemaLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "MessageDtoSchemaLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
         ],
         "type": "string"
       },
@@ -2115,9 +5242,116 @@
         ],
         "type": "object"
       },
+      "MessageDtoSchemaReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "MessageDtoSchemaSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/MessageDtoSchemaSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "MessageDtoSchemaSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
+      "MessageLinkDtoSchema": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MessageLinkDtoSchemaKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "MessageLinkDtoSchemaKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
+        ],
+        "type": "string"
+      },
       "MessageStreamEvent": {
         "properties": {
           "conversationId": {
+            "type": "string"
+          },
+          "messageId": {
             "type": "string"
           },
           "type": {
@@ -2268,8 +5502,20 @@
               "number"
             ]
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "direction": {
             "$ref": "#/components/schemas/MessagesResponseMessagesItemDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/MessagesResponseMessagesItemGroupMentionsItem"
+            },
+            "type": "array"
           },
           "id": {
             "type": [
@@ -2277,24 +5523,51 @@
               "number"
             ]
           },
+          "kind": {
+            "$ref": "#/components/schemas/MessagesResponseMessagesItemKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/MessagesResponseMessagesItemLinksItem"
+            },
+            "type": "array"
+          },
           "mentions": {
             "items": {
               "$ref": "#/components/schemas/MessagesResponseMessagesItemMentionsItem"
             },
             "type": "array"
           },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
           "quoted": {
             "$ref": "#/components/schemas/MessagesResponseMessagesItemQuoted"
           },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/MessagesResponseMessagesItemReactionsItem"
+            },
+            "type": "array"
+          },
           "sentAt": {
             "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/MessagesResponseMessagesItemSystemEvent"
           }
         },
         "required": [
           "id",
           "conversationId",
           "content",
-          "sentAt"
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
         ],
         "type": "object"
       },
@@ -2329,6 +5602,62 @@
         "enum": [
           "incoming",
           "outgoing"
+        ],
+        "type": "string"
+      },
+      "MessagesResponseMessagesItemGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "MessagesResponseMessagesItemKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "MessagesResponseMessagesItemLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MessagesResponseMessagesItemLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "MessagesResponseMessagesItemLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
         ],
         "type": "string"
       },
@@ -2389,6 +5718,78 @@
           "excerpt"
         ],
         "type": "object"
+      },
+      "MessagesResponseMessagesItemReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "MessagesResponseMessagesItemSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/MessagesResponseMessagesItemSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "MessagesResponseMessagesItemSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
       },
       "MessagingBootstrapResponse": {
         "properties": {
@@ -2613,8 +6014,20 @@
               "number"
             ]
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "direction": {
             "$ref": "#/components/schemas/MessagingBootstrapResponseMessagesItemDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/MessagingBootstrapResponseMessagesItemGroupMentionsItem"
+            },
+            "type": "array"
           },
           "id": {
             "type": [
@@ -2622,24 +6035,51 @@
               "number"
             ]
           },
+          "kind": {
+            "$ref": "#/components/schemas/MessagingBootstrapResponseMessagesItemKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/MessagingBootstrapResponseMessagesItemLinksItem"
+            },
+            "type": "array"
+          },
           "mentions": {
             "items": {
               "$ref": "#/components/schemas/MessagingBootstrapResponseMessagesItemMentionsItem"
             },
             "type": "array"
           },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
           "quoted": {
             "$ref": "#/components/schemas/MessagingBootstrapResponseMessagesItemQuoted"
           },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/MessagingBootstrapResponseMessagesItemReactionsItem"
+            },
+            "type": "array"
+          },
           "sentAt": {
             "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/MessagingBootstrapResponseMessagesItemSystemEvent"
           }
         },
         "required": [
           "id",
           "conversationId",
           "content",
-          "sentAt"
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
         ],
         "type": "object"
       },
@@ -2674,6 +6114,62 @@
         "enum": [
           "incoming",
           "outgoing"
+        ],
+        "type": "string"
+      },
+      "MessagingBootstrapResponseMessagesItemGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "MessagingBootstrapResponseMessagesItemKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "MessagingBootstrapResponseMessagesItemLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MessagingBootstrapResponseMessagesItemLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "MessagingBootstrapResponseMessagesItemLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
         ],
         "type": "string"
       },
@@ -2734,6 +6230,78 @@
           "excerpt"
         ],
         "type": "object"
+      },
+      "MessagingBootstrapResponseMessagesItemReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "MessagingBootstrapResponseMessagesItemSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/MessagingBootstrapResponseMessagesItemSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "MessagingBootstrapResponseMessagesItemSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
       },
       "NewDirectMessageBody": {
         "properties": {
@@ -2869,8 +6437,20 @@
               "number"
             ]
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "direction": {
             "$ref": "#/components/schemas/NewDirectMessageResponseMessageDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/NewDirectMessageResponseMessageGroupMentionsItem"
+            },
+            "type": "array"
           },
           "id": {
             "type": [
@@ -2878,24 +6458,51 @@
               "number"
             ]
           },
+          "kind": {
+            "$ref": "#/components/schemas/NewDirectMessageResponseMessageKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/NewDirectMessageResponseMessageLinksItem"
+            },
+            "type": "array"
+          },
           "mentions": {
             "items": {
               "$ref": "#/components/schemas/NewDirectMessageResponseMessageMentionsItem"
             },
             "type": "array"
           },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
           "quoted": {
             "$ref": "#/components/schemas/NewDirectMessageResponseMessageQuoted"
           },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/NewDirectMessageResponseMessageReactionsItem"
+            },
+            "type": "array"
+          },
           "sentAt": {
             "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/NewDirectMessageResponseMessageSystemEvent"
           }
         },
         "required": [
           "id",
           "conversationId",
           "content",
-          "sentAt"
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
         ],
         "type": "object"
       },
@@ -2930,6 +6537,62 @@
         "enum": [
           "incoming",
           "outgoing"
+        ],
+        "type": "string"
+      },
+      "NewDirectMessageResponseMessageGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "NewDirectMessageResponseMessageKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "NewDirectMessageResponseMessageLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/NewDirectMessageResponseMessageLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "NewDirectMessageResponseMessageLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
         ],
         "type": "string"
       },
@@ -2991,6 +6654,463 @@
         ],
         "type": "object"
       },
+      "NewDirectMessageResponseMessageReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "NewDirectMessageResponseMessageSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/NewDirectMessageResponseMessageSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "NewDirectMessageResponseMessageSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200": {
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200Message"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200Message": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200MessageAttachmentsItem"
+            },
+            "type": "array"
+          },
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200MessageDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200MessageGroupMentionsItem"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200MessageKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200MessageLinksItem"
+            },
+            "type": "array"
+          },
+          "mentions": {
+            "items": {
+              "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200MessageMentionsItem"
+            },
+            "type": "array"
+          },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
+          "quoted": {
+            "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200MessageQuoted"
+          },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200MessageReactionsItem"
+            },
+            "type": "array"
+          },
+          "sentAt": {
+            "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200MessageSystemEvent"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "content",
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
+        ],
+        "type": "object"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200MessageAttachmentsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200MessageDirection": {
+        "enum": [
+          "incoming",
+          "outgoing"
+        ],
+        "type": "string"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200MessageGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200MessageKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200MessageLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200MessageLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200MessageLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
+        ],
+        "type": "string"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200MessageMentionsItem": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200MessageMentionsItemKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200MessageMentionsItemKind": {
+        "enum": [
+          "direct",
+          "group"
+        ],
+        "type": "string"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200MessageQuoted": {
+        "properties": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "excerpt"
+        ],
+        "type": "object"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200MessageReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200MessageSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200MessageSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "PatchConversationsConversationIdMessagesMessageId200MessageSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
+      "PatchConversationsConversationIdMessagesMessageIdBody": {
+        "properties": {
+          "content": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "pattern": "^[^<>]*$",
+            "type": "string"
+          },
+          "groupMentionIds": {
+            "items": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "type": "array"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageIdBodyLinksItem"
+            },
+            "type": "array"
+          },
+          "mentionEveryone": {
+            "type": "boolean"
+          },
+          "mentionIds": {
+            "items": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
+      "PatchConversationsConversationIdMessagesMessageIdBodyLinksItem": {
+        "properties": {
+          "id": {
+            "pattern": "^(?:project|task|event)-\\d{1,9}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "PostAttachmentsBody": {
         "properties": {
           "files": {
@@ -3006,6 +7126,390 @@
         },
         "required": [
           "files"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMembers200": {
+        "properties": {
+          "canManage": {
+            "type": "boolean"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/PostConversationsConversationIdMembers200MembersItem"
+            },
+            "type": "array"
+          },
+          "systemMessage": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessage"
+          }
+        },
+        "required": [
+          "members",
+          "canManage"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMembers200MembersItem": {
+        "properties": {
+          "department": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isAdmin"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMembers200SystemMessage": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessageAttachmentsItem"
+            },
+            "type": "array"
+          },
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "citation": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessageDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessageGroupMentionsItem"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessageKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessageLinksItem"
+            },
+            "type": "array"
+          },
+          "mentions": {
+            "items": {
+              "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessageMentionsItem"
+            },
+            "type": "array"
+          },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
+          "quoted": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessageQuoted"
+          },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessageReactionsItem"
+            },
+            "type": "array"
+          },
+          "sentAt": {
+            "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessageSystemEvent"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "content",
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMembers200SystemMessageAttachmentsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMembers200SystemMessageDirection": {
+        "enum": [
+          "incoming",
+          "outgoing"
+        ],
+        "type": "string"
+      },
+      "PostConversationsConversationIdMembers200SystemMessageGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMembers200SystemMessageKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "PostConversationsConversationIdMembers200SystemMessageLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessageLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMembers200SystemMessageLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
+        ],
+        "type": "string"
+      },
+      "PostConversationsConversationIdMembers200SystemMessageMentionsItem": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessageMentionsItemKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMembers200SystemMessageMentionsItemKind": {
+        "enum": [
+          "direct",
+          "group"
+        ],
+        "type": "string"
+      },
+      "PostConversationsConversationIdMembers200SystemMessageQuoted": {
+        "properties": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "excerpt"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMembers200SystemMessageReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMembers200SystemMessageSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMembers200SystemMessageSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMembers200SystemMessageSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
+      "PostConversationsConversationIdMembersBody": {
+        "properties": {
+          "userIds": {
+            "items": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "userIds"
         ],
         "type": "object"
       },
@@ -3121,8 +7625,20 @@
               "number"
             ]
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "direction": {
             "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageGroupMentionsItem"
+            },
+            "type": "array"
           },
           "id": {
             "type": [
@@ -3130,24 +7646,51 @@
               "number"
             ]
           },
+          "kind": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageLinksItem"
+            },
+            "type": "array"
+          },
           "mentions": {
             "items": {
               "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageMentionsItem"
             },
             "type": "array"
           },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
           "quoted": {
             "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageQuoted"
           },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageReactionsItem"
+            },
+            "type": "array"
+          },
           "sentAt": {
             "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageSystemEvent"
           }
         },
         "required": [
           "id",
           "conversationId",
           "content",
-          "sentAt"
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
         ],
         "type": "object"
       },
@@ -3182,6 +7725,62 @@
         "enum": [
           "incoming",
           "outgoing"
+        ],
+        "type": "string"
+      },
+      "PostConversationsConversationIdMessages201MessageGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMessages201MessageKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "PostConversationsConversationIdMessages201MessageLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMessages201MessageLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
         ],
         "type": "string"
       },
@@ -3243,6 +7842,78 @@
         ],
         "type": "object"
       },
+      "PostConversationsConversationIdMessages201MessageReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMessages201MessageSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/PostConversationsConversationIdMessages201MessageSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMessages201MessageSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
       "PostConversationsConversationIdMessagesBody": {
         "properties": {
           "attachmentIds": {
@@ -3260,6 +7931,24 @@
             "pattern": "^[^<>]*$",
             "type": "string"
           },
+          "groupMentionIds": {
+            "items": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "type": "array"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/PostConversationsConversationIdMessagesBodyLinksItem"
+            },
+            "type": "array"
+          },
+          "mentionEveryone": {
+            "type": "boolean"
+          },
           "mentionIds": {
             "items": {
               "type": [
@@ -3268,10 +7957,81 @@
               ]
             },
             "type": "array"
+          },
+          "replyTo": {
+            "type": [
+              "number",
+              "string"
+            ]
           }
         },
         "required": [
           "content"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMessagesBodyLinksItem": {
+        "properties": {
+          "id": {
+            "pattern": "^(?:project|task|event)-\\d{1,9}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMessagesMessageIdReactions200": {
+        "properties": {
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/PostConversationsConversationIdMessagesMessageIdReactions200ReactionsItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "reactions"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMessagesMessageIdReactions200ReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "PostConversationsConversationIdMessagesMessageIdReactionsBody": {
+        "properties": {
+          "emoji": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "emoji"
         ],
         "type": "object"
       },
@@ -3418,8 +8178,20 @@
               "number"
             ]
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "direction": {
             "$ref": "#/components/schemas/PostDirectMessages201MessageDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/PostDirectMessages201MessageGroupMentionsItem"
+            },
+            "type": "array"
           },
           "id": {
             "type": [
@@ -3427,24 +8199,51 @@
               "number"
             ]
           },
+          "kind": {
+            "$ref": "#/components/schemas/PostDirectMessages201MessageKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/PostDirectMessages201MessageLinksItem"
+            },
+            "type": "array"
+          },
           "mentions": {
             "items": {
               "$ref": "#/components/schemas/PostDirectMessages201MessageMentionsItem"
             },
             "type": "array"
           },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
           "quoted": {
             "$ref": "#/components/schemas/PostDirectMessages201MessageQuoted"
           },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/PostDirectMessages201MessageReactionsItem"
+            },
+            "type": "array"
+          },
           "sentAt": {
             "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/PostDirectMessages201MessageSystemEvent"
           }
         },
         "required": [
           "id",
           "conversationId",
           "content",
-          "sentAt"
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
         ],
         "type": "object"
       },
@@ -3479,6 +8278,62 @@
         "enum": [
           "incoming",
           "outgoing"
+        ],
+        "type": "string"
+      },
+      "PostDirectMessages201MessageGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "PostDirectMessages201MessageKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "PostDirectMessages201MessageLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PostDirectMessages201MessageLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "PostDirectMessages201MessageLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
         ],
         "type": "string"
       },
@@ -3539,6 +8394,78 @@
           "excerpt"
         ],
         "type": "object"
+      },
+      "PostDirectMessages201MessageReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "PostDirectMessages201MessageSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/PostDirectMessages201MessageSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "PostDirectMessages201MessageSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
       },
       "PostDirectMessagesBody": {
         "properties": {
@@ -3667,6 +8594,156 @@
         ],
         "type": "object"
       },
+      "ReactionBody": {
+        "properties": {
+          "emoji": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "emoji"
+        ],
+        "type": "object"
+      },
+      "ReactionDtoSchema": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "ReactionsResponse": {
+        "properties": {
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/ReactionsResponseReactionsItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "reactions"
+        ],
+        "type": "object"
+      },
+      "ReactionsResponseReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "SearchMessageItem": {
+        "properties": {
+          "authorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "highlights": {
+            "items": {
+              "$ref": "#/components/schemas/SearchMessageItemHighlightsItem"
+            },
+            "type": "array"
+          },
+          "messageId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "messageId",
+          "createdAt",
+          "excerpt",
+          "highlights"
+        ],
+        "type": "object"
+      },
+      "SearchMessageItemHighlightsItem": {
+        "properties": {
+          "length": {
+            "type": "number"
+          },
+          "start": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "start",
+          "length"
+        ],
+        "type": "object"
+      },
+      "SearchPersonItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "SendMessageBody": {
         "properties": {
           "attachmentIds": {
@@ -3684,6 +8761,24 @@
             "pattern": "^[^<>]*$",
             "type": "string"
           },
+          "groupMentionIds": {
+            "items": {
+              "type": [
+                "number",
+                "string"
+              ]
+            },
+            "type": "array"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/SendMessageBodyLinksItem"
+            },
+            "type": "array"
+          },
+          "mentionEveryone": {
+            "type": "boolean"
+          },
           "mentionIds": {
             "items": {
               "type": [
@@ -3692,10 +8787,28 @@
               ]
             },
             "type": "array"
+          },
+          "replyTo": {
+            "type": [
+              "number",
+              "string"
+            ]
           }
         },
         "required": [
           "content"
+        ],
+        "type": "object"
+      },
+      "SendMessageBodyLinksItem": {
+        "properties": {
+          "id": {
+            "pattern": "^(?:project|task|event)-\\d{1,9}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ],
         "type": "object"
       },
@@ -3811,8 +8924,20 @@
               "number"
             ]
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "direction": {
             "$ref": "#/components/schemas/SendMessageResponseMessageDirection"
+          },
+          "editedAt": {
+            "type": "string"
+          },
+          "groupMentions": {
+            "items": {
+              "$ref": "#/components/schemas/SendMessageResponseMessageGroupMentionsItem"
+            },
+            "type": "array"
           },
           "id": {
             "type": [
@@ -3820,24 +8945,51 @@
               "number"
             ]
           },
+          "kind": {
+            "$ref": "#/components/schemas/SendMessageResponseMessageKind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/SendMessageResponseMessageLinksItem"
+            },
+            "type": "array"
+          },
           "mentions": {
             "items": {
               "$ref": "#/components/schemas/SendMessageResponseMessageMentionsItem"
             },
             "type": "array"
           },
+          "mentionsEveryone": {
+            "type": "boolean"
+          },
           "quoted": {
             "$ref": "#/components/schemas/SendMessageResponseMessageQuoted"
           },
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/SendMessageResponseMessageReactionsItem"
+            },
+            "type": "array"
+          },
           "sentAt": {
             "type": "string"
+          },
+          "systemEvent": {
+            "$ref": "#/components/schemas/SendMessageResponseMessageSystemEvent"
           }
         },
         "required": [
           "id",
           "conversationId",
           "content",
-          "sentAt"
+          "sentAt",
+          "kind",
+          "deleted",
+          "mentionsEveryone",
+          "groupMentions",
+          "links",
+          "reactions"
         ],
         "type": "object"
       },
@@ -3872,6 +9024,62 @@
         "enum": [
           "incoming",
           "outgoing"
+        ],
+        "type": "string"
+      },
+      "SendMessageResponseMessageGroupMentionsItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "SendMessageResponseMessageKind": {
+        "enum": [
+          "user",
+          "system"
+        ],
+        "type": "string"
+      },
+      "SendMessageResponseMessageLinksItem": {
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SendMessageResponseMessageLinksItemKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "SendMessageResponseMessageLinksItemKind": {
+        "enum": [
+          "project",
+          "task",
+          "event"
         ],
         "type": "string"
       },
@@ -3933,6 +9141,124 @@
         ],
         "type": "object"
       },
+      "SendMessageResponseMessageReactionsItem": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "reactedByMe": {
+            "type": "boolean"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "emoji",
+          "count",
+          "reactedByMe",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "SendMessageResponseMessageSystemEvent": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/SendMessageResponseMessageSystemEventAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "SendMessageResponseMessageSystemEventAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
+      "SystemEventDtoSchema": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/SystemEventDtoSchemaAction"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "number"
+            ]
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "userIds": {
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "type": "array"
+          },
+          "userNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "userIds",
+          "userNames"
+        ],
+        "type": "object"
+      },
+      "SystemEventDtoSchemaAction": {
+        "enum": [
+          "members_added",
+          "member_removed",
+          "member_left"
+        ],
+        "type": "string"
+      },
       "UploadAttachmentBody": {
         "properties": {
           "files": {
@@ -3990,7 +9316,7 @@
   "info": {
     "title": "bff_message",
     "version": "1.0.0",
-    "x-source-package": "@mairie360/bff-message-openapi@1.2.0"
+    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-dev.963185a2919e3d0b71c6c519cbce3f6cae139c9a"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4219,6 +9545,177 @@
         }
       }
     },
+    "/conversations/{conversationId}/leave": {
+      "post": {
+        "operationId": "postConversationsConversationIdLeave",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      }
+    },
+    "/conversations/{conversationId}/members": {
+      "get": {
+        "operationId": "getConversationsConversationIdMembers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetConversationsConversationIdMembers200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postConversationsConversationIdMembers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostConversationsConversationIdMembersBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostConversationsConversationIdMembers200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      }
+    },
+    "/conversations/{conversationId}/members/{userId}": {
+      "delete": {
+        "operationId": "deleteConversationsConversationIdMembersUserId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteConversationsConversationIdMembersUserId200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      }
+    },
+    "/conversations/{conversationId}/mention-suggestions": {
+      "get": {
+        "operationId": "getConversationsConversationIdMentionSuggestions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetConversationsConversationIdMentionSuggestions200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      }
+    },
     "/conversations/{conversationId}/messages": {
       "get": {
         "operationId": "getConversationsConversationIdMessages",
@@ -4307,6 +9804,196 @@
         }
       }
     },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "delete": {
+        "operationId": "deleteConversationsConversationIdMessagesMessageId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageId200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchConversationsConversationIdMessagesMessageId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageIdBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchConversationsConversationIdMessagesMessageId200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      }
+    },
+    "/conversations/{conversationId}/messages/{messageId}/reactions": {
+      "delete": {
+        "operationId": "deleteConversationsConversationIdMessagesMessageIdReactions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "emoji",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteConversationsConversationIdMessagesMessageIdReactions200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postConversationsConversationIdMessagesMessageIdReactions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostConversationsConversationIdMessagesMessageIdReactionsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostConversationsConversationIdMessagesMessageIdReactions200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      }
+    },
     "/conversations/{conversationId}/read": {
       "post": {
         "operationId": "postConversationsConversationIdRead",
@@ -4339,6 +10026,76 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PostConversationsConversationIdRead200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      }
+    },
+    "/conversations/{conversationId}/search": {
+      "get": {
+        "operationId": "getConversationsConversationIdSearch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": [
+                "number",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 150,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/GetConversationsConversationIdSearchType"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 50,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetConversationsConversationIdSearch200"
                 }
               }
             },
@@ -4409,6 +10166,34 @@
         "parameters": [],
         "responses": {
           "2XX": {
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      }
+    },
+    "/link-suggestions": {
+      "get": {
+        "operationId": "getLinkSuggestions",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetLinkSuggestions200"
+                }
+              }
+            },
             "description": "Succès (seul statut typé par orval)"
           }
         }

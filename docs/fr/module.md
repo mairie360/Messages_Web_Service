@@ -274,6 +274,16 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   qu'une fois branchés (MAIR-1164, MAIR-1165). « Marquer comme lus » acquitte jusqu'au dernier message : les compteurs
   de la liste et de la navigation reviennent à zéro. La suppression est confirmée dans le `ConfirmModal` de la lib
   (danger), puis le toast « Conversation supprimée. » ; un échec est l'`ErrorAlert` danger au-dessus du module.
+- **Recherche dans la conversation (MAIR-1164).** « Rechercher dans la conversation » (bouton de l'en-tête ou « Plus
+  d'actions ») ouvre un `Drawer` de la lib (taille m, focus gardé dans le panneau, rendu au bouton à la fermeture) :
+  un champ de recherche, des `Tabs` fixes « Messages · Fichiers · Personnes » avec leur compteur, et les résultats
+  qui défilent dessous (`GET /conversations/{id}/search`, les trois onglets cherchés ensemble 300 ms après la dernière
+  touche, les requêtes précédentes annulées). Les correspondances trouvées par le BFF sont surlignées dans chaque
+  extrait ; « Afficher plus de résultats » charge la page suivante. Choisir un message ferme le panneau, fait défiler
+  le fil en douceur jusqu'à lui (sans animation si le mouvement est réduit) et le met en évidence deux secondes ;
+  « Écrire » d'une personne ouvre la conversation directe avec elle, ou « Nouveau message » vers elle. Chargement,
+  erreur (avec « Réessayer ») et aucun résultat sont des `DataState` de la lib. L'onglet fichiers reste vide tant que
+  le BFF ne stocke pas de pièce jointe.
 - **États vides (MAIR-1171).** Un seul visuel illustré par écran, avec le `DataState` de la lib 2.3 : sans aucune
   conversation, la liste dit seulement « Aucune conversation pour l'instant. » et le fil affiche « Commencez à
   échanger » (taille m, illustré) ; avec des conversations sans sélection, « Sélectionnez une conversation » (taille

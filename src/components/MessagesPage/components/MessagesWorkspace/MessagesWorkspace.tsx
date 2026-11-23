@@ -47,6 +47,7 @@ export function MessagesWorkspace({
   handleNewMessageSend,
   handleCreateGroup,
   handleConversationDelete,
+  handleSearch,
   toggleConversationList,
 }: MessagesWorkspaceProps) {
   return (
@@ -101,6 +102,7 @@ export function MessagesWorkspace({
                 onNewMessageSend={handleNewMessageSend}
                 onCreateGroup={handleCreateGroup}
                 onConversationDelete={deletingConversation || !hasConfirmedThread ? undefined : handleConversationDelete}
+                onSearch={hasConfirmedThread ? handleSearch : undefined}
                 className="messages-module"
               />
             </div>

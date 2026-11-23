@@ -81,6 +81,17 @@ const clientScenarios = {
     assert.deepEqual(await messageClient.getConversationMessages('conversation-4'), body);
     assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages')[0].pathParams, { conversationId: 'conversation-4' });
   },
+  async searchConversation() {
+    const body = {
+      type: 'messages', hasMore: false, total: 1,
+      items: [{ messageId: 'message-7', authorId: `user-${users.sophie.id}`, authorName: users.sophie.name, createdAt: '2026-09-15T09:30:00.000Z', excerpt: 'Le permis est signé', highlights: [{ start: 3, length: 6 }] }],
+    };
+    messageBff.on('get', '/conversations/{conversationId}/search', { body });
+    assert.deepEqual(await messageClient.searchConversation('conversation-4', { q: 'permis', type: 'messages', limit: 20, offset: 0 }), body);
+    const [call] = messageBff.calls('/conversations/{conversationId}/search');
+    assert.equal(call.pathParams.conversationId, 'conversation-4');
+    assert.deepEqual(Object.fromEntries(call.url.searchParams), { q: 'permis', type: 'messages', limit: '20', offset: '0' });
+  },
   async uploadAttachments() {
     const body = { attachments: [{ id: 'stored-1', name: 'agenda.txt', size: 6, type: 'text/plain' }] };
     messageBff.on('post', '/attachments', { status: 201, body });
@@ -271,7 +282,7 @@ describe('same-origin proxy only forwards operations declared by the BFF_Message
   });
 
   test('undeclared paths and dot segments never reach the BFF', async () => {
-    for (const pathname of ['/conversations/1/messages/2', '/admin/users', '/session/me', '/api/user/me', '/messaging']) {
+    for (const pathname of ['/conversations/1/messages/2/edit', '/admin/users', '/session/me', '/api/user/me', '/messaging']) {
       const response = await fetch(pathname);
       assert.equal(response.status, 404, pathname);
     }

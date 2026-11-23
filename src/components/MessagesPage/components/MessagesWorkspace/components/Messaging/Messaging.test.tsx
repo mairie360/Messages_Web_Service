@@ -944,3 +944,50 @@ describe('Messaging actions menu (MAIR-1163)', () => {
     await waitFor(() => expect(onReadVisibleMessages).toHaveBeenCalledWith(group, expect.objectContaining({ id: 'b' })));
   });
 });
+
+describe('Messaging conversation search (MAIR-1164)', () => {
+  const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+  const direct = { id: 'd1', name: 'Sophie Leroy', kind: 'direct' as const, contactId: 'user-7' };
+  const thread = [
+    { id: 'm1', conversationId: 'g1', content: 'Permis signé', authorId: 'u2' },
+    { id: 'm2', conversationId: 'g1', content: 'Merci', authorId: 'u2' },
+  ];
+  const results = {
+    messages: { type: 'messages' as const, items: [{ messageId: 'm1', createdAt: '2026-06-23T12:32:00Z', excerpt: 'Permis signé', highlights: [{ start: 0, length: 6 }] }], hasMore: false, total: 1 },
+    files: { type: 'files' as const, items: [], hasMore: false, total: 0 },
+    people: { type: 'people' as const, items: [{ id: 'user-7', name: 'Sophie Leroy' }], hasMore: false, total: 1 },
+  };
+
+  it('opens the search panel from the header, then scrolls to and highlights the chosen message', async () => {
+    const onSearch = vi.fn((_conversation, request) => Promise.resolve(results[request.type as keyof typeof results]));
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(<Messaging conversations={[group, direct]} messages={thread} activeConversationId="g1" onSearch={onSearch} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Rechercher dans la conversation' }));
+    const dialog = screen.getByRole('dialog', { name: 'Rechercher dans la conversation' });
+    fireEvent.change(within(dialog).getByRole('searchbox'), { target: { value: 'permis' } });
+    const result = await screen.findByText('Permis', { selector: 'mark' });
+    expect(onSearch).toHaveBeenCalledWith(group, expect.objectContaining({ query: 'permis', type: 'messages' }));
+    fireEvent.click(result);
+    expect(screen.queryByRole('dialog', { name: 'Rechercher dans la conversation' })).toBeNull();
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    expect(document.querySelector('[data-messaging-message-id="m1"]')).toHaveAttribute('data-revealed');
+  });
+
+  it('« Écrire » opens the direct conversation with the person, else « Nouveau message » to them', async () => {
+    const onSearch = vi.fn((_conversation, request) => Promise.resolve(results[request.type as keyof typeof results]));
+    const onConversationSelect = vi.fn();
+    const { rerender } = render(<Messaging conversations={[group, direct]} messages={thread} activeConversationId="g1" onSearch={onSearch} onConversationSelect={onConversationSelect} />);
+    const search = async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Rechercher dans la conversation' }));
+      fireEvent.change(within(screen.getByRole('dialog', { name: 'Rechercher dans la conversation' })).getByRole('searchbox'), { target: { value: 'sophie' } });
+      fireEvent.click(await screen.findByRole('tab', { name: /Personnes/ }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Écrire à Sophie Leroy' }));
+    };
+    await search();
+    expect(onConversationSelect).toHaveBeenCalledWith(direct);
+    rerender(<Messaging conversations={[group]} contacts={[{ id: 'user-7', name: 'Sophie Leroy' }]} messages={thread} activeConversationId="g1" onSearch={onSearch} onNewMessageSend={vi.fn()} />);
+    await search();
+    expect(screen.getByRole('dialog', { name: 'Nouveau message' })).toBeInTheDocument();
+  });
+});
