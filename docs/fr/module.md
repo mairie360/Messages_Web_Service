@@ -253,3 +253,9 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   toucher, clavier, pointeur, pastille) retire la pastille et marque la conversation lue ; un fil sans défilement est
   lu à l'ouverture ; le placement à l'ouverture et les autres défilements programmatiques ne lisent jamais. Les
   compteurs de la liste et de la navigation suivent tous deux la conversation rafraîchie.
+- **Réception retardée (MAIR-1161).** « Réception automatique active » et les autres pastilles de réception
+  disparaissent : rien n'est affiché tant que la réception fonctionne. Quand la connexion temps réel est perdue,
+  `MessagesReceptionDelayed` affiche au-dessus du module une petite `Alert` d'avertissement de la lib « Réception des
+  messages retardée », annoncée par sa région live polie sans prendre le focus, avec « Réessayer la réception ». À la
+  reconnexion, le flux reprend à son dernier événement (`Last-Event-ID`) et le module relit les messages manqués, puis
+  le bandeau disparaît.
