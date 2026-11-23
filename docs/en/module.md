@@ -216,3 +216,11 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   bordered card (12 px radius, `--mairie-radius-l`) of the main area, and the only page title is the « Messagerie »
   `h1` of the list. « Messagerie » is active in the navigation with the unread total in the lib `Counter`, « 9+ »
   beyond 9; Administration stays role-gated.
+- **Conversation list (MAIR-1157).** The list is titled « Messagerie » with a single « + » (lib `IconButton`, lib
+  `ToolTip` « Nouvelle conversation ») opening a lib `DropdownMenu`: « Nouveau message » and « Créer un groupe » open
+  the existing dialogs. The menu is announced as a menu, opens with Entrée / Espace / ↓, moves with ↑ ↓ Début Fin,
+  closes on Échap, Tab or an outside click and gives the focus back to the « + » (`use-menu-keyboard.ts`, shared with
+  the header menu). « Rechercher une conversation » is the lib `SearchField` filtering as the agent types (name,
+  group, service); without result, « Aucune conversation trouvée. ». Each line shows the lib `Avatar` (photo or
+  initials, groups included) with its presence dot, the name and the preview truncated on one line, the time in a
+  fixed right column and the unread lib `Counter` (« 9+ »), spoken as « N messages non lus ».

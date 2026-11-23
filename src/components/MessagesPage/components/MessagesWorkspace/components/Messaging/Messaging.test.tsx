@@ -28,6 +28,12 @@ const DemoMessaging = (props: ComponentProps<typeof Messaging>) => (
   />
 );
 
+/** MAIR-1157: « Nouveau message » and « Créer un groupe » live in the « + » menu of the list. */
+const openFromNewConversationMenu = (name: string) => {
+  fireEvent.click(screen.getByRole('button', { name: 'Nouvelle conversation' }));
+  fireEvent.click(screen.getByRole('menuitem', { name }));
+};
+
 describe('Messaging components', () => {
   it('renders no demo content or unsupported actions by default', () => {
     render(<Messaging />);
@@ -36,8 +42,7 @@ describe('Messaging components', () => {
     expect(screen.getByText('Aucune conversation trouvée.')).toBeInTheDocument();
     expect(screen.getByText('Sélectionnez une conversation pour commencer.')).toBeInTheDocument();
     expect(screen.queryByText('Marie Dubois')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Nouveau message' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Créer un groupe' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nouvelle conversation' })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText('Tapez votre message...')).toBeDisabled();
   });
 
@@ -55,7 +60,7 @@ describe('Messaging components', () => {
     expect(screen.getByText('Parfait, quelles sont vos conclusions ?')).toBeInTheDocument();
   });
 
-  it('shows a full conversation name above the timestamp without losing metadata or selection', () => {
+  it('MAIR-1157 truncates a long conversation name beside its timestamp without losing metadata or selection', () => {
     const onClick = vi.fn();
     const name = 'Équipe de coordination du projet de rénovation des bâtiments municipaux';
     render(
@@ -75,11 +80,10 @@ describe('Messaging components', () => {
 
     const item = screen.getByRole('button', { name: /Équipe de coordination du projet/ });
     const nameElement = screen.getByText(name);
-    expect(nameElement).toHaveClass('break-words');
-    expect(nameElement).not.toHaveClass('truncate');
-    expect(nameElement.parentElement?.parentElement).toHaveClass('flex-col');
+    // MAIR-1157: one truncated line for the name (full name kept in the accessible name), the time beside it.
+    expect(nameElement).toHaveClass('truncate');
+    expect(item).toHaveAccessibleName(expect.stringContaining(name));
     expect(item).toHaveTextContent('27/09 14:42');
-    expect(item).toHaveTextContent('Services techniques');
     expect(item).toHaveTextContent('Réunion confirmée');
     expect(item).toHaveTextContent('3');
     item.focus();
@@ -91,7 +95,7 @@ describe('Messaging components', () => {
   it('filters conversations from the sidebar search', () => {
     render(<DemoMessaging />);
 
-    fireEvent.change(screen.getByPlaceholderText('Rechercher un contact...'), {
+    fireEvent.change(screen.getByPlaceholderText('Rechercher une conversation'), {
       target: { value: 'Sophie' },
     });
 
@@ -103,7 +107,7 @@ describe('Messaging components', () => {
     const handleConversationSelect = vi.fn();
     render(<DemoMessaging onConversationSelect={handleConversationSelect} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Pierre Martin\s*Urbanisme/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Pierre Martin/ }));
 
     expect(handleConversationSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'pierre-martin' }));
     expect(screen.getByRole('heading', { name: 'Pierre Martin' })).toBeInTheDocument();
@@ -164,11 +168,11 @@ describe('Messaging components', () => {
   it('opens the correct modal from each sidebar icon', () => {
     render(<DemoMessaging />);
 
-    fireEvent.click(screen.getByLabelText('Nouveau message'));
+    openFromNewConversationMenu('Nouveau message');
     expect(screen.getByRole('dialog', { name: 'Nouveau message' })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Fermer'));
 
-    fireEvent.click(screen.getByLabelText('Créer un groupe'));
+    openFromNewConversationMenu('Créer un groupe');
     expect(screen.getByRole('dialog', { name: 'Créer un groupe' })).toBeInTheDocument();
   });
 
@@ -176,7 +180,7 @@ describe('Messaging components', () => {
     const handleNewMessageSend = vi.fn();
     render(<DemoMessaging onNewMessageSend={handleNewMessageSend} />);
 
-    fireEvent.click(screen.getByLabelText('Nouveau message'));
+    openFromNewConversationMenu('Nouveau message');
     fireEvent.change(screen.getByLabelText('Destinataire'), {
       target: { value: 'pierre-martin' },
     });
@@ -211,11 +215,11 @@ describe('Messaging components', () => {
       />
     );
 
-    fireEvent.click(screen.getByLabelText('Nouveau message'));
+    openFromNewConversationMenu('Nouveau message');
     expect(screen.getByRole('option', { name: 'Alice Martin - Urbanisme' })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Fermer'));
 
-    fireEvent.click(screen.getByLabelText('Créer un groupe'));
+    openFromNewConversationMenu('Créer un groupe');
     expect(screen.getByLabelText('Alice Martin - Urbanisme')).toBeInTheDocument();
   });
 
@@ -314,7 +318,7 @@ describe('Messaging components', () => {
     const handleCreateGroup = vi.fn();
     render(<Messaging conversations={[defaultMessagingConversations[0]]} onCreateGroup={handleCreateGroup} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Créer un groupe' }));
+    openFromNewConversationMenu('Créer un groupe');
     fireEvent.change(screen.getByLabelText('Nom du groupe'), { target: { value: 'Groupe test' } });
     fireEvent.click(screen.getByLabelText('Marie Dubois - Finances'));
     fireEvent.click(screen.getByRole('button', { name: 'Créer le groupe' }));
@@ -724,7 +728,7 @@ describe('Messaging components', () => {
   it('keeps the direct-message modal open for retry after a refused send', async () => {
     const onNewMessageSend = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     render(<DemoMessaging onNewMessageSend={onNewMessageSend} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Nouveau message' }));
+    openFromNewConversationMenu('Nouveau message');
     fireEvent.change(screen.getByLabelText('Destinataire'), { target: { value: 'pierre-martin' } });
     fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Bonjour Pierre' } });
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Envoyer' }));
@@ -774,7 +778,7 @@ describe('Messaging components', () => {
     if (failure === 'throw') onCreateGroup.mockImplementationOnce(() => { throw new Error('Service unavailable'); });
     onCreateGroup.mockResolvedValueOnce(true);
     render(<DemoMessaging onCreateGroup={onCreateGroup} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Créer un groupe' }));
+    openFromNewConversationMenu('Créer un groupe');
     fireEvent.change(screen.getByLabelText('Nom du groupe'), { target: { value: '  Groupe conservé  ' } });
     fireEvent.change(screen.getByLabelText('Description (optionnel)'), { target: { value: '  Description conservée  ' } });
     fireEvent.click(screen.getByLabelText('Marie Dubois - Finances'));
@@ -792,7 +796,7 @@ describe('Messaging components', () => {
     expect(onCreateGroup.mock.calls[0][0]).toEqual({
       name: 'Groupe conservé', description: 'Description conservée', memberIds: ['marie-dubois'],
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Créer un groupe' }));
+    openFromNewConversationMenu('Créer un groupe');
     expect(screen.getByLabelText('Nom du groupe')).toHaveValue('');
     expect(screen.getByLabelText('Description (optionnel)')).toHaveValue('');
     expect(screen.getByLabelText('Marie Dubois - Finances')).not.toBeChecked();
@@ -803,7 +807,7 @@ describe('Messaging components', () => {
     let resolveCreation!: (confirmed: boolean) => void;
     const onCreateGroup = vi.fn(() => new Promise<boolean>((resolve) => { resolveCreation = resolve; }));
     render(<DemoMessaging onCreateGroup={onCreateGroup} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Créer un groupe' }));
+    openFromNewConversationMenu('Créer un groupe');
     fireEvent.change(screen.getByLabelText('Nom du groupe'), { target: { value: 'Groupe en attente' } });
     fireEvent.change(screen.getByLabelText('Description (optionnel)'), { target: { value: 'Description stable' } });
     fireEvent.click(screen.getByLabelText('Marie Dubois - Finances'));
@@ -837,7 +841,7 @@ describe('Messaging components', () => {
   it.each(['synchronous void', 'asynchronous void', 'synchronous true'])('preserves successful group callback compatibility (%s)', async (result) => {
     const onCreateGroup = vi.fn(() => result === 'asynchronous void' ? Promise.resolve() : result === 'synchronous true' ? true : undefined);
     render(<DemoMessaging onCreateGroup={onCreateGroup} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Créer un groupe' }));
+    openFromNewConversationMenu('Créer un groupe');
     fireEvent.change(screen.getByLabelText('Nom du groupe'), { target: { value: 'Groupe confirmé' } });
     fireEvent.click(screen.getByLabelText('Marie Dubois - Finances'));
     fireEvent.click(screen.getByRole('button', { name: 'Créer le groupe' }));

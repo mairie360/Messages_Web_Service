@@ -12,7 +12,7 @@ export interface ConversationListProps {
 }
 
 export const ConversationList = ({ conversations, activeConversationId, emptyLabel, onSelect }: ConversationListProps) => (
-  <div className="mt-6 min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
+  <div className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden pr-0.5">
     {conversations.length > 0 ? (
       conversations.map((conversation) => (
         <MessagingConversationItem
