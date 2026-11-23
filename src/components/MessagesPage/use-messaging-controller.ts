@@ -10,7 +10,9 @@ import {
   getPayloadIds,
   idsMatch,
   replaceConversationMessages,
-  toMentionIds,
+  toLinkReference,
+  toEditTagPayload,
+  toTagPayload,
   toMessagingContacts,
   toMessagingUserId,
   upsertConversation,
@@ -607,7 +609,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       const response = await messageClient.sendMessage(payload.conversationId, {
         content: payload.content,
         attachmentIds,
-        mentionIds: toMentionIds(payload.mentions),
+        ...toTagPayload(payload.mentions, payload.businessLinks),
+        ...(payload.replyTo !== undefined ? { replyTo: payload.replyTo } : {}),
       });
 
       if (!isOwned()) return false;
@@ -780,6 +783,30 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     }
   };
 
+  // The conversation is gone for the agent (deleted, or left: MAIR-1165): select another one and drop its data.
+  const forgetConversation = (conversationToDelete: MessagingConversation) => {
+    if (idsMatch(activeConversationRef.current, conversationToDelete.id)) {
+      const fallbackId = conversations.find((conversation) =>
+        !idsMatch(conversation.id, conversationToDelete.id))?.id ?? "";
+      activeConversationRef.current = fallbackId;
+      setActiveConversationId(fallbackId);
+      lastUrlConversation.current = String(fallbackId);
+      pageUrl.update({ conversation: String(fallbackId) }, "replace");
+      if (!fallbackId) setShowConversationList(true);
+      else void loadConversationMessages(fallbackId);
+    }
+    setConversations((currentConversations) => currentConversations.filter(
+      (conversation) => !idsMatch(conversation.id, conversationToDelete.id),
+    ));
+    unconfirmedSendsRef.current.delete(String(conversationToDelete.id));
+    pendingSendsRef.current.delete(String(conversationToDelete.id));
+    setMessages((currentMessages) =>
+      currentMessages.filter(
+        (message) => !idsMatch(message.conversationId, conversationToDelete.id),
+      ),
+    );
+  };
+
   const handleConversationDelete: NonNullable<MessagingProps["onConversationDelete"]> =
     async (conversationToDelete) => {
       // An immediate guard also covers repeated callbacks before React renders.
@@ -800,27 +827,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
           throw new Error("La suppression de la conversation n’a pas été confirmée. Réessayez.");
         }
 
-        if (idsMatch(activeConversationRef.current, conversationToDelete.id)) {
-          const fallbackId = conversations.find((conversation) =>
-            !idsMatch(conversation.id, conversationToDelete.id))?.id ?? "";
-          activeConversationRef.current = fallbackId;
-          setActiveConversationId(fallbackId);
-          lastUrlConversation.current = String(fallbackId);
-          pageUrl.update({ conversation: String(fallbackId) }, "replace");
-          if (!fallbackId) setShowConversationList(true);
-          else void loadConversationMessages(fallbackId);
-        }
-        setConversations((currentConversations) => currentConversations.filter(
-          (conversation) => !idsMatch(conversation.id, conversationToDelete.id),
-        ));
-        unconfirmedSendsRef.current.delete(String(conversationToDelete.id));
-        pendingSendsRef.current.delete(String(conversationToDelete.id));
-        setMessages((currentMessages) =>
-          currentMessages.filter(
-            (message) => !idsMatch(message.conversationId, conversationToDelete.id),
-          ),
-        );
-        if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback(`Conversation « ${conversationToDelete.name} » supprimée.`);
+        forgetConversation(conversationToDelete);
+        if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback('Conversation supprimée.');
       } catch (deleteError) {
         setError(
           deleteError instanceof Error
@@ -835,6 +843,122 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
         endMutation(!idsMatch(activeConversationRef.current, conversationToDelete.id));
       }
     };
+
+  // MAIR-1168: edit one of my messages; the answer replaces it in the thread.
+  const handleEditMessage: NonNullable<MessagingProps["onEditMessage"]> = async (message, payload) => {
+    if (message.conversationId === undefined) return false;
+    beginMutation();
+    try {
+      const { message: edited } = await messageClient.editMessage(message.conversationId, message.id, {
+        content: payload.content, ...toEditTagPayload(payload.mentions, payload.businessLinks),
+      });
+      if (!idsMatch(edited?.id, message.id)) throw new Error("La modification du message n’a pas été confirmée.");
+      setMessages(current => appendMessage(current, edited));
+      return true;
+    } catch (failure) {
+      if (await recoverSessionNavigation(failure)) return false;
+      throw new Error(describeBffError(failure, "Le message n’a pas pu être modifié."));
+    } finally {
+      endMutation(true);
+    }
+  };
+
+  // MAIR-1169: delete one of my messages; its tombstone replaces it, and the preview of the list follows when it
+  // was the last message of the conversation.
+  const handleDeleteMessage: NonNullable<MessagingProps["onDeleteMessage"]> = async (message) => {
+    if (message.conversationId === undefined) return false;
+    const conversationId = message.conversationId;
+    beginMutation();
+    try {
+      const { message: tombstone } = await messageClient.deleteMessage(conversationId, message.id);
+      if (!idsMatch(tombstone?.id, message.id) || tombstone.deleted !== true) throw new Error("La suppression du message n’a pas été confirmée.");
+      const thread = confirmedMessagesRef.current.filter(item => idsMatch(item.conversationId, conversationId));
+      const wasLast = idsMatch(thread[thread.length - 1]?.id, message.id);
+      setMessages(current => appendMessage(current, tombstone));
+      if (wasLast) setConversations(current => current.map(item => idsMatch(item.id, conversationId) ? { ...item, lastMessage: "Message supprimé" } : item));
+      return true;
+    } catch (failure) {
+      if (await recoverSessionNavigation(failure)) return false;
+      throw new Error(describeBffError(failure, "Le message n’a pas pu être supprimé."));
+    } finally {
+      endMutation(true);
+    }
+  };
+
+  // MAIR-1170: add or remove my reaction; the answer gives every reaction of the message.
+  const handleToggleReaction: NonNullable<MessagingProps["onToggleReaction"]> = async (message, emoji, add) => {
+    if (message.conversationId === undefined) return;
+    const conversationId = message.conversationId;
+    beginMutation();
+    try {
+      const { reactions } = add
+        ? await messageClient.addReaction(conversationId, message.id, emoji)
+        : await messageClient.removeReaction(conversationId, message.id, emoji);
+      setMessages(current => current.map(item => idsMatch(item.id, message.id) && idsMatch(item.conversationId, conversationId) ? { ...item, reactions } : item));
+    } catch (failure) {
+      if (await recoverSessionNavigation(failure)) return;
+      throw new Error(describeBffError(failure, "La réaction n’a pas pu être enregistrée."));
+    } finally {
+      endMutation(true);
+    }
+  };
+
+  // MAIR-1166: suggestions of `@` (members, groups and services, everyone) and of `#` (projects, events, tasks).
+  const handleSuggestMentions: NonNullable<MessagingProps["onSuggestMentions"]> = (conversation, query, signal) =>
+    messageClient.getMentionSuggestions(conversation.id, query, signal);
+
+  const handleSuggestLinks: NonNullable<MessagingProps["onSuggestLinks"]> = async (query, signal) =>
+    (await messageClient.getLinkSuggestions(query, signal)).items.map(toLinkReference);
+
+  // MAIR-1165: members of a group. A change appends its system note to the thread and the new size to the list.
+  const handleLoadMembers: NonNullable<MessagingProps["onLoadMembers"]> = (conversation, signal) =>
+    messageClient.getMembers(conversation.id, signal);
+
+  const applyMembersChange = async (conversation: MessagingConversation, change: () => ReturnType<typeof messageClient.addMembers>, fallback: string) => {
+    beginMutation();
+    try {
+      const response = await change();
+      setConversations(current => current.map(item => idsMatch(item.id, conversation.id) ? { ...item, memberCount: response.members.length } : item));
+      if (response.systemMessage) {
+        const note = response.systemMessage;
+        if (idsMatch(note.conversationId, conversation.id)) setMessages(current => appendMessage(current, note));
+      }
+      return { members: response.members, canManage: response.canManage };
+    } catch (failure) {
+      if (await recoverSessionNavigation(failure)) return false;
+      throw new Error(describeBffError(failure, fallback));
+    } finally {
+      endMutation(true);
+    }
+  };
+
+  const handleAddMembers: NonNullable<MessagingProps["onAddMembers"]> = (conversation, userIds) =>
+    applyMembersChange(conversation, () => messageClient.addMembers(conversation.id, userIds), "Les membres n’ont pas pu être ajoutés.");
+
+  const handleRemoveMember: NonNullable<MessagingProps["onRemoveMember"]> = (conversation, member) =>
+    applyMembersChange(conversation, () => messageClient.removeMember(conversation.id, member.id), `${member.name} n’a pas pu être retiré du groupe.`);
+
+  const handleLeaveConversation: NonNullable<MessagingProps["onLeaveConversation"]> = async (conversation) => {
+    beginMutation();
+    const identity = senderIdentityRef.current;
+    try {
+      await messageClient.leaveConversation(conversation.id);
+      forgetConversation(conversation);
+      if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback(`Vous avez quitté le groupe « ${conversation.name} ».`);
+      return true;
+    } catch (failure) {
+      if (await recoverSessionNavigation(failure)) return false;
+      throw new Error(describeBffError(failure, "Vous n’avez pas pu quitter le groupe."));
+    } finally {
+      endMutation(!idsMatch(activeConversationRef.current, conversation.id));
+    }
+  };
+
+  // MAIR-1164: a page of the search panel; the panel owns the debounce and aborts the requests it no longer needs.
+  const handleSearch: NonNullable<MessagingProps["onSearch"]> = (conversation, request) =>
+    messageClient.searchConversation(conversation.id, {
+      q: request.query, type: request.type, limit: 20, offset: request.offset ?? 0,
+    }, request.signal);
 
   const handleAttach: NonNullable<MessagingProps["onAttach"]> = (files, attachments) => {
     attachments.forEach((attachment, index) => {
@@ -868,6 +992,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     retryBootstrap,
     deletingConversation,
     error,
+    dismissError: () => setError(null),
     feedback,
     dismissFeedback: () => setFeedback(null),
     syncError,
@@ -889,6 +1014,16 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     handleNewMessageSend,
     handleCreateGroup,
     handleConversationDelete,
+    handleSearch,
+    handleSuggestMentions,
+    handleSuggestLinks,
+    handleEditMessage,
+    handleDeleteMessage,
+    handleToggleReaction,
+    handleLoadMembers,
+    handleAddMembers,
+    handleRemoveMember,
+    handleLeaveConversation,
     toggleConversationList: () => setShowConversationList((current) => !current),
   };
 }

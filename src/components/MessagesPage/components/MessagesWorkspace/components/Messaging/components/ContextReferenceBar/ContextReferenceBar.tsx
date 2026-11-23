@@ -13,7 +13,7 @@ export const ContextReferenceBar = ({ reference, onOpen }: ContextReferenceBarPr
     className="flex items-center gap-3 border-t border-[var(--mairie-border)] bg-[var(--mairie-surface-raised)] px-4 py-3 text-sm text-[var(--mairie-teal-text)] sm:px-5"
   >
     <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--mairie-surface)] text-[var(--mairie-teal-text)]">
-      <BusinessReferenceIcon reference={reference} className="size-4 shrink-0" />
+      <BusinessReferenceIcon reference={reference} className="shrink-0" />
     </span>
     <span className="min-w-0 flex-1">
       <span className="block font-semibold leading-5">Message contextuel</span>

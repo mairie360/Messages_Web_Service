@@ -1,5 +1,5 @@
 import React from 'react';
-import { CancelButton, SendButton } from '@mairie360/lib-components/primitives';
+import { CancelButton, ErrorAlert, SendButton } from '@mairie360/lib-components/primitives';
 
 import { MessagingModalFrame } from '../MessagingModalFrame';
 import { MessageTextArea } from './components/MessageTextArea';
@@ -43,6 +43,7 @@ export const NewMessageModal = ({
   const [recipientValue, setRecipientValue] = React.useState(initialRecipientValue);
   const [message, setMessage] = React.useState(initialMessage);
   const [isSending, setIsSending] = React.useState(false);
+  const [sendFailed, setSendFailed] = React.useState(false);
   const sendingRef = React.useRef(false);
   const formId = React.useId();
 
@@ -51,6 +52,7 @@ export const NewMessageModal = ({
 
     setRecipientValue(initialRecipientValue);
     setMessage(initialMessage);
+    setSendFailed(false);
   }, [initialMessage, initialRecipientValue, isOpen]);
 
   if (!isOpen) return null;
@@ -63,6 +65,7 @@ export const NewMessageModal = ({
     if (!selectedContact || !message.trim() || sendingRef.current) return;
 
     sendingRef.current = true;
+    setSendFailed(false);
     try {
       const result = onSendMessage({
         recipientId: selectedContact.id,
@@ -71,17 +74,21 @@ export const NewMessageModal = ({
       if (result instanceof Promise) {
         setIsSending(true);
         void result
+          .then((confirmed) => { if (confirmed === false) setSendFailed(true); })
           .catch(() => {
-            // The consumer displays the error; keep recipient and message for retry.
+            // MAIR-878: the refusal shows above the form; recipient and message stay for a retry.
+            setSendFailed(true);
           })
           .finally(() => {
             sendingRef.current = false;
             setIsSending(false);
           });
       } else {
+        if (result === false) setSendFailed(true);
         sendingRef.current = false;
       }
     } catch {
+      setSendFailed(true);
       sendingRef.current = false;
     }
   };
@@ -92,14 +99,18 @@ export const NewMessageModal = ({
       subtitle={subtitle}
       formId={formId}
       onClose={onCancel}
+      closeDisabled={isSending}
       onSubmit={handleSubmit}
       footer={
         <>
-          <CancelButton label={cancelLabel} onClick={onCancel} />
+          <CancelButton label={cancelLabel} onClick={onCancel} disabled={isSending} />
           <SendButton type="submit" form={formId} label={submitLabel} disabled={!canSubmit} loading={isSending} />
         </>
       }
     >
+      {sendFailed && (
+        <ErrorAlert size="s" title="Le message n’a pas pu être envoyé. Vos saisies sont conservées ; vous pouvez réessayer." />
+      )}
       <RecipientSelect
         label={recipientLabel}
         placeholder={recipientPlaceholder}

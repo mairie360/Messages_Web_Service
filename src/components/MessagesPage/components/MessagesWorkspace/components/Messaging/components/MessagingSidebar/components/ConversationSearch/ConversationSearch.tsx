@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { SearchField } from '@mairie360/lib-components/primitives';
 
 export interface ConversationSearchProps {
   placeholder: string;
@@ -6,17 +6,18 @@ export interface ConversationSearchProps {
   onChange: (value: string) => void;
 }
 
-/** Search box above the list; the placeholder doubles as its accessible name. */
+/**
+ * Search above the list (MAIR-1157, Figma F9): lib `SearchField` filtering as the agent types, with the lib
+ * clear button. The placeholder is also its accessible name (label kept for assistive technology only).
+ */
 export const ConversationSearch = ({ placeholder, value, onChange }: ConversationSearchProps) => (
-  <label className="relative mt-4 block">
-    <span className="sr-only">{placeholder}</span>
-    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--mairie-muted)]" />
-    <input
-      type="search"
-      value={value}
-      placeholder={placeholder}
-      className="h-9 w-full rounded-md border border-[var(--mairie-border)] bg-[var(--mairie-surface)] pl-10 pr-3 text-sm text-[var(--mairie-text)] outline-none transition placeholder:text-[var(--mairie-muted)] focus:border-[var(--mairie-accent)] focus:ring-2 focus:ring-[var(--mairie-accent)]/20"
-      onChange={(event) => onChange(event.target.value)}
-    />
-  </label>
+  <SearchField
+    className="mt-4"
+    label={<span className="sr-only">{placeholder}</span>}
+    placeholder={placeholder}
+    value={value}
+    size="s"
+    onChange={(event) => onChange(event.target.value)}
+    onClear={() => onChange('')}
+  />
 );

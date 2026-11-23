@@ -11,7 +11,7 @@ const { installReactRuntime, mount } = require('./support/server-view.cjs');
 const { router } = installReactRuntime();
 const React = require('react');
 const { installBrowser } = require('./support/browser.cjs');
-const { apiError, bootstrap, businessReferences, contact, conversation, currentUser, message, messageBffMock, tokenFor, users } = require('./support/fixtures.cjs');
+const { withoutToastRegions, apiError, bootstrap, businessReferences, contact, conversation, currentUser, message, messageBffMock, tokenFor, users } = require('./support/fixtures.cjs');
 const { FrontNetwork } = require('./support/front-network.cjs');
 const { ContractMockServer } = require('./support/contract-mock-server.cjs');
 const { OpenApiContract } = require('./support/openapi-contract.cjs');
@@ -79,12 +79,14 @@ afterEach(() => {
   assert.deepEqual([...messageBff.violations.filter((line) => !KNOWN_CONTRACT_DEFECTS.some((known) => known.test(line))), ...userBff.violations, ...network.violations], []);
 });
 
+// MAIR-854: errors are lib ErrorAlerts; their texts are the `title` props.
+const errorAlertTitles = () => view.find('ErrorAlert').map(({ props }) => props.title);
 const upstream = () => messageBff.requests.map((call) => `${call.method} ${call.url.pathname}`).sort();
 
 async function renderLoadedPage(body = bootstrap(), Component = Page) {
   messageBff.on('get', '/messaging/bootstrap', { body });
   view = mount(React.createElement(Component));
-  return view.waitFor(() => view.find('Messaging').length > 0 && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('DataState').some(state => state.props.state === 'empty' && state.props.title === 'Aucune conversation')) &&
+  return view.waitFor(() => view.find('Messaging').length > 0 && view.props('Messaging').emptyStateLabel === undefined /* MAIR-1171: confirmed thread or no conversation */ &&
     view.props('Header').user.name !== 'Chargement…' &&
     view.props('Messaging').conversations[0]?.unreadCount === 0);
 }
@@ -102,7 +104,7 @@ for (const status of [403, 503]) {
     });
     await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
     await view.waitFor(() => /Lecture refusée/.test(view.text()));
-    assert.doesNotMatch(view.text(), /Aucun message dans cette conversation|Aucune conversation/);
+    assert.doesNotMatch(view.text(), /Aucun message pour l’instant|Aucune conversation/);
     assert.match(view.text(), /messages de Sophie Leroy sont indisponibles/);
     assert.equal(view.props('Messaging').onSendMessage, undefined);
     assert.equal(view.find('MessagingComposer').filter(instance => !instance.hidden).length, 1);
@@ -113,7 +115,7 @@ for (const status of [403, 503]) {
     } }));
     await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
     await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5');
-    assert.match(view.text(), /Aucun message dans cette conversation/);
+    assert.match(view.text(), /Aucun message pour l’instant/);
     assert.equal(typeof view.props('Messaging').onSendMessage, 'function');
     assert.equal(view.visibleProps('MessagingComposer').disabled, false);
     assert.doesNotMatch(view.text(), /Lecture refusée|messages de Sophie Leroy sont indisponibles/);
@@ -134,7 +136,7 @@ test('a pending unseen selection retains its recipient draft without exposing it
   try {
     assert.equal(typeof release, 'function');
     assert.match(view.text(), /Chargement des messages de Sophie Leroy/);
-    assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+    assert.doesNotMatch(view.text(), /Aucun message pour l’instant/);
     assert.equal(view.visibleProps('MessagingComposer').disabled, true);
     assert.equal(view.find('MessagingComposer').filter(instance => !instance.hidden).length, composerCount);
     assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, '');
@@ -149,7 +151,7 @@ test('a pending unseen selection retains its recipient draft without exposing it
   }
   await view.settle();
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
-  assert.doesNotMatch(view.text(), /Chargement des messages de Sophie Leroy|Aucun message dans cette conversation/);
+  assert.doesNotMatch(view.text(), /Chargement des messages de Sophie Leroy|Aucun message pour l’instant/);
   assert.equal(view.visibleProps('MessagingComposer').disabled, false);
   assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
 });
@@ -165,7 +167,7 @@ test('a refused already confirmed thread preserves known messages and its draft'
   await view.waitFor(() => /Lecture refusée/.test(view.text()));
   assert.match(view.text(), /Bonjour à tous/);
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
-  assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+  assert.doesNotMatch(view.text(), /Aucun message pour l’instant/);
   assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
 });
 
@@ -296,6 +298,8 @@ for (const status of [403, 503]) {
     messageBff.on('get', '/conversations', { status, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true });
     browser.tickIntervals(2000);
     await view.waitFor(html => html.includes('La synchronisation des conversations est momentanément indisponible.'));
+  // MAIR-854: the sync error is a lasting lib ErrorAlert (no close button: the next read clears it).
+  assert.ok(view.find('ErrorAlert').some(({ props }) => props.title === 'La synchronisation des conversations est momentanément indisponible.' && !props.onDismiss));
     assert.equal(browser.window.location.reloads, 0);
     assert.deepEqual(view.props('Messaging').messages, previousMessages);
     messageBff.on('get', '/conversations', { body: { conversations: [conversation(4, 'Équipe communication')] } });
@@ -446,8 +450,9 @@ test('the page offers no onAttach and refuses a draft with attachments before an
     conversationId: 'conversation-4', content: 'Voici le document', attachments: [attachment], mentions: [],
   }));
   assert.equal(result, false);
-  const html = await view.waitFor((current) => current.includes('role="alert"'));
-  assert.match(html, new RegExp(`<p role="alert" class="messages-error">${ATTACHMENTS_UNAVAILABLE_MESSAGE}</p>`));
+  const html = await view.waitFor((current) => withoutToastRegions(current).includes('role="alert"'));
+  assert.match(html, new RegExp(ATTACHMENTS_UNAVAILABLE_MESSAGE));
+  assert.deepEqual(errorAlertTitles(), [ATTACHMENTS_UNAVAILABLE_MESSAGE]);
   assert.equal(ATTACHMENTS_UNAVAILABLE_MESSAGE, 'Les pièces jointes ne sont pas encore disponibles. Retirez-les du brouillon pour envoyer votre message.');
   assert.deepEqual(messageBff.requests.filter((call) => call.method === 'POST'), []);
   assert.match(html, /Bonjour à tous/);
@@ -459,7 +464,7 @@ test('the page offers no onAttach and refuses a draft with attachments before an
   assert.equal(await view.act(() => view.props('Messaging').onSendMessage({
     conversationId: 'conversation-4', content: 'Voici le document', attachments: [], mentions: [],
   })), true);
-  await view.waitFor((current) => !current.includes('role="alert"'));
+  await view.waitFor((current) => !withoutToastRegions(current).includes('role="alert"'));
   assert.deepEqual(messageBff.requests.filter((call) => call.method === 'POST').map((call) => call.template), ['/conversations/{conversationId}/messages']);
 });
 
@@ -518,9 +523,9 @@ for (const [label, operation, send, reply, expected] of [
     const handler = { send: 'onSendMessage', direct: 'onNewMessageSend', group: 'onCreateGroup' }[operation];
 
     assert.equal(await view.act(() => view.props('Messaging')[handler](send)), false);
-    const html = await view.waitFor((current) => current.includes('role="alert"'));
-    const text = html.match(/<p role="alert" class="messages-error">([^<]*)<\/p>/)[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, '’');
-    assert.equal(text, expected);
+    const html = await view.waitFor((current) => withoutToastRegions(current).includes('role="alert"'));
+    assert.match(html, /role="alert"/);
+    assert.deepEqual(errorAlertTitles(), [expected]);
     assert.equal(messageBff.calls(template, method.toUpperCase()).length, 1);
   });
 }
@@ -632,7 +637,7 @@ test('business suggestions wait for visibility and do not add periodic backgroun
   browser.setHidden(true);
   messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
   view = mount(React.createElement(Page));
-  await view.waitFor(() => view.find('Messaging').length > 0 && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('DataState').some(state => state.props.state === 'empty' && state.props.title === 'Aucune conversation')));
+  await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Messaging').emptyStateLabel === undefined /* MAIR-1171: confirmed thread or no conversation */);
   browser.focus();
   browser.tickIntervals(2_000);
   assert.equal(pending.length, 0);
@@ -758,7 +763,8 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
   assert.match(view.text(), /Chargement de la messagerie/);
   assert.equal(view.hostElements((props, text, tag) => tag === 'button' && text === 'Chargement en cours…')[0].props.disabled, true);
   assert.doesNotMatch(view.text(), /Aucune conversation/);
-  assert.match(view.html, /messages-app-root/);
+  assert.doesNotMatch(view.html, /messages-app-root/);
+  assert.match(view.html, /<main\b[^>]*data-layout="fill"/);
   assert.match(view.html, /messages-main-inner/);
   assert.doesNotMatch(view.text(), /Équipe communication/);
 
@@ -766,25 +772,26 @@ test('the first pass withholds messaging controls until bootstrap, contacts and 
 
   assert.equal(upstream().filter(call => call === 'GET /messaging/bootstrap').length, 1);
   assert.equal((html.match(/<h1\b/g) ?? []).length, 1, 'the loaded workspace retains one accessible page title');
-  assert.doesNotMatch(html, /role="alert"/);
+  assert.doesNotMatch(withoutToastRegions(html), /role="alert"/);
   assert.match(view.text(), /Équipe communication/);
   assert.match(view.text(), /Sophie Leroy/);
   assert.match(view.text(), /Bonjour à tous/);
   const messaging = view.props('Messaging');
   assert.equal(messaging.activeConversationId, 'conversation-4');
   assert.equal(messaging.currentUserId, 'user-2');
-  assert.equal(messaging.emptyStateLabel, 'Aucune conversation');
+  // MAIR-1171: the thread picks its own empty state.
+  assert.equal(messaging.emptyStateLabel, undefined);
   assert.deepEqual(messaging.contacts.map((item) => item.name), ['Sophie Leroy', 'Thomas Bernard']);
   assert.deepEqual(messaging.businessReferences.map((reference) => reference.title), ['Budget participatif', 'Conseil municipal']);
   await view.waitFor(() => view.props('Header').user.name === 'Agent Mairie');
   assert.match(view.html, /<span[^>]*>Agent Mairie<\/span>/);
-  assert.match(view.html, /<footer/);
-  const footer = view.html.match(/<footer\b[^>]*>[\s\S]*?<\/footer>/)?.[0];
-  assert.ok(footer);
-  assert.doesNotMatch(view.html, /<aside\b[^]*?<footer\b[^]*?<\/footer>[^]*?<\/aside>/);
-  assert.match(view.html, /<\/main>\s*<footer\b/);
-  assert.match(footer.replace(/<[^>]*>/g, ''), new RegExp(`© ${new Date().getFullYear()} Mairie360`));
-  assert.doesNotMatch(footer, /Version|<button\b|<a\b/);
+  // MAIR-1161: no reception indicator in normal operation; the polite region of the delayed banner stays mounted.
+  const reception = view.props('MessagesReceptionDelayed');
+  assert.ok(['connecting', 'polling', 'connected', 'offline'].includes(reception.state));
+  assert.doesNotMatch(view.html, /Réception automatique active|Actualisation automatique active|Connexion à la réception automatique/);
+  assert.match(view.html, /<div class="messages-reception-delayed[^"]*" aria-live="polite">/);
+  // MAIR-1156: the lib 2.3 page base of the messaging has no footer.
+  assert.doesNotMatch(view.html, /<footer\b|role="contentinfo"|app-shell-footer/);
 });
 
 test('narrow screens can switch to the conversation list and return to the selected thread', async () => {
@@ -819,32 +826,31 @@ test('desktop and mobile navigation expose only active modules and keep Settings
   try {
     await renderLoadedPage();
     assert.equal(view.props('Header').profileHref, 'https://settings.test.example/');
-    const isAdmin = view.props('Sidebar').isAdmin;
-    for (const mobileOpen of [false, true]) {
-      await view.act(() => view.props('Header').setSidebarOpen(mobileOpen));
-      const sidebars = view.find('Sidebar');
-      assert.equal(sidebars.length, mobileOpen ? 2 : 1);
-      for (const { props } of sidebars) {
-        assert.deepEqual(props.items.map(item => item.id),
-          ['dashboard', 'projects', 'messages', 'training', 'calendar', 'admin', 'settings']);
-        assert.equal(props.items.find(item => item.id === 'admin').adminOnly, true);
-        assert.equal(props.isAdmin, isAdmin);
-        assert.equal(props.activeItem, 'messages');
-      }
-      const menus = view.html.match(/<nav\b[^>]*aria-label="Menu principal"[^>]*>[\s\S]*?<\/nav>/g) ?? [];
-      assert.equal(menus.length, sidebars.length + 1);
-      for (const menu of menus) {
-        assert.doesNotMatch(menu, /E-mails|Fichiers/);
-        assert.match(menu, /Paramètres/);
-        assert.equal(menu.includes('>Administration<'), isAdmin);
-      }
-    }
-    const mobileSidebar = view.find('Sidebar')[1].props;
-    await view.act(() => mobileSidebar.onItemSelect(mobileSidebar.items.find(item => item.id === 'settings')));
+    const desktop = view.props('DesktopNavigation');
+    assert.equal(desktop.activeItem, 'messages');
+    const isAdmin = desktop.isAdmin;
+    const desktopMenu = view.html.match(/<aside\b[^>]*class="app-desktop-navigation"[\s\S]*?<\/aside>/)?.[0] ?? '';
+    assert.doesNotMatch(desktopMenu, /E-mails|Fichiers/);
+    assert.match(desktopMenu, /aria-label="Paramètres"/);
+    assert.equal(desktopMenu.includes('aria-label="Administration"'), isAdmin);
+    assert.equal(view.find('Sidebar').length, 0, 'the desktop band is not the mobile drawer');
+
+    await view.act(() => view.props('Header').setSidebarOpen(true));
+    const [mobile] = view.find('Sidebar');
+    assert.ok(mobile, 'the mobile drawer renders the shared sidebar');
+    assert.deepEqual(mobile.props.items.map(item => item.id),
+      ['dashboard', 'projects', 'messages', 'training', 'calendar', 'admin', 'settings']);
+    assert.equal(mobile.props.items.find(item => item.id === 'admin').adminOnly, true);
+    assert.equal(mobile.props.isAdmin, isAdmin);
+    assert.equal(mobile.props.activeItem, 'messages');
+    const drawer = view.html.match(/<div[^>]*role="dialog"[^>]*aria-label="Navigation mobile"[\s\S]*?<\/nav>/)?.[0] ?? '';
+    assert.doesNotMatch(drawer, /E-mails|Fichiers/);
+    assert.match(drawer, /Paramètres/);
+    await view.act(() => mobile.props.onItemSelect(mobile.props.items.find(item => item.id === 'settings')));
     assert.deepEqual(assigned, ['https://settings.test.example/']);
     await view.act(() => view.props('Header').onPageChange('profile'));
     assert.deepEqual(assigned, ['https://settings.test.example/', 'https://settings.test.example/']);
-    assert.equal(view.find('Sidebar').length, 1);
+    assert.equal(view.find('Sidebar').length, 0);
   } finally {
     setBrowserFrontUrls({});
     global.window.location.assign = originalAssign;
@@ -856,7 +862,8 @@ test('the sidebar keeps Settings as the only account entry', async () => {
   setBrowserFrontUrls({ SETTINGS_FRONT_URL: 'https://settings.test.example/' });
   try {
     await renderLoadedPage();
-    const ids = view.props('Sidebar').items.map((item) => item.id);
+    await view.act(() => view.props('Header').setSidebarOpen(true));
+    const ids = view.find('Sidebar')[0].props.items.map((item) => item.id);
     assert.equal(ids.includes('profile'), false);
     assert.equal(ids.filter((id) => id === 'settings').length, 1);
   } finally {
@@ -868,13 +875,19 @@ test('a bootstrap failure is unavailable, not an empty result, and has explicit 
   messageBff.on('get', '/messaging/bootstrap', { status: 503, body: apiError('BFF_UNAVAILABLE', 'La messagerie est en maintenance'), outOfContract: true });
   view = mount(React.createElement(Page));
 
-  const html = await view.waitFor((current) => current.includes('role="alert"'));
+  const html = await view.waitFor((current) => withoutToastRegions(current).includes('role="alert"'));
 
-  assert.match(html, /<p role="alert" class="messages-error">La messagerie est en maintenance<\/p>/);
+  // MAIR-847: the refused start is the lib ErrorAlert inside a lib Card.
+  const alert = withoutToastRegions(html).match(/<div[^>]*role="alert"[^>]*data-m360-component="[^"]*ErrorAlert[^"]*"[^>]*>[\s\S]*?<\/div>/)?.[0]
+    ?? withoutToastRegions(html).match(/<div[^>]*data-m360-component="[^"]*ErrorAlert[^"]*"[^>]*role="alert"[^>]*>[\s\S]*?<\/div>/)?.[0];
+  assert.ok(alert, 'the bootstrap error is a lib ErrorAlert');
+  assert.match(alert, /La messagerie est en maintenance/);
+  assert.match(html, /<section\b[^>]*data-m360-component="Card"[^>]*>|<section\b[^>]*aria-labelledby="messages-bootstrap-title"/);
+  assert.doesNotMatch(html, /messages-error|bg-gray-900/);
   assert.equal(view.find('Messaging').length, 0);
   assert.match(view.text(), /Messagerie indisponible/);
   assert.doesNotMatch(view.text(), /Aucune conversation/);
-  assert.equal([...html.matchAll(/<button\b[^>]*>Réessayer<\/button>/g)].length, 1);
+  assert.equal(view.hostElements((props, text, tag) => tag === 'button' && text === 'Réessayer').length, 1);
   assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
   assert.doesNotMatch(view.text(), /Équipe communication/);
 });
@@ -934,8 +947,9 @@ test('a confirmed empty bootstrap is distinct from refusal and enables the norma
   await view.waitFor(() => view.find('Messaging').length > 0);
   assert.deepEqual(view.props('Messaging').conversations, []);
   assert.deepEqual(view.props('Messaging').contacts, []);
-  assert.equal(view.find('DataState').some(state => state.props.state === 'empty' && state.props.title === 'Aucune conversation'), true);
-  assert.match(view.text(), /Créez un message ou un groupe pour commencer/);
+  // MAIR-1171: one illustrated state in the thread, a short text in the list.
+  assert.equal(view.find('DataState').filter(state => state.props.state === 'empty' && state.props.title === 'Commencez à échanger' && state.props.size === 'm').length, 1);
+  assert.match(view.text(), /Aucune conversation pour l’instant\./);
   assert.equal(typeof view.props('Messaging').onCreateGroup, 'function');
   assert.doesNotMatch(view.text(), /Messagerie indisponible|Réessayer/);
   assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
@@ -1040,7 +1054,7 @@ test('selecting a conversation loads its messages and renders them', async () =>
     call.pathParams.conversationId === 'conversation-5'));
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-5');
   assert.match(html, /Salut, tu as vu le dossier \?/);
-  assert.doesNotMatch(html, /role="alert"/);
+  assert.doesNotMatch(withoutToastRegions(html), /role="alert"/);
 });
 
 for (const cause of ['redirect', '401']) {
@@ -1163,9 +1177,12 @@ test('a refused send is shown as an alert without losing the thread', async () =
 
   const sendResult = await view.act(() => view.props('Messaging').onSendMessage({ conversationId: 'conversation-4', content: 'Encore là ?', attachments: [], mentions: [] }));
   assert.equal(sendResult, false);
-  const html = await view.waitFor((current) => current.includes('role="alert"'));
+  const html = await view.waitFor((current) => withoutToastRegions(current).includes('role="alert"'));
 
-  assert.match(html, /<p role="alert" class="messages-error">Vous ne faites plus partie de cette conversation<\/p>/);
+  assert.deepEqual(errorAlertTitles(), ['Vous ne faites plus partie de cette conversation']);
+  // MAIR-854: the action error can be closed, the conversation stays.
+  await view.act(() => view.find('ErrorAlert')[0].props.onDismiss());
+  assert.deepEqual(errorAlertTitles(), []);
   assert.match(html, /Bonjour à tous/);
   assert.doesNotMatch(html, /Encore là \?/);
 });
@@ -1447,7 +1464,7 @@ test('a stale refresh cannot restore a deleted conversation', async () => {
   assert.deepEqual(view.props('Messaging').conversations.map((item) => item.id), ['conversation-5']);
   assert.equal(view.props('Messaging').activeConversationId, '');
   assert.equal(view.props('MessagingComposer').disabled, true);
-  assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+  assert.doesNotMatch(view.text(), /Aucun message pour l’instant/);
 });
 
 for (const [label, reply] of [
@@ -1465,7 +1482,7 @@ for (const [label, reply] of [
     assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-4', 'conversation-5']);
     assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
     assert.match(view.text(), /Bonjour à tous/);
-    assert.match(view.html, /role="alert"[^]*?La suppression de la conversation n’a pas été confirmée/);
+    assert.match(withoutToastRegions(view.html), /role="alert"[^]*?La suppression de la conversation n’a pas été confirmée/);
     assert.equal(typeof view.props('Messaging').onConversationDelete, 'function', 'retry is available');
   });
 }
@@ -1506,6 +1523,8 @@ test('a deletion refusal permits one guarded retry and preserves data while pend
     assert.equal(messageBff.calls('/conversations/{conversationId}', 'DELETE').length, 1);
     assert.equal(view.props('Messaging').onConversationDelete, undefined);
     assert.match(view.html, /role="status"[^]*?Suppression de la conversation en cours/);
+    // MAIR-854: the pending deletion is a lib info Alert.
+    assert.match(view.html, /<div[^>]*role="status"[^>]*data-m360-component="Alert"[^>]*>[^]*?Suppression de la conversation en cours…/);
     assert.match(view.text(), /Bonjour à tous/);
     const reads = messageBff.calls('/conversations').length;
     browser.focus();
@@ -1741,7 +1760,7 @@ for (const label of ['disappeared active thread', 'new first conversation']) {
     }
     messageBff.on('get', '/messaging/bootstrap', { body });
     view = mount(React.createElement(Page));
-    await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Header').user.name !== 'Chargement…' && (view.props('Messaging').emptyStateLabel === 'Aucune conversation' || view.find('DataState').some(state => state.props.state === 'empty' && state.props.title === 'Aucune conversation')));
+    await view.waitFor(() => view.find('Messaging').length > 0 && view.props('Header').user.name !== 'Chargement…' && view.props('Messaging').emptyStateLabel === undefined /* MAIR-1171: confirmed thread or no conversation */);
     messageBff.on('get', '/conversations', { body: { conversations: [fallbackThread().body.conversation] } });
     messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
     browser.setHidden(false);
@@ -1769,7 +1788,7 @@ for (const mode of ['delete', 'sync']) {
       messageBff.on('get', '/conversations', { body: { conversations: [body.conversations[1]] } });
       browser.setHidden(false);
     }
-    await view.waitFor(html => html.includes('role="alert"') && view.props('Messaging').activeConversationId === 'conversation-5');
+    await view.waitFor(html => withoutToastRegions(html).includes('role="alert"') && view.props('Messaging').activeConversationId === 'conversation-5');
     assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
     assert.match(view.text(), /Historique déjà connu/);
     assert.doesNotMatch(view.text(), /Bonjour à tous/);
@@ -1777,7 +1796,7 @@ for (const mode of ['delete', 'sync']) {
     messageBff.on('get', '/conversations/{conversationId}/messages', fallbackThread());
     await view.act(() => view.props('Messaging').onConversationSelect(body.conversations[1]));
     await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-20'));
-    assert.doesNotMatch(view.html, /role="alert"/);
+    assert.doesNotMatch(withoutToastRegions(view.html), /role="alert"/);
     assert.equal(messageBff.calls('/conversations/{conversationId}/messages').length, 2);
     assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
   });
@@ -1790,7 +1809,7 @@ test('a selected read carrying another conversation ID cannot resurrect a remove
   // The default mock returns conversation-4 even though fallback requests conversation-5.
   await view.act(() => view.props('Messaging').onConversationDelete(conversation(4, 'Équipe communication')));
   await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
-  await view.waitFor(html => html.includes('role="alert"'));
+  await view.waitFor(html => withoutToastRegions(html).includes('role="alert"'));
   assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
   assert.doesNotMatch(view.text(), /Bonjour à tous/);
 });
@@ -1824,7 +1843,7 @@ for (const outcome of ['success', 'refusal']) {
     await view.waitFor(() => responded);
     assert.equal(view.props('Messaging').activeConversationId, 'conversation-6');
     assert.match(view.text(), /Sélection plus récente/);
-    assert.doesNotMatch(view.html, /role="alert"/);
+    assert.doesNotMatch(withoutToastRegions(view.html), /role="alert"/);
     assert.equal(view.props('Messaging').messages.some(item => item.id === 'message-20'), false);
   });
 }
@@ -1879,7 +1898,7 @@ test('a mismatched fallback refresh reports the failure without restoring the va
   await view.waitFor(html => html.includes('Sélectionnez-la de nouveau pour réessayer'));
   assert.equal(view.props('Messaging').activeConversationId, '');
   assert.equal(view.props('MessagingComposer').disabled, true);
-  assert.doesNotMatch(view.text(), /Aucun message dans cette conversation/);
+  assert.doesNotMatch(view.text(), /Aucun message pour l’instant/);
   assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-5']);
   assert.doesNotMatch(view.text(), /Bonjour à tous/);
 });
@@ -2264,6 +2283,11 @@ test('MAIR-204: a contact without a direct conversation still gets one from POST
   assert.deepEqual(messageBff.calls('/direct-messages', 'POST').map((call) => call.body), [{ recipientId: `user-${users.thomas.id}`, message: 'Bonjour Thomas' }]);
   assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'POST').length, 0);
   assert.match(view.text(), /Message direct créé\./);
+  // MAIR-865: the confirmation floats in the lib toast region, after the shell (outside the module flow), without title.
+  const html = await view.waitFor((current) => /data-m360-component="Toast"[^>]*>[^]*?Message direct créé\./.test(current));
+  assert.ok(html.indexOf('data-m360-component="Toast"') > html.indexOf('</main>'));
+  assert.doesNotMatch(html, /messages-module-stack[^]*?data-m360-component="Toast"[^]*?<\/main>/);
+  assert.doesNotMatch(html.match(/data-m360-component="Toast"[^]*?Message direct créé/)[0], /font-semibold/);
 });
 
 test('MAIR-204: a refused send into the existing direct conversation never falls back to a new chat', async () => {
@@ -2273,7 +2297,7 @@ test('MAIR-204: a refused send into the existing direct conversation never falls
   assert.equal(await view.act(() => view.props('Messaging').onNewMessageSend({
     recipientId: `user-${users.sophie.id}`, message: 'Re bonjour Sophie',
   })), false);
-  await view.waitFor((html) => html.includes('role="alert"'));
+  await view.waitFor((html) => withoutToastRegions(html).includes('role="alert"'));
 
   assert.equal(messageBff.calls('/direct-messages', 'POST').length, 0);
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');

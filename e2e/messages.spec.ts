@@ -33,9 +33,12 @@ test('an agent sends a direct message', async ({ page, context, baseURL }) => {
   await openMessaging(page);
 
   // The page is server-rendered first: retry the opening until the button is hydrated.
+  // MAIR-1157: « Nouveau message » is an entry of the « + » menu of the list.
   const dialog = page.getByRole('dialog', { name: 'Nouveau message' });
   await expect(async () => {
-    await page.getByRole('button', { name: 'Nouveau message' }).click();
+    const menu = page.getByRole('menu', { name: 'Nouvelle conversation' });
+    if (!(await menu.isVisible())) await page.getByRole('button', { name: 'Nouvelle conversation' }).click();
+    await menu.getByRole('menuitem', { name: 'Nouveau message' }).click({ timeout: 1_000 });
     await expect(dialog).toBeVisible({ timeout: 1_000 });
   }).toPass();
   await dialog.getByRole('combobox', { name: 'Destinataire' }).selectOption({ label: 'Contact Sample' });
@@ -50,7 +53,8 @@ test('an agent sends a direct message', async ({ page, context, baseURL }) => {
   expect(new URL(response.url()).pathname, 'the message creates the direct conversation').toMatch(/\/direct-messages$/);
   expect(response.status()).toBe(201);
 
-  await expect(page.getByText('Message direct créé.')).toBeVisible();
+  // MAIR-865: the confirmation is a lib toast; its text is also in the hidden live region that announces it.
+  await expect(page.getByRole('group', { name: 'Message direct créé' })).toBeVisible();
   await expect(dialog).toBeHidden();
   await expect(page.getByText(message).first()).toBeVisible();
 });
@@ -67,7 +71,9 @@ test('an agent outside the conversation does not see it', async ({ page, context
   await signInAs(context, baseURL!, users.outsider);
   await openMessaging(page);
 
-  await expect(page.getByText('Aucune conversation trouvée.')).toBeVisible();
+  // MAIR-1171: a list without any conversation says so in a short text; the thread shows « Commencez à échanger ».
+  await expect(page.getByText('Aucune conversation pour l’instant.')).toBeVisible();
+  await expect(page.getByText('Commencez à échanger')).toBeVisible();
   await expect(page.getByText(message)).toHaveCount(0);
 });
 

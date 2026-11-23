@@ -113,3 +113,18 @@ test('MAIR-608 the sidebar search also matches the department and the last messa
   assert.deepEqual(filterConversations([marie, pierre], 'urba').map(item => item.id), ['p']);
   assert.deepEqual(filterConversations([{ id: 4, name: 'Seul' }], '').map(item => item.id), [4]);
 });
+
+test('MAIR-1160 the unread messages are the last ones written by others, as many as the counter, oldest first', () => {
+  const { unreadMessageIds, newMessagesLabel } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-model.ts');
+  const thread = [
+    { id: 1, content: 'a', direction: 'incoming' }, { id: 2, content: 'b', direction: 'outgoing' },
+    { id: 3, content: 'c', direction: 'incoming' }, { id: 4, content: 'd', direction: 'incoming' },
+  ];
+  assert.deepEqual(unreadMessageIds(thread, 2), ['3', '4']);
+  assert.deepEqual(unreadMessageIds(thread, 9), ['1', '3', '4']);
+  assert.deepEqual(unreadMessageIds(thread, 0), []);
+  assert.deepEqual(unreadMessageIds(thread, undefined), []);
+  assert.deepEqual(unreadMessageIds(thread, -1), []);
+  assert.equal(newMessagesLabel(1), '1 nouveau message');
+  assert.equal(newMessagesLabel(4), '4 nouveaux messages');
+});

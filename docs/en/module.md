@@ -180,3 +180,145 @@ An incomplete or unrelated successful receipt retains the draft and previews. Th
 ## Shared visual direction — MAIR-547
 
 Approved light option 1: shared tokens and font, accessible navigation, and preserved business layouts. See the [visual QA](../qa/design-qa.md) for evidence, checks, and RGAA limitations.
+
+## V2 screen (epic MAIR-821)
+
+Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.figma.com/design/aZKHSHhAj0NQnutKdS82jk/?node-id=18-902)) on `@mairie360/lib-components` 2.
+
+- **Frame (MAIR-838).** Lib 2: the collapsible navigation band, top bar, typography and the
+  full-height main area (`mainLayout="fill"`: no page scroll, 20 px / 24 px padding) come from the lib
+  frame; `app-shell.css` keeps only the messaging module geometry. The theme is always light.
+- **Shell (MAIR-844).** The navigation band shows the lib logo and the commune name (`COMMUNE_NAME`),
+  « Messagerie » is active with the unread total as its badge (« 9+ » beyond 9 since MAIR-1156), and the footer shows the
+  version (`APP_VERSION`) and the legal notice / privacy policy pages of the Login front.
+- **Start states (MAIR-847).** Loading and unavailable messaging use the lib `Card`, `ErrorAlert`
+  (the refused start), `Skeleton` and `RetryButton` (« Chargement en cours… », disabled while loading).
+- **Errors and statuses (MAIR-854).** A refused action is a closable lib `ErrorAlert`, a refused
+  synchronisation a lasting one (the next read clears it); « Suppression de la conversation en cours… » and
+  the thread opening text are info `Alert`s. Texts and `alert` / `status` announcements are unchanged.
+- **Reception (MAIR-860).** The automatic reception state is a lib `StatusPill` (active: success,
+  refreshing: info, connecting: neutral, delayed: warning); « Réessayer la réception » is a lib `Button`
+  (44 px target) shown only while delayed.
+- **Confirmations (MAIR-865).** « Message direct créé. », « Groupe … créé. » and the other action
+  confirmations float in a lib toast bottom right, above the footer, without moving the module (5 s, no
+  title, closable with the mouse or the keyboard).
+- **Empty states (MAIR-870).** « Sélectionnez une conversation » (empty header, large semibold), « Aucune
+  conversation trouvée. » (local search without result), « Aucun contact trouvé. » and the thread placeholders
+  are lib `Text` (muted), no hand-styled paragraph; the thread keeps a ready-made `DataState` as is.
+- **Composer icons (MAIR-872).** Attach, mention, business reference, emoji, send, attachment chips and
+  mention suggestions render their lucide glyph through the lib `Icon` (`s`, 16 px token, current text colour);
+  buttons keep their accessible names.
+- **Dialogs (MAIR-878).** « Nouveau message » and « Créer un groupe » are small lib `Modal`s (480 px). The primary
+  button (lib `SendButton` / `CreateButton` with its icon) stays disabled until the form is complete (recipient +
+  message; group name + one member). A refusal shows as an `ErrorAlert` above the form, the dialog stays open and
+  keeps the input; Escape, the backdrop and « Annuler » do nothing while the request is pending.
+- **Page base (MAIR-1156).** Lib 2.3.0 page base: no footer (`showFooter={false}`), the module is the white
+  bordered card (12 px radius, `--mairie-radius-l`) of the main area, and the only page title is the « Messagerie »
+  `h1` of the list. « Messagerie » is active in the navigation with the unread total in the lib `Counter`, « 9+ »
+  beyond 9; Administration stays role-gated.
+- **Conversation list (MAIR-1157).** The list is titled « Messagerie » with a single « + » (lib `IconButton`, lib
+  `ToolTip` « Nouvelle conversation ») opening a lib `DropdownMenu`: « Nouveau message » and « Créer un groupe » open
+  the existing dialogs. The menu is announced as a menu, opens with Entrée / Espace / ↓, moves with ↑ ↓ Début Fin,
+  closes on Échap, Tab or an outside click and gives the focus back to the « + » (`use-menu-keyboard.ts`, shared with
+  the header menu). « Rechercher une conversation » is the lib `SearchField` filtering as the agent types (name,
+  group, service); without result, « Aucune conversation trouvée. ». Each line shows the lib `Avatar` (photo or
+  initials, groups included) with its presence dot, the name and the preview truncated on one line, the time in a
+  fixed right column and the unread lib `Counter` (« 9+ »), spoken as « N messages non lus ».
+- **Explicit icons (MAIR-1158).** Every icon goes through the lib `Icon` (lib 2.3 `icons` for the Messagerie
+  glyphs). Composer: « Joindre un fichier » `file-up`, « Mentionner une personne » `at-sign`, « Lier un élément »
+  `hash`, « Insérer un emoji » `smile-plus`, « Envoyer » `send`, each a lib `IconButton` with its `ToolTip`. Header:
+  « Appeler » `phone` and « Lancer une visio » `video` are shown unavailable (`aria-disabled`, still focusable,
+  tooltip « … · bientôt disponible »), « Rechercher dans la conversation » `text-search` only when wired, « Plus
+  d'actions » `more-horizontal`. Menus: `check-check`, `trash`, `message-square-plus`, `users`. Linked elements:
+  project `folder-kanban`, task `list-checks`, folder `folder-open`, event `calendar`, service `building-2`.
+- **My bubbles (MAIR-1159).** My messages use the lib 2.3 tokens `--mairie-message-own-background` (#efebe2),
+  `--mairie-message-own-on` (#383f51, contrast 8.8:1) and `--mairie-message-own-border` (#d6d0c3), their links and
+  attachments too; received bubbles keep the white surface and `--mairie-border`. The time sits above the bubble,
+  right-aligned for my messages.
+- **Unread messages (MAIR-1160).** The « N notifications non lues » banner is gone (« Marquer comme lus » stays in
+  « Plus d'actions »). A conversation opens on its first unread message, after the lib `Divider` « Nouveaux
+  messages » (`NewMessagesSeparator`); the unread ones are the last `unreadCount` messages written by others. The
+  neutral `UnreadMessagesPill` (lib `Button`, sticky at the bottom of the thread, polite live region) says « N
+  nouveaux messages » and counts down as they come into view; a click scrolls smoothly to the last message (instant
+  under `prefers-reduced-motion`). Reaching the end by the agent (wheel, touch, keyboard, pointer, pill) hides the pill
+  and marks the conversation read; a thread that does not scroll is read when opened; the opening placement and other
+  programmatic scrolls never read. The list and navigation counters both follow the refreshed conversation.
+- **Delayed reception (MAIR-1161).** « Réception automatique active » and the other reception pills are gone: nothing
+  is shown while the reception works. Once the real-time connection is lost, `MessagesReceptionDelayed` shows a small
+  lib warning `Alert` « Réception des messages retardée » above the module, announced by its polite live region without
+  taking the focus, with « Réessayer la réception ». On reconnection the stream resumes from its last event
+  (`Last-Event-ID`) and the module reads the missed messages again, then the banner goes away.
+- **Send status (MAIR-1162).** `MessageSendStatus` under my bubbles: « Envoyé » (check) under my last confirmed
+  message, « Envoi… » (loader-circle turning only without `prefers-reduced-motion`, dimmed bubble) while the send is
+  confirmed, « Non envoyé · Réessayer l'envoi » (circle-alert, lib link `Button` with refresh-cw, dashed error border)
+  after a failure. Each change is spoken by a polite live region of the thread. A retry sends the same message once
+  (one attempt per conversation; a composer send of a message the bubble already delivered writes nothing); the
+  composer keeps its draft until a send is confirmed (MAIR-370) and releases it when the bubble delivered it unchanged.
+  Only the thread scrolls: the composer keeps its height.
+- **« Plus d'actions » (MAIR-1163).** The header menu is a lib `DropdownMenu` (keyboard: Entrée / Espace / ↓ to open,
+  ↑ ↓ Début Fin, Échap and outside click to close, focus back on the button). Direct: « Marquer les messages comme
+  lus », « Rechercher dans la conversation », « Créer un groupe avec <personne> » (opens « Créer un groupe » with the
+  person preselected); group: « Marquer comme lus », « Rechercher dans la conversation », « Gérer les membres »; then
+  « Supprimer la conversation » (danger, separated). Search and members only appear once wired (MAIR-1164, MAIR-1165).
+  « Marquer comme lus » acknowledges up to the last message, so the list and navigation counters reach zero. The
+  deletion is confirmed in the lib `ConfirmModal` (danger), then the toast « Conversation supprimée. »; a failure is the
+  danger `ErrorAlert` above the module.
+- **Search in the conversation (MAIR-1164).** « Rechercher dans la conversation » (header button or « Plus
+  d'actions ») opens a lib `Drawer` (size m, focus kept inside, given back to the button on close): a search field,
+  fixed lib `Tabs` « Messages · Fichiers · Personnes » with their counters, and the results scrolling below them
+  (`GET /conversations/{id}/search`, the three tabs searched together 300 ms after the last key, older requests
+  cancelled). The matches the BFF located are highlighted in each excerpt; « Afficher plus de résultats » loads the
+  next page. Choosing a message closes the panel, scrolls the thread smoothly to it (instantly under reduced motion)
+  and highlights it for two seconds; « Écrire » of a person opens the direct conversation with them, or « Nouveau
+  message » to them. Loading, error (with « Réessayer ») and no result are lib `DataState`s. The files tab stays empty
+  while the BFF stores no attachment.
+- **Group members (MAIR-1165).** The header of a group shows a lib `AvatarGroup` « N membres, gérer les membres »
+  (also « Gérer les membres » in « Plus d'actions »), which opens the lib `Drawer` « Membres du groupe »
+  (`GET /conversations/{id}/members`, read when the panel opens and again when the size of the group changes). Every
+  member is listed with their service and the « Administrateur » badge (lib `Tag`); the administrator of the group
+  (`canManage`) also gets « Ajouter des membres » (search the directory, tick with lib `Checkbox`, validate) and
+  « Retirer » per member; these actions are hidden from a plain member. Everyone may « Quitter le groupe » after a lib
+  `ConfirmModal`: the conversation leaves the list and a toast confirms it. A refused action is a lib `ErrorAlert`
+  inside the panel, the selection kept. Each change adds the system note the BFF returns to the thread, centred
+  (« Vous avez ajouté Sophie Leroy au groupe. », « Paul Martin vous a retiré du groupe. »…), and the new size of the
+  group to the list; a system note is never unread nor « Envoyé ».
+- **Mentions and links (MAIR-1166).** Typing `@` (or the « Mentionner une personne » button) opens
+  `MentionSuggestions` under the sections « Tout le monde », « Groupes et services » and « Personnes »
+  (`GET /conversations/{id}/mention-suggestions`); `#` (« Lier un élément ») lists the projects, events and tasks the
+  agent may read, with their kind icon and detail (`GET /link-suggestions`). The text field is a combobox and the
+  list a listbox: ↑ ↓ move, Entrée / Tab choose, Échap closes, and the list disappears when nothing matches any more;
+  Entrée sends when no list is open. A chosen tag is frozen (followed by a space, what is typed next is plain text).
+  The send carries `mentionIds`, `mentionEveryone`, `groupMentionIds` and `links`. In the bubbles the tags are
+  emphasised in the accent colour, and a linked element with a page (`url` from the BFF) is a lib `Link` that opens
+  it. A mentioned person has no page to open yet: their tag stays emphasised.
+- **Message actions and reply (MAIR-1167).** Hovering a bubble, giving it the keyboard focus (each bubble with actions
+  is focusable) or a long press on a touch screen shows `MessageActionsToolbar` (lib `IconButton`s with their
+  `ToolTip`): « Réagir », « Répondre », and on my messages « Modifier » and « Supprimer ». « Répondre » shows
+  `ReplyBar` above the text field (author, excerpt, « Annuler la réponse ») and moves the focus there; the send
+  carries `replyTo` and the bar goes once the message is confirmed. A reply shows `MessageQuote` above its bubble
+  (author and excerpt from `quoted`); a click scrolls smoothly to the original and highlights it. The quote of a
+  deleted message reads « Message supprimé ».
+- **Edit a message (MAIR-1168).** « Modifier » (toolbar, my messages only) replaces the bubble with
+  `MessageEditBox`: a lib `TextArea` with the same `@` / `#` buttons and suggestions as the composer (the tags of the
+  message stay tags), the help « Échap pour annuler · Entrée pour enregistrer », Annuler and Enregistrer (disabled
+  while the text is empty or unchanged). The save (`PATCH /conversations/{id}/messages/{messageId}`, every tag field
+  sent so that a removed tag goes) replaces the message; its time is then followed by « · modifié ». A refusal is a
+  lib `ErrorAlert` under the box, the text kept.
+- **Delete a message (MAIR-1169).** « Supprimer » (toolbar, my messages only) opens the lib `ConfirmModal` (danger)
+  « Supprimer le message ? » / « Le message sera remplacé par « Message supprimé » pour tous les participants. ».
+  Once confirmed (`DELETE /conversations/{id}/messages/{messageId}`), `DeletedMessage` (ban icon, muted italics)
+  replaces the bubble, its tags, quote and reactions; no action is offered on it any more, and the preview of the list
+  reads « Message supprimé » when it was the last message. A failure is a danger `ErrorAlert` above the thread, the
+  message kept.
+- **Reactions (MAIR-1170).** « Réagir » (toolbar) opens `ReactionPicker` (👍 ❤️ 😂 🎉 👀 🙏 ✅, lib `Button`s that take
+  the focus, ← → to move, Échap to close). `MessageReactions` shows one pill per emoji under the bubble: a toggle
+  button (`aria-pressed`, « 👍 3, dont vous »), mine highlighted, the names of the agents in its lib `ToolTip`, and
+  « Ajouter une réaction ». A click adds or removes my reaction (`POST` / `DELETE
+  /conversations/{id}/messages/{messageId}/reactions`); the reactions the BFF returns replace those of the message.
+  The other participants see them on the next refresh triggered by the `message_reacted` stream event. A failure is
+  the danger `ErrorAlert` above the thread.
+- **Empty states (MAIR-1171).** One illustrated visual per screen, from the lib 2.3 `DataState`: without any
+  conversation, the list only says « Aucune conversation pour l'instant. » and the thread shows « Commencez à
+  échanger » (size m, illustrated); with conversations but none selected, « Sélectionnez une conversation » (size m);
+  a conversation without message (a group just created) shows « Aucun message pour l'instant » (size s, icon), centred.
+  A search without result keeps « Aucune conversation trouvée. ».

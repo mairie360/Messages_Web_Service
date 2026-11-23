@@ -41,14 +41,27 @@ test('manifest and page metadata expose the branded assets', async () => {
   assert.match(html, /<span id="branding-child">Preserved child<\/span>/);
 });
 
-test('shared navigation renders the public Mairie360 logo', async () => {
-  const { layout, AppShell } = loadRootLayout(() => ({
-    layout: require('./support/load-ts.cjs').requireSrc('app/layout.tsx'),
-    AppShell: require('./support/load-ts.cjs').requireSrc('components/MessagesPage/components/MessagesWorkspace/components/AppShell/AppShell.tsx').AppShell,
-  }));
-  const React = require('react');
-  const { renderToStaticMarkup } = require('react-dom/server');
-  const shell = React.createElement(AppShell, { activeItem: 'messages' }, 'Page content');
-  const html = renderToStaticMarkup(await layout.default({children:shell}));
-  assert.ok((html.match(/<img\b[^>]*>/g) ?? []).some(tag => /\bsrc="\/mairie360-logo\.png"/.test(tag)), 'the rendered navigation contains the public brand image');
+test('MAIR-844 the shared navigation renders the lib logo and the commune name; MAIR-1156 no footer', async () => {
+  const saved = { COMMUNE_NAME: process.env.COMMUNE_NAME, APP_VERSION: process.env.APP_VERSION, LOGIN_FRONT_URL: process.env.LOGIN_FRONT_URL };
+  Object.assign(process.env, { COMMUNE_NAME: 'Villeneuve', APP_VERSION: '3.2.1', LOGIN_FRONT_URL: 'https://login.example/' });
+  try {
+    const { layout, AppShell } = loadRootLayout(() => ({
+      layout: require('./support/load-ts.cjs').requireSrc('app/layout.tsx'),
+      AppShell: require('./support/load-ts.cjs').requireSrc('components/MessagesPage/components/MessagesWorkspace/components/AppShell/AppShell.tsx').AppShell,
+    }));
+    const React = require('react');
+    const { renderToStaticMarkup } = require('react-dom/server');
+    const { mairie360LogoSrc } = require('@mairie360/lib-components/shell');
+    const shell = React.createElement(AppShell, { activeItem: 'messages' }, 'Page content');
+    const html = renderToStaticMarkup(await layout.default({children:shell}));
+    const band = html.match(/<aside\b[^>]*class="app-desktop-navigation"[\s\S]*?<\/aside>/)?.[0] ?? '';
+    const logo = band.match(/<img\b[^>]*class="app-navigation-logo"[^>]*>/)?.[0] ?? '';
+    assert.ok(logo.includes(`src="${mairie360LogoSrc}"`), 'the band shows the lib logo');
+    assert.doesNotMatch(band, /mairie360-logo\.png/);
+    assert.match(band, /Commune de<\/span><span class="app-navigation-commune-name">Villeneuve<\/span>/);
+    // MAIR-1156: the page base has no footer, so neither the version nor the legal links are rendered.
+    assert.doesNotMatch(html, /<footer\b|Version 3\.2\.1|mentions-legales/);
+  } finally {
+    for (const [key, value] of Object.entries(saved)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  }
 });

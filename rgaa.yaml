@@ -121,7 +121,7 @@ states:
     route: /
     steps:
       - wait_for: { role: heading, name: Équipe accueil }
-      - fill: { role: searchbox, name: Rechercher un contact, value: zzz }
+      - fill: { role: searchbox, name: Rechercher une conversation, value: zzz }
       - wait_for: { text: Aucune conversation trouvée. }
   - id: new-message-dialog
     description: '"Nouveau message" dialog open'
@@ -129,7 +129,9 @@ states:
     route: /
     steps:
       - wait_for: { role: heading, name: Équipe accueil }
-      - click: { role: button, name: Nouveau message }
+      # MAIR-1157: « Nouveau message » is an entry of the « + » menu of the list.
+      - click: { role: button, name: Nouvelle conversation }
+      - click: { role: menuitem, name: Nouveau message }
       - wait_for: { role: dialog }
       - wait_for: { label: Destinataire }
   - id: create-group-dialog
@@ -138,7 +140,8 @@ states:
     route: /
     steps:
       - wait_for: { role: heading, name: Équipe accueil }
-      - click: { role: button, name: Créer un groupe }
+      - click: { role: button, name: Nouvelle conversation }
+      - click: { role: menuitem, name: Créer un groupe }
       - wait_for: { role: dialog }
       - wait_for: { label: Nom du groupe }
   - id: more-actions-menu
@@ -148,14 +151,14 @@ states:
     steps:
       - wait_for: { role: heading, name: Équipe accueil }
       - click: { role: button, name: Plus d'actions }
-      - wait_for: { role: button, name: Supprimer la conversation }
+      - wait_for: { role: menuitem, name: Supprimer la conversation }
   - id: emoji-menu
     description: Emoji picker of the composer open
     as: agent
     route: /
     steps:
       - wait_for: { role: heading, name: Équipe accueil }
-      - click: { role: button, name: Ajouter une réaction }
+      - click: { role: button, name: Insérer un emoji }
       - wait_for: { role: button, name: Ajouter 👍 }
   - id: mention-suggestions
     description: Mention suggestions of the composer open
@@ -163,8 +166,8 @@ states:
     route: /
     steps:
       - wait_for: { role: heading, name: Équipe accueil }
-      - click: { role: button, name: Mentionner un utilisateur }
-      - wait_for: { role: button, name: "@Camille Martin" }
+      - click: { role: button, name: Mentionner une personne }
+      - wait_for: { role: option, name: "@Camille Martin" }
   - id: conversation-not-found
     description: Unknown conversation requested in the URL (error message, role="alert")
     as: agent
@@ -176,8 +179,9 @@ states:
     as: newcomer
     route: /
     steps:
-      - wait_for: { text: Aucune conversation trouvée. }
-      - wait_for: { text: Aucune conversation, exact: true }
+      # MAIR-1171: the empty list and the thread each say so.
+      - wait_for: { text: Aucune conversation pour l’instant. }
+      - wait_for: { text: Commencez à échanger }
   - id: message-sent
     description: A message sent in the composer, shown in the conversation
     as: writer
@@ -185,6 +189,7 @@ states:
     steps:
       # The writer's only conversation, a direct one with user 3: titled after that member.
       - wait_for: { role: heading, name: Contact Sample }
-      - fill: { role: textbox, name: Écrire un message, value: "Merci, je m'en occupe." }
+      - fill: { role: combobox, name: Écrire un message, value: "Merci, je m'en occupe." }
       - click: { role: button, name: Envoyer, exact: true }
-      - wait_for: { text: "Merci, je m'en occupe." }
+      # The text is in the thread and in the preview of the list: wait for the thread's status.
+      - wait_for: { text: Message envoyé., exact: true }

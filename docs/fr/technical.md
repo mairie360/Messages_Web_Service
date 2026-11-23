@@ -179,6 +179,8 @@ Les valeurs ci-dessous sont des exemples locaux ou des comportements expliciteme
 | `EMAIL_FRONT_URL` | — | Destination de navigation; voir le fichier source qui la lit. Les variables injectées par `next.config.ts` ou préfixées `NEXT_PUBLIC_` sont publiques et prises en compte lors du build. |
 | `FILES_FRONT_URL` | — | Destination de navigation; voir le fichier source qui la lit. Les variables injectées par `next.config.ts` ou préfixées `NEXT_PUBLIC_` sont publiques et prises en compte lors du build. |
 | `LOGIN_FRONT_URL` | — | Destination de navigation; voir le fichier source qui la lit. Les variables injectées par `next.config.ts` ou préfixées `NEXT_PUBLIC_` sont publiques et prises en compte lors du build. |
+| `COMMUNE_NAME` | — | Optionnelle, lue à chaque requête par `src/lib/shell-info.ts` (MAIR-844) : nom de la commune affiché sous « Commune de » à côté du logo de la lib. Sans elle, le libellé de la lib reste affiché. |
+| `APP_VERSION` | — | Optionnelle, lue à chaque requête (MAIR-844) : version affichée dans le pied de page. |
 | `MESSAGE_FRONT_URL` | — | Destination de navigation; voir le fichier source qui la lit. Les variables injectées par `next.config.ts` ou préfixées `NEXT_PUBLIC_` sont publiques et prises en compte lors du build. |
 | `PROJECT_FRONT_URL` | — | Destination de navigation; voir le fichier source qui la lit. Les variables injectées par `next.config.ts` ou préfixées `NEXT_PUBLIC_` sont publiques et prises en compte lors du build. |
 

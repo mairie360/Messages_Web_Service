@@ -7,6 +7,8 @@ import type {
   PostDirectMessagesBody,
   PostGroupsBody,
   PostConversationsConversationIdReadBody,
+  GetConversationsConversationIdSearchParams,
+  PatchConversationsConversationIdMessagesMessageIdBody,
 } from "@mairie360/bff-message-openapi/model";
 import { bffMessage } from "../lib/bff-client";
 
@@ -61,6 +63,60 @@ export const messageClient = {
       throw new Error("L’acquittement des messages n’a pas été confirmé.");
     }
     return reply;
+  },
+
+  /** MAIR-1168: edit one of my messages (text and tags); the answer is the message after the edit. */
+  async editMessage(conversationId: MessageId, messageId: MessageId, body: PatchConversationsConversationIdMessagesMessageIdBody) {
+    return (await bffMessage.patchConversationsConversationIdMessagesMessageId(encodeId(conversationId), encodeId(messageId), body)).data;
+  },
+
+  /** MAIR-1169: delete one of my messages; the answer is its tombstone (`deleted: true`). */
+  async deleteMessage(conversationId: MessageId, messageId: MessageId) {
+    return (await bffMessage.deleteConversationsConversationIdMessagesMessageId(encodeId(conversationId), encodeId(messageId))).data;
+  },
+
+  /** MAIR-1170: add my reaction with `emoji`; the answer is every reaction of the message. */
+  async addReaction(conversationId: MessageId, messageId: MessageId, emoji: string) {
+    return (await bffMessage.postConversationsConversationIdMessagesMessageIdReactions(encodeId(conversationId), encodeId(messageId), { emoji })).data;
+  },
+
+  /** MAIR-1170: remove my reaction with `emoji`. */
+  async removeReaction(conversationId: MessageId, messageId: MessageId, emoji: string) {
+    return (await bffMessage.deleteConversationsConversationIdMessagesMessageIdReactions(encodeId(conversationId), encodeId(messageId), { emoji })).data;
+  },
+
+  /** MAIR-1166: what the agent may mention after `@` in a conversation. */
+  async getMentionSuggestions(conversationId: MessageId, q: string, signal?: AbortSignal) {
+    return (await bffMessage.getConversationsConversationIdMentionSuggestions(encodeId(conversationId), { q }, { signal })).data;
+  },
+
+  /** MAIR-1166: the projects, events and tasks the agent may link after `#`. */
+  async getLinkSuggestions(q: string, signal?: AbortSignal) {
+    return (await bffMessage.getLinkSuggestions({ q }, { signal })).data;
+  },
+
+  /** MAIR-1165: the members of a conversation and whether the agent may manage them. */
+  async getMembers(conversationId: MessageId, signal?: AbortSignal) {
+    return (await bffMessage.getConversationsConversationIdMembers(encodeId(conversationId), { signal })).data;
+  },
+
+  /** MAIR-1165: add agents to a group; the answer carries the system note of the change. */
+  async addMembers(conversationId: MessageId, userIds: MessageId[]) {
+    return (await bffMessage.postConversationsConversationIdMembers(encodeId(conversationId), { userIds })).data;
+  },
+
+  async removeMember(conversationId: MessageId, userId: MessageId) {
+    return (await bffMessage.deleteConversationsConversationIdMembersUserId(encodeId(conversationId), encodeId(userId))).data;
+  },
+
+  /** MAIR-1165: leave a group (204). */
+  async leaveConversation(conversationId: MessageId) {
+    await bffMessage.postConversationsConversationIdLeave(encodeId(conversationId));
+  },
+
+  /** MAIR-1164: one page of the messages, files or people of a conversation matching `q`. */
+  async searchConversation(conversationId: MessageId, params: GetConversationsConversationIdSearchParams, signal?: AbortSignal) {
+    return (await bffMessage.getConversationsConversationIdSearch(encodeId(conversationId), params, { signal })).data;
   },
 
   async uploadAttachments(files: File[]) {

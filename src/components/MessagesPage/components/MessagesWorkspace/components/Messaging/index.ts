@@ -4,3 +4,7 @@ export * from './messaging-style';
 export * from './messaging-types';
 export * from './use-visible-messages-read';
 export * from './visible-message';
+export * from './use-menu-keyboard';
+export * from './use-send-attempts';
+export * from './reveal-message';
+export * from './use-tag-suggestions';

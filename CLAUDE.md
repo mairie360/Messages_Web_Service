@@ -89,7 +89,83 @@ and agree the mockup first, then code it: the sync direction is Figma → code.
 
 ## Architecture
 
-- **Messaging components owned here (MAIR-607) and laid out as a component tree (MAIR-608)** — `src/components/MessagesPage/` is the single root (see *Component tree convention*): `MessagesPage.tsx` (the former `app/messages-client.tsx`, imported by `src/app/page.tsx`) owns `use-messaging-controller.ts` (reads, SSE reception, drafts, mutations) and renders `components/MessagesWorkspace/` (+ `messaging-scroll-regions.ts`; `components/{AppShell,MobileConversationSwitch,Messaging}/`). `Messaging/` owns `messaging-model.ts`, `use-visible-messages-read.ts`, `visible-message.ts`, `messaging-types.ts`, `messaging-style.ts` and composes `components/`: `MessagingSidebar/` (+ `filter-conversations.ts`; `components/{SidebarHeader,ConversationSearch,ConversationList/components/MessagingConversationItem}/`), `MessagingChatHeader/components/{HeaderIdentity,HeaderIconButton,ConversationActionsMenu}/`, `MessageThread/components/MessagingMessageBubble/` (+ `bubble-model.ts`; `components/{MentionedContent,BubbleReferences,BubbleAttachments}/`), `ConversationComposers/components/MessagingComposer/` (+ `composer-text.ts`; `components/{ComposerSuggestions,ComposerAttachmentChips,ComposerToolbar/components/EmojiPicker}/`), `UnreadNotificationsBar/`, `ReadFailureAlert/`, `ContextReferenceBar/`, `NewMessageModal/components/{RecipientSelect,MessageTextArea}/`, `CreateGroupModal/` (+ `group-members.ts`; `components/{GroupDetailsFields,GroupMemberPicker}/`), and the shared `MessagingModalFrame/` (lib `Modal`), `MessagingContactAvatar/`, `BusinessReferenceIcon/`. Every component has its co-located `Name.test.tsx`; `tests/component-tree-convention.test.cjs` checks the tree.
+- **V2 screen (epic MAIR-821)** — lib pin `2.3.0` (recorded in `tests/fixtures/shared-ui-releases.json`), always
+  light (`layout.tsx` renders `data-theme="light"`, MAIR-933). **Frame (MAIR-838):** `AppShell` passes
+  `mainLayout="fill"` to the lib `AccessibleShell` (the lib main area is a bounded flex column with 20px / 24px
+  padding) and no class of its own; `src/app/app-shell.css` holds only `.messages-*` module rules
+  (`tests/messages-layout.test.cjs` refuses any selector on the lib frame, `html`/`body` or a font override).
+  The desktop band is the lib `DesktopNavigation`; `Sidebar` only renders in the mobile drawer.
+  **Shell (MAIR-844):** the root layout reads the optional `COMMUNE_NAME` / `APP_VERSION` (`src/lib/shell-info.ts`)
+  into `ShellInfoProvider` (`src/lib/shell-info-provider.tsx`); `AppShell` passes `sidebarProps.brandLabel` (the lib
+  logo is the default, no `brandLogoSrc`), `sidebarProps.items` = `navigationItems(unreadCount)` (lib items, badge on
+  « Messagerie » = `totalUnread(displayedConversations)`) and `footerProps { version, legalLinks }` (Login front
+  `/mentions-legales` and `/confidentialite`).
+  **Start states (MAIR-847):** `MessagesWorkspace/components/MessagesBootstrapState/` = lib `Card`
+  (`aria-labelledby="messages-bootstrap-title"`, `aria-busy`), `PageTitle`, `ErrorAlert` (bootstrap error), status
+  `Text`, `Skeleton` while loading and `RetryButton` (`loading` → disabled « Chargement en cours… »).
+  **Notices (MAIR-854):** `MessagesWorkspace/components/MessagesNotices/`: `error` → closable `ErrorAlert`
+  (`dismissError` of the controller), `syncError` → `ErrorAlert` without close, deletion and `threadPlaceholder` →
+  info `Alert role="status"`. No `.messages-error` / `.messages-operation-status` class any more; page tests read the
+  errors through `view.find('ErrorAlert')` titles.
+  **Reception (MAIR-860, replaced by MAIR-1161):** `MessagesWorkspace/components/MessagesReceptionDelayed/` shows
+  nothing unless `streamState === 'offline'`, then a lib `WarningAlert size="s"` « Réception des messages retardée » with
+  « Réessayer la réception » (`onAction` = `retryReception`) inside an always mounted `aria-live="polite"` div
+  (`empty:-mb-3` cancels the stack gap). The `ReceptionStatus` pill and `reception-status.ts` are gone; reconnection
+  catches up through the stream cursor (`tests/message-stream.test.cjs`) and the controller's refresh on `connected`.
+  **Toasts (MAIR-865):** `MessagesWorkspace` wraps the shell in the lib `ToastProvider` (`placement="bottom-end"`,
+  region « Notifications de la messagerie »); `MessagesWorkspace/components/FeedbackToast/` hands each `feedback` to
+  `toast.success` then calls `dismissFeedback`. The provider keeps two hidden live regions (`role="status"` /
+  `role="alert"`) mounted: page tests strip them with `withoutToastRegions` (`tests/support/fixtures.cjs`).
+  `server-view.cjs` and `browser.cjs` stub `document.hasFocus` / `visibilityState` (and `HTMLElement`,
+  `querySelector` for the footer lookup) for it.
+  **Empty states (MAIR-870):** `MessagingChatHeader` (no conversation), `ConversationList` (`data-empty-state`),
+  `GroupMemberPicker` and `MessageThread`'s `ThreadPlaceholder` (string → muted `Text`, element such as the
+  workspace's `DataState` → as is) use the lib `Text`; texts unchanged, the search stays a local filter.
+  **Composer icons (MAIR-872):** every lucide glyph of `MessagingComposer/` goes through the lib `Icon` (`size="s"`), no
+  `size-*` / `strokeWidth`; `tests/mair-872-composer-icons.test.cjs` scans the folder.
+  **Dialogs (MAIR-878):** `MessagingModalFrame` = lib `Modal size="s"`. `NewMessageModal` now has `closeDisabled` /
+  disabled « Annuler » while sending and a `sendFailed` `ErrorAlert` (reject or `false`), like `CreateGroupModal`'s
+  `creationFailed`; inputs are kept. `GroupMemberPicker`'s legend « Membres » is a lib `Text`.
+  **Page base (MAIR-1156):** lib 2.3.0: `AppShell` passes `showFooter={false}` (no footer on the page base), the
+  navigation total is the lib item `count` (its `Counter`, « 9+ » above 9, named « Messagerie, N à traiter »), the
+  sr-only `h1` is gone and `SidebarHeader` renders the page `h1` (lib `PageTitle`); the module card has the
+  `--mairie-radius-l` radius.
+  **List (MAIR-1157):** `SidebarHeader/components/NewConversationMenu/` = lib `ToolTip` + `IconButton` « + » + lib
+  `DropdownMenu`; lib 2.3 `DropdownMenu` has no roles nor arrow keys, so `Messaging/use-menu-keyboard.ts` adds them
+  (`role="menu"`/`menuitem`, ↑ ↓ Début Fin, Entrée / Espace, Échap / Tab close, focus back to the trigger before a
+  dialog reads its opener). `ConversationSearch` = lib `SearchField`; `MessagingConversationItem` = truncated name /
+  preview, fixed time column, decorative lib `Counter` + sr-only « N messages non lus »; `MessagingContactAvatar` = lib
+  `Avatar` + presence dot. Page tests open the dialogs through the menu (`tests/messages-modal-focus.test.cjs`, e2e).
+  **Icons (MAIR-1158):** no lucide element is rendered directly in `Messaging/` (`tests/mair-1158-explicit-icons.test.cjs`);
+  glyphs come from the lib 2.3 `icons` map (or lucide for the ones it lacks) through `Icon` / `IconButton`.
+  `HeaderIconButton` = lib `ToolTip` + `IconButton`, `unavailable` = `aria-disabled` + tooltip « … · bientôt
+  disponible » (calls / visio; `onCall` / `onVideoCall` are gone), `onSearchConversation` shows « Rechercher dans la
+  conversation ». Composer labels: « Mentionner une personne », « Lier un élément », « Insérer un emoji ».
+  `MessagingBusinessReferenceKind` also has `folder` and `service`.
+  **Own bubbles (MAIR-1159):** `MessagingMessageBubble` (`data-direction`) and its chips use the lib tokens
+  `--mairie-message-own-{background,on,border}`, never a local colour; the time is above the bubble
+  (`tests/mair-1159-own-bubbles.test.cjs` checks the tokens and the 4.5:1 contrast).
+  **Unread (MAIR-1160):** `UnreadNotificationsBar` is removed. `Messaging` derives `unreadMessageIds` (last
+  `unreadCount` messages of others) and passes `conversationKey` / `unreadIds` / `onRead` (= `readVisibleMessages`) to
+  `MessageThread`, whose `use-unread-tracking.ts` places the thread at opening (programmatic, `scrollTo` `auto`), renders
+  `NewMessagesSeparator` (lib `Divider`) and `UnreadMessagesPill` (lib `Button` in a sticky `role="status"`), and reads
+  only on an agent scroll (wheel / touch / pointer / key / pill) reaching the end, or at opening without scroll.
+  **Send status (MAIR-1162):** `Messaging/use-send-attempts.ts` wraps `onSendMessage`: one attempt per conversation shown
+  as a pending bubble (`attemptMessage`, no `data-messaging-message-id`) after the thread, `sendStatus` `sending` / `failed`,
+  `retry` resends the same payload and `released` lets `MessagingComposer` (`releaseDraft`) drop an unchanged draft;
+  `withSentStatus` puts « Envoyé » under the last own server message. `MessageSendStatus` is under the bubble; the thread
+  has a sr-only `role="status"` for `sendAnnouncement`. `MessagingMessage.sendStatus` is optional.
+  **Actions menu (MAIR-1163):** `ConversationActionsMenu` = `HeaderIconButton` (forwards the `use-menu-keyboard` trigger
+  props) + lib `DropdownMenu` + lib `ConfirmModal role="alertdialog"` for the deletion; optional `onSearch` /
+  `onManageMembers` (shown only when given), `onCreateGroupWith` (direct, `Messaging` opens `CreateGroupModal` with
+  `directContactIds` preselected; `MessagingConversation.contactId` is optional). The menu read calls
+  `readVisibleMessages(conversation, { untilLast: true })`; the deletion feedback is « Conversation supprimée. ».
+  **Empty states (MAIR-1171):** `MessagesWorkspace` passes `emptyStateLabel` only while a thread is being opened; otherwise
+  `MessageThread` picks a lib `DataState` from `conversationCount` (« Commencez à échanger » / « Sélectionnez une
+  conversation », size m) and « Aucun message pour l’instant » (size s) for an empty thread; `MessagingSidebar` shows
+  `noConversationsLabel` (« Aucune conversation pour l’instant. ») for an empty list. Page tests wait for
+  `emptyStateLabel === undefined`.
+- **Messaging components owned here (MAIR-607) and laid out as a component tree (MAIR-608)** — `src/components/MessagesPage/` is the single root (see *Component tree convention*): `MessagesPage.tsx` (the former `app/messages-client.tsx`, imported by `src/app/page.tsx`) owns `use-messaging-controller.ts` (reads, SSE reception, drafts, mutations) and renders `components/MessagesWorkspace/` (+ `messaging-scroll-regions.ts`; `components/{AppShell,MobileConversationSwitch,Messaging}/`). `Messaging/` owns `messaging-model.ts`, `use-visible-messages-read.ts`, `visible-message.ts`, `messaging-types.ts`, `messaging-style.ts` and composes `components/`: `MessagingSidebar/` (+ `filter-conversations.ts`; `components/{SidebarHeader/components/NewConversationMenu,ConversationSearch,ConversationList/components/MessagingConversationItem}/`), `MessagingChatHeader/components/{HeaderIdentity,HeaderIconButton,ConversationActionsMenu}/`, `MessageThread/components/{MessagingMessageBubble,NewMessagesSeparator,UnreadMessagesPill}/` (+ `use-unread-tracking.ts`; the bubble owns `bubble-model.ts` and `components/{MentionedContent,BubbleReferences,BubbleAttachments}/`), `ConversationComposers/components/MessagingComposer/` (+ `composer-text.ts`; `components/{ComposerSuggestions,ComposerAttachmentChips,ComposerToolbar/components/EmojiPicker}/`), `ReadFailureAlert/`, `ContextReferenceBar/`, `NewMessageModal/components/{RecipientSelect,MessageTextArea}/`, `CreateGroupModal/` (+ `group-members.ts`; `components/{GroupDetailsFields,GroupMemberPicker}/`), and the shared `MessagingModalFrame/` (lib `Modal`), `MessagingContactAvatar/`, `BusinessReferenceIcon/`. Every component has its co-located `Name.test.tsx`; `tests/component-tree-convention.test.cjs` checks the tree.
 - **Shell from the lib (MAIR-578)** — `src/components/MessagesPage/components/MessagesWorkspace/components/AppShell/AppShell.tsx` wraps the lib `AccessibleShell` (`@mairie360/lib-components/shell`) with the session/logout binding; `src/lib/front-urls-provider.tsx` uses the lib `configureSidebarCookieDomain`. No local `accessible-shell.tsx`, `desktop-navigation.tsx` or `sidebar-preference.ts` (pinned by `tests/lib-shell-adoption.test.cjs`).
 
 - **Shared shell and profile routing (MAIR-180)** — the frontend adapter in
@@ -136,7 +212,7 @@ Same pattern as the APIs/BFFs, adapted to a web front. Not part of `npm test`; t
 
 - `./e2e_test.sh` → `docker-compose-e2e.yml`: the performance stack with a `playwright` service (`mcr.microsoft.com/playwright`, same version as the `@playwright/test` pinned in `e2e/package.json`, which `tests/e2e-policy.test.cjs` checks) in place of k6. The runner shares the network of `message-front` and opens `http://localhost:5003`: Chromium treats localhost as a secure context, so it keeps the `Secure` session cookies and sends the `Sec-Fetch-Site` header the same-origin guards require, which `http://message-front:5003` would not. It runs as the caller (`E2E_UID` / `E2E_GID`, exported by the script), copies `e2e/` to `/tmp/work`, runs `npm ci` there (public registry, no `NODE_AUTH_TOKEN`) and `npx playwright test`, then the stack is torn down. The report lands in `e2e-report/` (HTML, `results.json` for the promotion summary, traces and videos of the failed journeys; gitignored). `TARGET_IMAGE` tests a published or pre-built front image.
 - Local iterations: `npm run e2e:install` once (Chromium), then `docker compose -f docker-compose-e2e.yml up -d message-front` and `E2E_BASE_URL=http://localhost:${E2E_FRONT_PORT:-5003} npm run e2e` (or `npx --prefix e2e playwright test --config e2e/playwright.config.ts --ui`), same origin as in the stack. Tear down with `docker compose -f docker-compose-e2e.yml down -v` before a new run: the journeys expect a fresh seed. Never run this stack next to the performance or security one of the same front (same container names).
-- Sessions: `e2e/support/session.ts` signs an `accessToken` cookie with the stack's `JWT_SECRET` (claims `sub`, `role`, `exp`, as Login issues it) for the seeded users of `init-test.sql`; `e2e/messages.spec.ts`: user 2 sends a direct message to user 3 (« Contact Sample », already in the seed), user 4 (« Agent Externe », added for MAIR-603) takes part in no conversation. Journeys: the message creates the conversation (`POST /direct-messages`, « Message direct créé. »), user 3 reads it, user 4 sees « Aucune conversation trouvée. » and gets 403/404 on its messages. The journeys share no variable (a failure restarts the worker): the message carries `E2E_RUN_ID`, set once in `playwright.config.ts`, and the refusal reads the conversation id from the recipient's list. The page is server-rendered first: « Nouveau message » is clicked until its dialog opens. BFF Message 1.1.0 answered the new conversation as `conversation-<n>` and `message.conversationId` as `<n>`, so the front showed « La création du message direct n’a pas été confirmée. » although the message was saved; mairie360/BFF_Message#250 (MAIR-603) fixed it, and the stacks pin `bff-message:dev-cdd75eb` with the matching `0.0.0-dev.cdd75eb…` contract package until a release carries it. One worker, in file order. The texts asserted are the French UI ones: keep them in sync when a label changes.
+- Sessions: `e2e/support/session.ts` signs an `accessToken` cookie with the stack's `JWT_SECRET` (claims `sub`, `role`, `exp`, as Login issues it) for the seeded users of `init-test.sql`; `e2e/messages.spec.ts`: user 2 sends a direct message to user 3 (« Contact Sample », already in the seed), user 4 (« Agent Externe », added for MAIR-603) takes part in no conversation. Journeys: the message creates the conversation (`POST /direct-messages`, « Message direct créé. »), user 3 reads it, user 4 sees « Aucune conversation pour l’instant. » and « Commencez à échanger » (MAIR-1171) and gets 403/404 on its messages. The journeys share no variable (a failure restarts the worker): the message carries `E2E_RUN_ID`, set once in `playwright.config.ts`, and the refusal reads the conversation id from the recipient's list. The page is server-rendered first: « Nouveau message » is clicked until its dialog opens. BFF Message 1.1.0 answered the new conversation as `conversation-<n>` and `message.conversationId` as `<n>`, so the front showed « La création du message direct n’a pas été confirmée. » although the message was saved; mairie360/BFF_Message#250 (MAIR-603) fixed it, and the stacks pin `bff-message:dev-cdd75eb` with the matching `0.0.0-dev.cdd75eb…` contract package until a release carries it. One worker, in file order. The texts asserted are the French UI ones: keep them in sync when a label changes.
 
 ## Pull request reviewers
 

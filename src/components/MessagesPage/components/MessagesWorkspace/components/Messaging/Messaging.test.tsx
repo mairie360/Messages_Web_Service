@@ -28,16 +28,22 @@ const DemoMessaging = (props: ComponentProps<typeof Messaging>) => (
   />
 );
 
+/** MAIR-1157: « Nouveau message » and « Créer un groupe » live in the « + » menu of the list. */
+const openFromNewConversationMenu = (name: string) => {
+  fireEvent.click(screen.getByRole('button', { name: 'Nouvelle conversation' }));
+  fireEvent.click(screen.getByRole('menuitem', { name }));
+};
+
 describe('Messaging components', () => {
   it('renders no demo content or unsupported actions by default', () => {
     render(<Messaging />);
 
     expect(screen.getByRole('heading', { name: 'Messagerie' })).toBeInTheDocument();
-    expect(screen.getByText('Aucune conversation trouvée.')).toBeInTheDocument();
-    expect(screen.getByText('Sélectionnez une conversation pour commencer.')).toBeInTheDocument();
+    // MAIR-1171: a short text in the list, the illustrated state in the thread only.
+    expect(screen.getByText('Aucune conversation pour l’instant.')).toBeInTheDocument();
+    expect(screen.getByText('Commencez à échanger')).toBeInTheDocument();
     expect(screen.queryByText('Marie Dubois')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Nouveau message' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Créer un groupe' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nouvelle conversation' })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText('Tapez votre message...')).toBeDisabled();
   });
 
@@ -55,7 +61,7 @@ describe('Messaging components', () => {
     expect(screen.getByText('Parfait, quelles sont vos conclusions ?')).toBeInTheDocument();
   });
 
-  it('shows a full conversation name above the timestamp without losing metadata or selection', () => {
+  it('MAIR-1157 truncates a long conversation name beside its timestamp without losing metadata or selection', () => {
     const onClick = vi.fn();
     const name = 'Équipe de coordination du projet de rénovation des bâtiments municipaux';
     render(
@@ -75,11 +81,10 @@ describe('Messaging components', () => {
 
     const item = screen.getByRole('button', { name: /Équipe de coordination du projet/ });
     const nameElement = screen.getByText(name);
-    expect(nameElement).toHaveClass('break-words');
-    expect(nameElement).not.toHaveClass('truncate');
-    expect(nameElement.parentElement?.parentElement).toHaveClass('flex-col');
+    // MAIR-1157: one truncated line for the name (full name kept in the accessible name), the time beside it.
+    expect(nameElement).toHaveClass('truncate');
+    expect(item).toHaveAccessibleName(expect.stringContaining(name));
     expect(item).toHaveTextContent('27/09 14:42');
-    expect(item).toHaveTextContent('Services techniques');
     expect(item).toHaveTextContent('Réunion confirmée');
     expect(item).toHaveTextContent('3');
     item.focus();
@@ -91,7 +96,7 @@ describe('Messaging components', () => {
   it('filters conversations from the sidebar search', () => {
     render(<DemoMessaging />);
 
-    fireEvent.change(screen.getByPlaceholderText('Rechercher un contact...'), {
+    fireEvent.change(screen.getByPlaceholderText('Rechercher une conversation'), {
       target: { value: 'Sophie' },
     });
 
@@ -103,7 +108,7 @@ describe('Messaging components', () => {
     const handleConversationSelect = vi.fn();
     render(<DemoMessaging onConversationSelect={handleConversationSelect} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Pierre Martin\s*Urbanisme/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Pierre Martin/ }));
 
     expect(handleConversationSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'pierre-martin' }));
     expect(screen.getByRole('heading', { name: 'Pierre Martin' })).toBeInTheDocument();
@@ -153,22 +158,27 @@ describe('Messaging components', () => {
     expect(screen.getAllByText('Message reçu en différé')[0]).toBeInTheDocument();
   });
 
-  it('surfaces messaging notifications from unread conversations', () => {
-    render(<DemoMessaging />);
-
-    expect(screen.getByRole('status', { name: 'Notifications de messagerie' })).toHaveTextContent(
-      '6 notifications non lues'
-    );
+  it('MAIR-1160 drops the unread banner: the thread shows the separator and the pill of the open conversation', () => {
+    const conversation = { id: 'c1', name: 'Conseil municipal – élus', kind: 'group' as const, unreadCount: 2 };
+    const thread = [
+      { id: 'a', conversationId: 'c1', content: 'Ancien', authorId: 'u2' },
+      { id: 'b', conversationId: 'c1', content: 'Nouveau 1', authorId: 'u2' },
+      { id: 'c', conversationId: 'c1', content: 'Nouveau 2', authorId: 'u2' },
+    ];
+    render(<Messaging conversations={[conversation]} messages={thread} activeConversationId="c1" currentUserId="me" />);
+    expect(screen.queryByRole('status', { name: 'Notifications de messagerie' })).toBeNull();
+    expect(screen.queryByText(/notifications? non lues?/)).toBeNull();
+    expect(screen.getByRole('separator', { name: 'Nouveaux messages' }).nextElementSibling).toHaveAttribute('data-messaging-message-id', 'b');
   });
 
   it('opens the correct modal from each sidebar icon', () => {
     render(<DemoMessaging />);
 
-    fireEvent.click(screen.getByLabelText('Nouveau message'));
+    openFromNewConversationMenu('Nouveau message');
     expect(screen.getByRole('dialog', { name: 'Nouveau message' })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Fermer'));
 
-    fireEvent.click(screen.getByLabelText('Créer un groupe'));
+    openFromNewConversationMenu('Créer un groupe');
     expect(screen.getByRole('dialog', { name: 'Créer un groupe' })).toBeInTheDocument();
   });
 
@@ -176,7 +186,7 @@ describe('Messaging components', () => {
     const handleNewMessageSend = vi.fn();
     render(<DemoMessaging onNewMessageSend={handleNewMessageSend} />);
 
-    fireEvent.click(screen.getByLabelText('Nouveau message'));
+    openFromNewConversationMenu('Nouveau message');
     fireEvent.change(screen.getByLabelText('Destinataire'), {
       target: { value: 'pierre-martin' },
     });
@@ -211,11 +221,11 @@ describe('Messaging components', () => {
       />
     );
 
-    fireEvent.click(screen.getByLabelText('Nouveau message'));
+    openFromNewConversationMenu('Nouveau message');
     expect(screen.getByRole('option', { name: 'Alice Martin - Urbanisme' })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Fermer'));
 
-    fireEvent.click(screen.getByLabelText('Créer un groupe'));
+    openFromNewConversationMenu('Créer un groupe');
     expect(screen.getByLabelText('Alice Martin - Urbanisme')).toBeInTheDocument();
   });
 
@@ -257,44 +267,35 @@ describe('Messaging components', () => {
     render(<DemoMessaging onConversationDelete={handleDelete} />);
 
     fireEvent.click(screen.getByLabelText("Plus d'actions"));
-    fireEvent.click(screen.getByText('Supprimer la conversation'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Supprimer la conversation' }));
+    // MAIR-1163: the deletion is confirmed first.
+    expect(handleDelete).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Supprimer' }));
 
     expect(handleDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 'marie-dubois' }));
     expect(screen.getByText('Bonjour Jean, j\'ai examiné le dossier du projet de rénovation.')).toBeInTheDocument();
     expect(screen.getAllByText('Pierre Martin')[0]).toBeInTheDocument();
   });
 
-  it('only exposes supplied call callbacks and dismisses the actions menu on outside click', () => {
-    const handleCall = vi.fn();
-    const handleVideoCall = vi.fn();
+  it('MAIR-1158 shows the calls as unavailable and dismisses the actions menu on outside click', () => {
     const handleMoreActions = vi.fn();
-    render(
-      <DemoMessaging
-        onCall={handleCall}
-        onVideoCall={handleVideoCall}
-        onMoreActions={handleMoreActions}
-        onConversationDelete={vi.fn()}
-      />
-    );
+    render(<DemoMessaging onMoreActions={handleMoreActions} onConversationDelete={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Appeler' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Appel vidéo' }));
-    expect(handleCall).toHaveBeenCalledWith(expect.objectContaining({ id: 'marie-dubois' }));
-    expect(handleVideoCall).toHaveBeenCalledWith(expect.objectContaining({ id: 'marie-dubois' }));
+    expect(screen.getByRole('button', { name: 'Appeler' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Lancer une visio' })).toHaveAttribute('aria-disabled', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: "Plus d'actions" }));
     expect(handleMoreActions).toHaveBeenCalledWith(expect.objectContaining({ id: 'marie-dubois' }));
-    expect(screen.getByRole('button', { name: 'Supprimer la conversation' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Supprimer la conversation' })).toBeInTheDocument();
     fireEvent.mouseDown(document.body);
-    expect(screen.queryByRole('button', { name: 'Supprimer la conversation' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Supprimer la conversation' })).not.toBeInTheDocument();
   });
 
   it('delegates sending without fabricating a persisted message', () => {
     const handleSendMessage = vi.fn();
     render(<Messaging conversations={[defaultMessagingConversations[0]]} onSendMessage={handleSendMessage} />);
 
-    expect(screen.queryByRole('button', { name: 'Appeler' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Appel vidéo' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Appeler' })).toHaveAttribute('aria-disabled', 'true');
     expect(screen.queryByRole('button', { name: "Plus d'actions" })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), {
@@ -307,14 +308,14 @@ describe('Messaging components', () => {
       content: 'Message en attente du serveur',
     });
     expect(screen.queryByText('Message en attente du serveur')).not.toBeInTheDocument();
-    expect(screen.getByText('Aucun message dans cette conversation.')).toBeInTheDocument();
+    expect(screen.getByText('Aucun message pour l’instant')).toBeInTheDocument();
   });
 
   it('delegates group creation without inventing a local conversation', () => {
     const handleCreateGroup = vi.fn();
     render(<Messaging conversations={[defaultMessagingConversations[0]]} onCreateGroup={handleCreateGroup} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Créer un groupe' }));
+    openFromNewConversationMenu('Créer un groupe');
     fireEvent.change(screen.getByLabelText('Nom du groupe'), { target: { value: 'Groupe test' } });
     fireEvent.click(screen.getByLabelText('Marie Dubois - Finances'));
     fireEvent.click(screen.getByRole('button', { name: 'Créer le groupe' }));
@@ -390,7 +391,7 @@ describe('Messaging components', () => {
   it('adds a system emoji to the composer', () => {
     render(<DemoMessaging />);
 
-    fireEvent.click(screen.getByLabelText('Ajouter une réaction'));
+    fireEvent.click(screen.getByLabelText('Insérer un emoji'));
     fireEvent.click(screen.getByLabelText('Ajouter 👍'));
 
     expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('👍');
@@ -444,9 +445,9 @@ describe('Messaging components', () => {
     );
     const input = screen.getByPlaceholderText('Tapez votre message...');
     fireEvent.change(input, { target: { value: '@Mar' } });
-    fireEvent.click(screen.getByRole('button', { name: /@Marie/ }));
+    fireEvent.click(screen.getByRole('option', { name: /@Marie/ }));
     fireEvent.change(input, { target: { value: '@Marie #Projet' } });
-    fireEvent.click(screen.getByRole('button', { name: /#Projet mairie/ }));
+    fireEvent.click(screen.getByRole('option', { name: /#Projet mairie/ }));
     fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
       target: { files: [new File(['draft'], 'retry.pdf', { type: 'application/pdf' })] },
     });
@@ -591,7 +592,7 @@ describe('Messaging components', () => {
   it('opens user mention suggestions from the @ toolbar button', () => {
     render(<DemoMessaging />);
 
-    fireEvent.click(screen.getByLabelText('Mentionner un utilisateur'));
+    fireEvent.click(screen.getByLabelText('Mentionner une personne'));
     expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('@');
 
     fireEvent.click(screen.getByText('@Marie Dubois'));
@@ -639,12 +640,12 @@ describe('Messaging components', () => {
     render(<MessagingComposer businessReferenceOptions={references} onSendMessage={handleSendMessage} />);
 
     fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), { target: { value: '#' } });
-    expect(screen.getByRole('button', { name: /#Conseil municipal/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /#Conseil municipal/ })).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), {
       target: { value: '#conseil muni' },
     });
-    const eventSuggestion = screen.getByRole('button', { name: /#Conseil municipal/ });
+    const eventSuggestion = screen.getByRole('option', { name: /#Conseil municipal/ });
     expect(eventSuggestion).toHaveTextContent('Événement du calendrier');
     expect(eventSuggestion).toHaveAttribute('title', 'Conseil municipal');
 
@@ -724,7 +725,7 @@ describe('Messaging components', () => {
   it('keeps the direct-message modal open for retry after a refused send', async () => {
     const onNewMessageSend = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     render(<DemoMessaging onNewMessageSend={onNewMessageSend} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Nouveau message' }));
+    openFromNewConversationMenu('Nouveau message');
     fireEvent.change(screen.getByLabelText('Destinataire'), { target: { value: 'pierre-martin' } });
     fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Bonjour Pierre' } });
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Envoyer' }));
@@ -774,7 +775,7 @@ describe('Messaging components', () => {
     if (failure === 'throw') onCreateGroup.mockImplementationOnce(() => { throw new Error('Service unavailable'); });
     onCreateGroup.mockResolvedValueOnce(true);
     render(<DemoMessaging onCreateGroup={onCreateGroup} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Créer un groupe' }));
+    openFromNewConversationMenu('Créer un groupe');
     fireEvent.change(screen.getByLabelText('Nom du groupe'), { target: { value: '  Groupe conservé  ' } });
     fireEvent.change(screen.getByLabelText('Description (optionnel)'), { target: { value: '  Description conservée  ' } });
     fireEvent.click(screen.getByLabelText('Marie Dubois - Finances'));
@@ -792,7 +793,7 @@ describe('Messaging components', () => {
     expect(onCreateGroup.mock.calls[0][0]).toEqual({
       name: 'Groupe conservé', description: 'Description conservée', memberIds: ['marie-dubois'],
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Créer un groupe' }));
+    openFromNewConversationMenu('Créer un groupe');
     expect(screen.getByLabelText('Nom du groupe')).toHaveValue('');
     expect(screen.getByLabelText('Description (optionnel)')).toHaveValue('');
     expect(screen.getByLabelText('Marie Dubois - Finances')).not.toBeChecked();
@@ -803,7 +804,7 @@ describe('Messaging components', () => {
     let resolveCreation!: (confirmed: boolean) => void;
     const onCreateGroup = vi.fn(() => new Promise<boolean>((resolve) => { resolveCreation = resolve; }));
     render(<DemoMessaging onCreateGroup={onCreateGroup} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Créer un groupe' }));
+    openFromNewConversationMenu('Créer un groupe');
     fireEvent.change(screen.getByLabelText('Nom du groupe'), { target: { value: 'Groupe en attente' } });
     fireEvent.change(screen.getByLabelText('Description (optionnel)'), { target: { value: 'Description stable' } });
     fireEvent.click(screen.getByLabelText('Marie Dubois - Finances'));
@@ -837,12 +838,362 @@ describe('Messaging components', () => {
   it.each(['synchronous void', 'asynchronous void', 'synchronous true'])('preserves successful group callback compatibility (%s)', async (result) => {
     const onCreateGroup = vi.fn(() => result === 'asynchronous void' ? Promise.resolve() : result === 'synchronous true' ? true : undefined);
     render(<DemoMessaging onCreateGroup={onCreateGroup} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Créer un groupe' }));
+    openFromNewConversationMenu('Créer un groupe');
     fireEvent.change(screen.getByLabelText('Nom du groupe'), { target: { value: 'Groupe confirmé' } });
     fireEvent.click(screen.getByLabelText('Marie Dubois - Finances'));
     fireEvent.click(screen.getByRole('button', { name: 'Créer le groupe' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(onCreateGroup).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Groupe confirmé')).not.toBeInTheDocument();
+  });
+});
+
+describe('Messaging send status (MAIR-1162)', () => {
+  const conversation = { id: 'c1', name: 'Sophie Leroy' };
+  const thread = [
+    { id: 'm1', conversationId: 'c1', content: 'Bonjour', authorId: 'u2' },
+    { id: 'm2', conversationId: 'c1', content: 'Déjà envoyé', authorId: 'me' },
+  ];
+  const deferred = () => {
+    let resolve!: (value: boolean) => void;
+    const promise = new Promise<boolean>((done) => { resolve = done; });
+    return { promise, resolve };
+  };
+  const type = (text: string) => fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), { target: { value: text } });
+  const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
+  const announcement = () => document.querySelector('.sr-only[role="status"][aria-live="polite"]');
+
+  it('shows « Envoyé » under my last confirmed message, then « Envoi… » on a dimmed bubble until the send is confirmed', async () => {
+    const pending = deferred();
+    const onSendMessage = vi.fn(() => pending.promise);
+    render(<Messaging conversations={[conversation]} messages={thread} activeConversationId="c1" currentUserId="me" onSendMessage={onSendMessage} />);
+    expect(screen.getByText('Déjà envoyé').closest('[data-messaging-message-id]')).toHaveTextContent('Envoyé');
+    type('Nouveau message'); submit();
+    const bubble = document.querySelector('[data-send-status="sending"][data-direction="outgoing"]')!;
+    expect(bubble).toHaveTextContent('Nouveau message'); expect(bubble).toHaveClass('opacity-60');
+    expect(screen.getByText('Envoi…')).toBeVisible();
+    expect(announcement()).toHaveTextContent('Envoi du message…');
+    await act(async () => { pending.resolve(true); await pending.promise; });
+    expect(document.querySelector('[data-send-status="sending"]')).toBeNull();
+    expect(announcement()).toHaveTextContent('Message envoyé.');
+    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('');
+  });
+
+  it('keeps a failed send as a dashed « Non envoyé » bubble and retries it once without duplicating, releasing the draft', async () => {
+    const retry = deferred();
+    const onSendMessage = vi.fn().mockResolvedValueOnce(false).mockImplementationOnce(() => retry.promise);
+    render(<Messaging conversations={[conversation]} messages={thread} activeConversationId="c1" currentUserId="me" onSendMessage={onSendMessage} />);
+    type('À renvoyer'); submit();
+    await waitFor(() => expect(document.querySelector('[data-send-status="failed"][data-direction="outgoing"]')).not.toBeNull());
+    const failed = document.querySelector('[data-send-status="failed"][data-direction="outgoing"]')!;
+    expect(failed.className).toContain('!border-dashed');
+    expect(screen.getByText('Non envoyé ·')).toBeVisible();
+    expect(announcement()).toHaveTextContent('Message non envoyé.');
+    // MAIR-370: the composer keeps the draft until a send is confirmed.
+    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('À renvoyer');
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer l’envoi' }));
+    expect(screen.getByText('Envoi…')).toBeVisible();
+    expect(onSendMessage).toHaveBeenCalledTimes(2);
+    expect(onSendMessage.mock.calls[1][0]).toEqual(onSendMessage.mock.calls[0][0]);
+    // A second click while it is sending does not write again.
+    expect(screen.queryByRole('button', { name: 'Réessayer l’envoi' })).toBeNull();
+    submit();
+    expect(onSendMessage).toHaveBeenCalledTimes(2);
+    await act(async () => { retry.resolve(true); await retry.promise; });
+    expect(document.querySelector('[data-send-status="failed"], [data-send-status="sending"]')).toBeNull();
+    await waitFor(() => expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue(''));
+  });
+
+  it('keeps a draft changed after the failure when the bubble retry succeeds, and never sends the delivered message twice', async () => {
+    const onSendMessage = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true).mockResolvedValue(true);
+    render(<Messaging conversations={[conversation]} messages={thread} activeConversationId="c1" currentUserId="me" onSendMessage={onSendMessage} />);
+    type('Premier'); submit();
+    await screen.findByText('Non envoyé ·');
+    type('Premier modifié');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Réessayer l’envoi' })); });
+    await waitFor(() => expect(screen.queryByText('Envoi…')).toBeNull());
+    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('Premier modifié');
+    expect(onSendMessage).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Messaging actions menu (MAIR-1163)', () => {
+  it('« Créer un groupe avec <personne> » opens the group dialog with the contact preselected', () => {
+    const direct = { id: 'c1', name: 'Sophie Leroy', kind: 'direct' as const, contactId: 'user-7' };
+    const contacts = [{ id: 'user-7', name: 'Sophie Leroy' }, { id: 'user-8', name: 'Paul Martin' }];
+    const onCreateGroupClick = vi.fn();
+    render(<Messaging conversations={[direct]} contacts={contacts} activeConversationId="c1" onCreateGroup={vi.fn()} onCreateGroupClick={onCreateGroupClick} />);
+    fireEvent.click(screen.getByRole('button', { name: "Plus d'actions" }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Créer un groupe avec Sophie Leroy' }));
+    expect(screen.getByRole('dialog', { name: 'Créer un groupe' })).toBeInTheDocument();
+    expect(onCreateGroupClick).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('checkbox', { name: /Sophie Leroy/ })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Paul Martin/ })).not.toBeChecked();
+  });
+
+  it('« Marquer comme lus » acknowledges up to the last message so that the counters reach zero', async () => {
+    const group = { id: 'g1', name: 'Conseil', kind: 'group' as const, unreadCount: 2 };
+    const thread = [
+      { id: 'a', conversationId: 'g1', content: 'Un', authorId: 'u2' },
+      { id: 'b', conversationId: 'g1', content: 'Deux', authorId: 'u2' },
+    ];
+    const onReadVisibleMessages = vi.fn(() => true);
+    render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" onReadVisibleMessages={onReadVisibleMessages} />);
+    fireEvent.click(screen.getByRole('button', { name: "Plus d'actions" }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Marquer comme lus' }));
+    await waitFor(() => expect(onReadVisibleMessages).toHaveBeenCalledWith(group, expect.objectContaining({ id: 'b' })));
+  });
+});
+
+describe('Messaging conversation search (MAIR-1164)', () => {
+  const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+  const direct = { id: 'd1', name: 'Sophie Leroy', kind: 'direct' as const, contactId: 'user-7' };
+  const thread = [
+    { id: 'm1', conversationId: 'g1', content: 'Permis signé', authorId: 'u2' },
+    { id: 'm2', conversationId: 'g1', content: 'Merci', authorId: 'u2' },
+  ];
+  const results = {
+    messages: { type: 'messages' as const, items: [{ messageId: 'm1', createdAt: '2026-06-23T12:32:00Z', excerpt: 'Permis signé', highlights: [{ start: 0, length: 6 }] }], hasMore: false, total: 1 },
+    files: { type: 'files' as const, items: [], hasMore: false, total: 0 },
+    people: { type: 'people' as const, items: [{ id: 'user-7', name: 'Sophie Leroy' }], hasMore: false, total: 1 },
+  };
+
+  it('opens the search panel from the header, then scrolls to and highlights the chosen message', async () => {
+    const onSearch = vi.fn((_conversation, request) => Promise.resolve(results[request.type as keyof typeof results]));
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(<Messaging conversations={[group, direct]} messages={thread} activeConversationId="g1" onSearch={onSearch} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Rechercher dans la conversation' }));
+    const dialog = screen.getByRole('dialog', { name: 'Rechercher dans la conversation' });
+    fireEvent.change(within(dialog).getByRole('searchbox'), { target: { value: 'permis' } });
+    const result = await screen.findByText('Permis', { selector: 'mark' });
+    expect(onSearch).toHaveBeenCalledWith(group, expect.objectContaining({ query: 'permis', type: 'messages' }));
+    fireEvent.click(result);
+    expect(screen.queryByRole('dialog', { name: 'Rechercher dans la conversation' })).toBeNull();
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    expect(document.querySelector('[data-messaging-message-id="m1"]')).toHaveAttribute('data-revealed');
+  });
+
+  it('« Écrire » opens the direct conversation with the person, else « Nouveau message » to them', async () => {
+    const onSearch = vi.fn((_conversation, request) => Promise.resolve(results[request.type as keyof typeof results]));
+    const onConversationSelect = vi.fn();
+    const { rerender } = render(<Messaging conversations={[group, direct]} messages={thread} activeConversationId="g1" onSearch={onSearch} onConversationSelect={onConversationSelect} />);
+    const search = async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Rechercher dans la conversation' }));
+      fireEvent.change(within(screen.getByRole('dialog', { name: 'Rechercher dans la conversation' })).getByRole('searchbox'), { target: { value: 'sophie' } });
+      fireEvent.click(await screen.findByRole('tab', { name: /Personnes/ }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Écrire à Sophie Leroy' }));
+    };
+    await search();
+    expect(onConversationSelect).toHaveBeenCalledWith(direct);
+    rerender(<Messaging conversations={[group]} contacts={[{ id: 'user-7', name: 'Sophie Leroy' }]} messages={thread} activeConversationId="g1" onSearch={onSearch} onNewMessageSend={vi.fn()} />);
+    await search();
+    expect(screen.getByRole('dialog', { name: 'Nouveau message' })).toBeInTheDocument();
+  });
+});
+
+describe('Messaging group members (MAIR-1165)', () => {
+  it('opens « Membres du groupe » from the avatar pile, keeps the header in step and renders the system notes', async () => {
+    const group = { id: 'g1', name: 'Conseil', kind: 'group' as const, memberCount: 2 };
+    const members = { canManage: true, members: [{ id: 'user-2', name: 'Moi Agent', isAdmin: true }, { id: 'user-3', name: 'Sophie Leroy', isAdmin: false }] };
+    const onLoadMembers = vi.fn(() => Promise.resolve(members));
+    const onRemoveMember = vi.fn(() => Promise.resolve({ ...members, members: members.members.slice(0, 1) }));
+    const note = { id: 'n1', conversationId: 'g1', content: '', kind: 'system' as const, authorId: 'user-2',
+      systemEvent: { action: 'member_removed' as const, actorId: 'user-2', userIds: ['user-3'], userNames: ['Sophie Leroy'] } };
+    render(<Messaging conversations={[group]} messages={[note]} activeConversationId="g1" currentUserId="user-2"
+      onLoadMembers={onLoadMembers} onRemoveMember={onRemoveMember} onLeaveConversation={vi.fn(() => Promise.resolve(true))} />);
+    expect(screen.getByText('Vous avez retiré Sophie Leroy du groupe.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '2 membres, gérer les membres' }));
+    expect(await screen.findByText('Sophie Leroy')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer Sophie Leroy du groupe' }));
+    await waitFor(() => expect(onRemoveMember).toHaveBeenCalledWith(group, members.members[1]));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Retirer Sophie Leroy du groupe' })).toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: 'Fermer le panneau' }));
+    fireEvent.click(screen.getByRole('button', { name: "Plus d'actions" }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Gérer les membres' }));
+    expect(screen.getByRole('dialog', { name: 'Membres du groupe' })).toBeInTheDocument();
+  });
+});
+
+describe('Messaging mentions and links (MAIR-1166)', () => {
+  it('suggests from the BFF, moves with the arrows, chooses with Entrée, freezes the tag and sends on Entrée when closed', async () => {
+    const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+    const onSuggestMentions = vi.fn(() => Promise.resolve({ everyone: true, groups: [{ id: 'group-4', name: 'Urbanisme' }], people: [{ id: 'user-3', name: 'Sophie Leroy' }] }));
+    const onSuggestLinks = vi.fn(() => Promise.resolve([{ id: 'event-5', title: 'Conseil du 12', kind: 'event' as const, description: 'Événement' }]));
+    const onSendMessage = vi.fn(() => true);
+    render(<Messaging conversations={[group]} activeConversationId="g1" onSendMessage={onSendMessage} onSuggestMentions={onSuggestMentions} onSuggestLinks={onSuggestLinks} />);
+    const input = screen.getByRole('combobox', { name: 'Écrire un message' });
+    fireEvent.change(input, { target: { value: 'Bonjour @' } });
+    expect(await screen.findByRole('option', { name: /@tout le monde/ })).toHaveAttribute('aria-selected', 'true');
+    expect(onSuggestMentions).toHaveBeenCalledWith(group, '', expect.any(AbortSignal));
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(input.getAttribute('aria-activedescendant')).toBe(screen.getByRole('option', { name: /@Sophie Leroy/ }).id);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(input).toHaveValue('Bonjour @Sophie Leroy ');
+    fireEvent.change(input, { target: { value: 'Bonjour @Sophie Leroy voir #con' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).toBeNull();
+    fireEvent.change(input, { target: { value: 'Bonjour @Sophie Leroy voir #cons' } });
+    fireEvent.click(await screen.findByRole('option', { name: /#Conseil du 12/ }));
+    expect(input).toHaveValue('Bonjour @Sophie Leroy voir #Conseil du 12 ');
+    fireEvent.submit(input.closest('form')!);
+    expect(onSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      content: 'Bonjour @Sophie Leroy voir #Conseil du 12',
+      mentions: [expect.objectContaining({ id: 'user-3', target: 'person' })],
+      businessLinks: [expect.objectContaining({ id: 'event-5' })],
+    }));
+  });
+});
+
+describe('Messaging reply (MAIR-1167)', () => {
+  const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+  const thread = [
+    { id: 'm1', conversationId: 'g1', content: 'Le permis est signé', authorId: 'u3', authorName: 'Sophie Leroy' },
+    { id: 'm2', conversationId: 'g1', content: 'Bravo', authorId: 'me', citation: 'm1', quoted: { id: 'm1', authorName: 'Sophie Leroy', excerpt: 'Le permis est signé' } },
+    { id: 'm3', conversationId: 'g1', content: 'Supprimé ?', authorId: 'u3', citation: 'm4', quoted: { id: 'm4', excerpt: '' } },
+    { id: 'm4', conversationId: 'g1', content: '', authorId: 'u3', deleted: true },
+  ];
+
+  it('answers a message from its toolbar, sends `replyTo` and clears the reply bar once sent', async () => {
+    const onSendMessage = vi.fn(() => Promise.resolve(true));
+    render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" onSendMessage={onSendMessage} />);
+    const bubble = document.querySelector('[data-messaging-message-id="m1"] [data-direction]') as HTMLElement;
+    expect(bubble).toHaveAttribute('tabindex', '0');
+    fireEvent.click(actionsOf('m1').getByRole('button', { name: 'Répondre' }));
+    expect(screen.getByText('Réponse à Sophie Leroy')).toBeVisible();
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Écrire un message' })).toHaveFocus());
+    fireEvent.change(screen.getByRole('combobox', { name: 'Écrire un message' }), { target: { value: 'Merci !' } });
+    fireEvent.submit(screen.getByRole('combobox', { name: 'Écrire un message' }).closest('form')!);
+    await waitFor(() => expect(onSendMessage).toHaveBeenCalledWith(expect.objectContaining({ content: 'Merci !', replyTo: 'm1' })));
+    await waitFor(() => expect(screen.queryByText('Réponse à Sophie Leroy')).toBeNull());
+  });
+
+  it('shows the quote above the reply, scrolls to the original, and « Message supprimé » for a deleted one', () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" onSendMessage={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Voir le message cité de Sophie Leroy' }));
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect(document.querySelector('[data-messaging-message-id="m1"]')).toHaveAttribute('data-revealed');
+    expect(within(document.querySelector('[data-messaging-message-id="m3"]') as HTMLElement).getByText('Message supprimé')).toBeVisible();
+  });
+
+  it('cancels a reply and opens the toolbar with a long press on a touch screen', () => {
+    vi.useFakeTimers();
+    try {
+      render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" onSendMessage={vi.fn()} />);
+      const row = document.querySelector('[data-messaging-message-id="m1"]') as HTMLElement;
+      fireEvent.pointerDown(row, { pointerType: 'touch' });
+      act(() => { vi.advanceTimersByTime(600); });
+      expect(within(row).getByRole('toolbar')).toHaveAttribute('data-open', 'true');
+      fireEvent.click(within(row).getByRole('button', { name: 'Répondre' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Annuler la réponse' }));
+      expect(screen.queryByText('Réponse à Sophie Leroy')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+/** Hovers a message, which mounts its actions toolbar (MAIR-1169: not rendered before), and scopes queries to it. */
+const actionsOf = (id: string) => {
+  const row = document.querySelector(`[data-messaging-message-id="${id}"]`) as HTMLElement;
+  fireEvent.pointerOver(row);
+  return within(row);
+};
+
+describe('Messaging actions toolbar (MAIR-1169)', () => {
+  it('mounts the toolbar of a message only from the first hover or keyboard focus, then keeps it', () => {
+    const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+    const thread = [
+      { id: 'm1', conversationId: 'g1', content: 'Un', authorId: 'u2' },
+      { id: 'm2', conversationId: 'g1', content: 'Deux', authorId: 'me' },
+    ];
+    render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" onSendMessage={vi.fn()} onEditMessage={vi.fn()} />);
+    const row = (id: string) => document.querySelector(`[data-messaging-message-id="${id}"]`) as HTMLElement;
+    expect(screen.queryAllByRole('toolbar', { name: 'Actions du message' })).toHaveLength(0);
+    fireEvent.pointerOver(row('m1'));
+    expect(within(row('m1')).getByRole('button', { name: 'Répondre' })).toBeInTheDocument();
+    fireEvent.pointerOut(row('m1'));
+    expect(within(row('m1')).getByRole('toolbar')).toBeInTheDocument();
+    fireEvent.focus(row('m2').querySelector('[tabindex="0"]') as HTMLElement);
+    expect(within(row('m2')).getByRole('button', { name: 'Modifier' })).toBeInTheDocument();
+  });
+});
+
+describe('Messaging edit (MAIR-1168)', () => {
+  it('edits one of my messages in place, then shows « · modifié » after its time', async () => {
+    const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+    const mine = { id: 'm1', conversationId: 'g1', content: 'Réunion à 14h', authorId: 'me', sentAt: '10:02' };
+    const onEditMessage = vi.fn(() => Promise.resolve(true));
+    const { rerender } = render(<Messaging conversations={[group]} messages={[mine, { id: 'm2', conversationId: 'g1', content: 'Ok', authorId: 'u3' }]} activeConversationId="g1" currentUserId="me" onEditMessage={onEditMessage} />);
+    expect(actionsOf('m2').queryByRole('button', { name: 'Modifier' })).toBeNull();
+    fireEvent.click(actionsOf('m1').getByRole('button', { name: 'Modifier' }));
+    const field = screen.getByRole('textbox', { name: 'Modifier le message' });
+    fireEvent.change(field, { target: { value: 'Réunion à 15h' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Modifier le message' })).toBeNull());
+    expect(onEditMessage).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }), { content: 'Réunion à 15h', mentions: [], businessLinks: [] });
+    rerender(<Messaging conversations={[group]} messages={[{ ...mine, content: 'Réunion à 15h', editedAt: '2026-06-23T12:40:00Z' }]} activeConversationId="g1" currentUserId="me" onEditMessage={onEditMessage} />);
+    expect(screen.getByText(/10:02 · modifié/)).toBeInTheDocument();
+  });
+});
+
+describe('Messaging delete (MAIR-1169)', () => {
+  const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+  const mine = { id: 'm1', conversationId: 'g1', content: 'Erreur de fil', authorId: 'me' };
+
+  it('confirms the deletion, shows the danger alert on a failure, and leaves no action on a tombstone', async () => {
+    const onDeleteMessage = vi.fn().mockRejectedValueOnce(new Error('Le message n’a pas pu être supprimé.')).mockResolvedValue(true);
+    const { rerender } = render(<Messaging conversations={[group]} messages={[mine]} activeConversationId="g1" currentUserId="me" onDeleteMessage={onDeleteMessage} />);
+    const row = () => document.querySelector('[data-messaging-message-id="m1"]') as HTMLElement;
+    fireEvent.click(actionsOf('m1').getByRole('button', { name: 'Supprimer' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Supprimer le message ?' });
+    expect(dialog).toHaveTextContent('Le message sera remplacé par « Message supprimé » pour tous les participants.');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Supprimer' }));
+    expect(await screen.findByText('Le message n’a pas pu être supprimé.')).toBeVisible();
+    expect(within(row()).getByText('Erreur de fil')).toBeVisible();
+    fireEvent.click(actionsOf('m1').getByRole('button', { name: 'Supprimer' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Supprimer' }));
+    await waitFor(() => expect(onDeleteMessage).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByText('Le message n’a pas pu être supprimé.')).toBeNull());
+    rerender(<Messaging conversations={[group]} messages={[{ ...mine, content: '', deleted: true }]} activeConversationId="g1" currentUserId="me" onDeleteMessage={onDeleteMessage} />);
+    expect(within(row()).getByText('Message supprimé')).toBeVisible();
+    expect(within(row()).queryByRole('toolbar')).toBeNull();
+    expect(within(row()).queryByText('Envoyé')).toBeNull();
+  });
+
+  it('cancels the deletion', () => {
+    const onDeleteMessage = vi.fn();
+    render(<Messaging conversations={[group]} messages={[mine]} activeConversationId="g1" currentUserId="me" onDeleteMessage={onDeleteMessage} />);
+    fireEvent.click(actionsOf('m1').getByRole('button', { name: 'Supprimer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    expect(onDeleteMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('Messaging reactions (MAIR-1170)', () => {
+  const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+  const message = { id: 'm1', conversationId: 'g1', content: 'Budget voté', authorId: 'u3',
+    reactions: [{ emoji: '👍', count: 2, reactedByMe: true, userNames: ['Moi', 'Paul'] }] };
+
+  it('reacts from the toolbar, toggles my reaction from its pill and shows a refusal above the thread', async () => {
+    const onToggleReaction = vi.fn().mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('La réaction n’a pas pu être enregistrée.'));
+    render(<Messaging conversations={[group]} messages={[message]} activeConversationId="g1" currentUserId="me" onToggleReaction={onToggleReaction} />);
+    const row = document.querySelector('[data-messaging-message-id="m1"]') as HTMLElement;
+    fireEvent.click(actionsOf('m1').getByRole('button', { name: 'Réagir' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'Réagir avec cœur' }));
+    await waitFor(() => expect(onToggleReaction).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }), '❤️', true));
+    expect(within(row).queryByRole('group', { name: 'Choisir une réaction' })).toBeNull();
+    await waitFor(() => expect(within(row).getByRole('button', { name: '👍 2, dont vous' })).toBeEnabled());
+    fireEvent.click(within(row).getByRole('button', { name: '👍 2, dont vous' }));
+    await waitFor(() => expect(onToggleReaction).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'm1' }), '👍', false));
+    await waitFor(() => expect(within(row).getByRole('button', { name: 'Ajouter une réaction' })).toBeEnabled());
+    fireEvent.click(within(row).getByRole('button', { name: 'Ajouter une réaction' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'Réagir avec pouce levé' }));
+    expect(await screen.findByText('La réaction n’a pas pu être enregistrée.')).toBeVisible();
+    expect(onToggleReaction).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'm1' }), '👍', false);
   });
 });

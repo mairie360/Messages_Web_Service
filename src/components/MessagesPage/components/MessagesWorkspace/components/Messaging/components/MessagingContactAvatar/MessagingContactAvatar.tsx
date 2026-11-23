@@ -1,4 +1,5 @@
 import React from 'react';
+import { Avatar, initialsOf } from '@mairie360/lib-components/primitives';
 
 import { joinClasses } from '../../messaging-style';
 import type { MessagingPresence } from '../../messaging-types';
@@ -11,11 +12,8 @@ export interface MessagingContactAvatarProps extends React.HTMLAttributes<HTMLDi
   size?: 'sm' | 'md' | 'lg';
 }
 
-const sizeClasses = {
-  sm: 'size-9 text-sm',
-  md: 'size-11 text-base',
-  lg: 'size-12 text-base',
-};
+/** Lib avatar scale (MAIR-1157): 32 / 40 / 40 px. */
+const avatarSizes = { sm: 'm', md: 'l', lg: 'l' } as const;
 
 const presenceClasses: Record<MessagingPresence, string> = {
   online: 'bg-[var(--mairie-presence-online)]',
@@ -23,17 +21,8 @@ const presenceClasses: Record<MessagingPresence, string> = {
   offline: 'bg-[var(--mairie-presence-offline)]',
 };
 
-const getInitials = (name: string, initials?: string) => {
-  if (initials) return initials;
-
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-};
+/** Initials of a person or of a group (« Conseil municipal » → « CM »). */
+const getInitials = (name: string, initials?: string) => initials || initialsOf(name);
 
 export const MessagingContactAvatar = ({
   name,
@@ -45,18 +34,8 @@ export const MessagingContactAvatar = ({
   ...props
 }: MessagingContactAvatarProps) => (
   <div className={joinClasses('relative shrink-0', className)} {...props}>
-    <div
-      className={joinClasses(
-        'flex items-center justify-center overflow-hidden rounded-full bg-[var(--mairie-action-background)] font-semibold leading-none text-[var(--mairie-on-action)] ring-2 ring-[var(--mairie-surface)]',
-        sizeClasses[size]
-      )}
-    >
-      {src ? (
-        <img src={src} alt={name} className="size-full object-cover" />
-      ) : (
-        <span>{getInitials(name, initials)}</span>
-      )}
-    </div>
+    {/* The photo is named by the person; the initials stay plain text (the name is written next to them). */}
+    <Avatar src={src} alt={src ? name : ''} fallback={getInitials(name, initials)} size={avatarSizes[size]} />
     {presence && (
       <span
         role="img"

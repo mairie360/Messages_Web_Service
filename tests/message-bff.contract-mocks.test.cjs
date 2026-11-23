@@ -81,6 +81,79 @@ const clientScenarios = {
     assert.deepEqual(await messageClient.getConversationMessages('conversation-4'), body);
     assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages')[0].pathParams, { conversationId: 'conversation-4' });
   },
+  async editMessage() {
+    const body = { message: message(3, 4, 'Réunion à 15h', users.agent, { editedAt: '2026-09-15T09:40:00.000Z' }) };
+    messageBff.on('patch', '/conversations/{conversationId}/messages/{messageId}', { body });
+    const payload = { content: 'Réunion à 15h', mentionIds: [], mentionEveryone: false, groupMentionIds: [], links: [] };
+    assert.deepEqual(await messageClient.editMessage('conversation-4', 'message-3', payload), body);
+    const [call] = messageBff.calls('/conversations/{conversationId}/messages/{messageId}', 'patch');
+    assert.deepEqual({ path: call.pathParams, body: call.body }, { path: { conversationId: 'conversation-4', messageId: 'message-3' }, body: payload });
+  },
+  async deleteMessage() {
+    const body = { message: message(3, 4, '', users.agent, { deleted: true }) };
+    messageBff.on('delete', '/conversations/{conversationId}/messages/{messageId}', { body });
+    assert.deepEqual(await messageClient.deleteMessage('conversation-4', 'message-3'), body);
+    assert.deepEqual(upstream(), ['DELETE /conversations/conversation-4/messages/message-3']);
+  },
+  async addReaction() {
+    const body = { reactions: [{ emoji: '👍', count: 1, reactedByMe: true, userNames: [users.agent.name] }] };
+    messageBff.on('post', '/conversations/{conversationId}/messages/{messageId}/reactions', { body });
+    assert.deepEqual(await messageClient.addReaction('conversation-4', 'message-3', '👍'), body);
+    assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages/{messageId}/reactions', 'post')[0].body, { emoji: '👍' });
+  },
+  async removeReaction() {
+    messageBff.on('delete', '/conversations/{conversationId}/messages/{messageId}/reactions', { body: { reactions: [] } });
+    assert.deepEqual(await messageClient.removeReaction('conversation-4', 'message-3', '👍'), { reactions: [] });
+    const [call] = messageBff.calls('/conversations/{conversationId}/messages/{messageId}/reactions', 'delete');
+    assert.equal(call.url.searchParams.get('emoji'), '👍');
+  },
+  async getMentionSuggestions() {
+    const body = { everyone: true, groups: [{ id: 'group-4', name: 'Service urbanisme' }], people: [{ id: `user-${users.sophie.id}`, name: users.sophie.name }] };
+    messageBff.on('get', '/conversations/{conversationId}/mention-suggestions', { body });
+    assert.deepEqual(await messageClient.getMentionSuggestions('conversation-4', 'so'), body);
+    assert.deepEqual(Object.fromEntries(messageBff.calls('/conversations/{conversationId}/mention-suggestions')[0].url.searchParams), { q: 'so' });
+  },
+  async getLinkSuggestions() {
+    const body = { items: [{ id: 'project-12', kind: 'project', title: 'Médiathèque', detail: 'Projet', url: 'https://projets.mairie360.fr/projects/12' }], sources: { projects: 'available', calendar: 'unavailable' } };
+    messageBff.on('get', '/link-suggestions', { body });
+    assert.deepEqual(await messageClient.getLinkSuggestions('média'), body);
+    assert.deepEqual(Object.fromEntries(messageBff.calls('/link-suggestions')[0].url.searchParams), { q: 'média' });
+  },
+  async getMembers() {
+    const body = { canManage: true, members: [{ id: `user-${users.agent.id}`, name: users.agent.name, isAdmin: true }, { id: `user-${users.sophie.id}`, name: users.sophie.name, department: 'Urbanisme', isAdmin: false }] };
+    messageBff.on('get', '/conversations/{conversationId}/members', { body });
+    assert.deepEqual(await messageClient.getMembers('conversation-4'), body);
+    assert.deepEqual(upstream(), ['GET /conversations/conversation-4/members']);
+  },
+  async addMembers() {
+    const systemMessage = message(9, 4, '', users.agent, { kind: 'system', systemEvent: { action: 'members_added', actorId: `user-${users.agent.id}`, actorName: users.agent.name, userIds: [`user-${users.thomas.id}`], userNames: [users.thomas.name] } });
+    const body = { canManage: true, members: [{ id: `user-${users.thomas.id}`, name: users.thomas.name, isAdmin: false }], systemMessage };
+    messageBff.on('post', '/conversations/{conversationId}/members', { body });
+    assert.deepEqual(await messageClient.addMembers('conversation-4', [`user-${users.thomas.id}`]), body);
+    assert.deepEqual(messageBff.calls('/conversations/{conversationId}/members', 'post')[0].body, { userIds: [`user-${users.thomas.id}`] });
+  },
+  async removeMember() {
+    const body = { canManage: true, members: [{ id: `user-${users.agent.id}`, name: users.agent.name, isAdmin: true }] };
+    messageBff.on('delete', '/conversations/{conversationId}/members/{userId}', { body });
+    assert.deepEqual(await messageClient.removeMember('conversation-4', `user-${users.sophie.id}`), body);
+    assert.deepEqual(upstream(), [`DELETE /conversations/conversation-4/members/user-${users.sophie.id}`]);
+  },
+  async leaveConversation() {
+    messageBff.on('post', '/conversations/{conversationId}/leave', { status: 204 });
+    assert.equal(await messageClient.leaveConversation('conversation-4'), undefined);
+    assert.deepEqual(upstream(), ['POST /conversations/conversation-4/leave']);
+  },
+  async searchConversation() {
+    const body = {
+      type: 'messages', hasMore: false, total: 1,
+      items: [{ messageId: 'message-7', authorId: `user-${users.sophie.id}`, authorName: users.sophie.name, createdAt: '2026-09-15T09:30:00.000Z', excerpt: 'Le permis est signé', highlights: [{ start: 3, length: 6 }] }],
+    };
+    messageBff.on('get', '/conversations/{conversationId}/search', { body });
+    assert.deepEqual(await messageClient.searchConversation('conversation-4', { q: 'permis', type: 'messages', limit: 20, offset: 0 }), body);
+    const [call] = messageBff.calls('/conversations/{conversationId}/search');
+    assert.equal(call.pathParams.conversationId, 'conversation-4');
+    assert.deepEqual(Object.fromEntries(call.url.searchParams), { q: 'permis', type: 'messages', limit: '20', offset: '0' });
+  },
   async uploadAttachments() {
     const body = { attachments: [{ id: 'stored-1', name: 'agenda.txt', size: 6, type: 'text/plain' }] };
     messageBff.on('post', '/attachments', { status: 201, body });
@@ -271,7 +344,7 @@ describe('same-origin proxy only forwards operations declared by the BFF_Message
   });
 
   test('undeclared paths and dot segments never reach the BFF', async () => {
-    for (const pathname of ['/conversations/1/messages/2', '/admin/users', '/session/me', '/api/user/me', '/messaging']) {
+    for (const pathname of ['/conversations/1/messages/2/edit', '/admin/users', '/session/me', '/api/user/me', '/messaging']) {
       const response = await fetch(pathname);
       assert.equal(response.status, 404, pathname);
     }

@@ -1,11 +1,35 @@
-import { it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MessagingChatHeader } from './MessagingChatHeader';
 import { axe } from 'jest-axe';
-it('delegates explicit call actions for the selected contact and omits unavailable actions', async () => {
-  const conversation = { id: 1, name: 'Anne Marie', presence: 'online' as const }; const onCall = vi.fn(); const onVideoCall = vi.fn(); const { container, rerender } = render(<MessagingChatHeader conversation={conversation} onCall={onCall} onVideoCall={onVideoCall} />);
-  await userEvent.click(screen.getByRole('button', { name: 'Appeler' })); await userEvent.click(screen.getByRole('button', { name: 'Appel vidéo' })); expect(onCall).toHaveBeenCalledWith(conversation); expect(onVideoCall).toHaveBeenCalledWith(conversation); expect((await axe(container)).violations).toEqual([]); rerender(<MessagingChatHeader conversation={conversation} />); expect(screen.queryByRole('button', { name: 'Appeler' })).not.toBeInTheDocument();
+it('MAIR-1158 shows call and visio disabled « bientôt disponible », the search only when wired and « Plus d’actions »', async () => {
+  const conversation = { id: 1, name: 'Anne Marie', presence: 'online' as const };
+  const onSearchConversation = vi.fn();
+  const { container, rerender } = render(<MessagingChatHeader conversation={conversation} onDeleteConversation={vi.fn()} />);
+  for (const name of ['Appeler', 'Lancer une visio']) {
+    const button = screen.getByRole('button', { name });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAccessibleDescription(`${name} · bientôt disponible`);
+  }
+  expect(screen.getByRole('button', { name: 'Appeler' }).querySelector('svg')?.getAttribute('class')).toContain('lucide-phone');
+  expect(screen.getByRole('button', { name: 'Lancer une visio' }).querySelector('svg')?.getAttribute('class')).toContain('lucide-video');
+  expect(screen.getByRole('button', { name: "Plus d'actions" }).querySelector('svg')?.getAttribute('class')).toMatch(/lucide-(ellipsis|more-horizontal)/);
+  expect(screen.queryByRole('button', { name: 'Rechercher dans la conversation' })).toBeNull();
+  expect((await axe(container)).violations).toEqual([]);
+  rerender(<MessagingChatHeader conversation={conversation} onSearchConversation={onSearchConversation} />);
+  const search = screen.getByRole('button', { name: 'Rechercher dans la conversation' });
+  expect(search.querySelector('svg')?.getAttribute('class')).toContain('lucide-text-search');
+  await userEvent.click(search); expect(onSearchConversation).toHaveBeenCalledWith(conversation);
+});
+
+describe('MessagingChatHeader empty state', () => {
+  it('MAIR-870 titles the empty header « Sélectionnez une conversation » with a semibold large lib Text', () => {
+    render(<MessagingChatHeader />);
+    const title = screen.getByText('Sélectionnez une conversation');
+    expect(title.getAttribute('data-m360-component')).toContain('Text');
+    expect(title.className).not.toContain('text-sm');
+  });
 });

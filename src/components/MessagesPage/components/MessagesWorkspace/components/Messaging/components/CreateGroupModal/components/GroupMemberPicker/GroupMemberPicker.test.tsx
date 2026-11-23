@@ -18,4 +18,12 @@ describe('GroupMemberPicker', () => {
     rerender(<GroupMemberPicker {...props} search="FINANCÉS" />); expect(screen.getAllByRole('checkbox')).toHaveLength(1);
     rerender(<GroupMemberPicker {...props} search="Inconnu" />); expect(screen.getByText('Aucun contact trouvé.')).toBeVisible();
   });
+
+  it('MAIR-870 shows « Aucun contact trouvé. » as a muted lib Text', () => {
+    render(<GroupMemberPicker label="Membres" members={[marie]} selectedValues={[]} disabled={false} onToggle={() => {}} onSearchChange={() => {}} search="Inconnu" />);
+    const node = screen.getByText('Aucun contact trouvé.');
+    expect(node.tagName).toBe('P');
+    expect(node.getAttribute('data-m360-component')).toContain('Text');
+    expect(node.className).not.toMatch(/text-\[var\(--mairie-muted\)\]|border-dashed/);
+  });
 });

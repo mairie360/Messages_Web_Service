@@ -28,7 +28,8 @@ export function useVisibleMessagesRead(
   const [readFailure, setReadFailure] = React.useState<VisibleMessagesReadFailure | null>(null);
   React.useEffect(() => () => { readRequestRef.current = null; }, []);
 
-  const readVisibleMessages = async (conversation: MessagingConversation) => {
+  /** `untilLast` (MAIR-1163, « Marquer comme lus »): up to the last message of the thread, so the counters reach zero. */
+  const readVisibleMessages = async (conversation: MessagingConversation, { untilLast = false }: { untilLast?: boolean } = {}) => {
     if (!onReadVisibleMessages || readRequestRef.current ||
         !messagingIdsMatch(activeIdRef.current, conversation.id)) return;
     const request = Symbol('visible-message-read');
@@ -40,7 +41,9 @@ export function useVisibleMessagesRead(
       // Let the action menu close before inspecting the actual clipped message region.
       await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       if (!stillCurrent()) return;
-      const id = lastVisibleMessagingMessageId(messageRegionRef.current);
+      const id = untilLast
+        ? (visibleMessages.length ? String(visibleMessages[visibleMessages.length - 1].id) : null)
+        : lastVisibleMessagingMessageId(messageRegionRef.current);
       const lastMessage = id === null ? null : visibleMessages.find(message => String(message.id) === id) ?? null;
       const accepted = await onReadVisibleMessages(conversation, lastMessage);
       if (accepted === false && stillCurrent()) setReadFailure({ conversationId: conversation.id, message: readFailureMessage });

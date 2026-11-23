@@ -52,7 +52,6 @@ test('parsed messaging breakpoint policies retain reference desktop tracks and s
   assert.equal(last('.messages-module > aside', 'display', narrow), 'none');
   assert.equal(last('.messages-list-open .messages-module > aside', 'display', narrow), 'flex');
   assert.equal(last('.messages-list-open .messages-module > div:nth-child(2)', 'display', narrow), 'none');
-  assert.equal(last('.messages-app-root > .flex > .flex > main', 'padding', '(max-width: 767px)'), '10px');
   // Configuration association only: JSDOM does not compile Tailwind or evaluate media queries.
 });
 
@@ -63,23 +62,40 @@ test('parsed messaging fallback, small-text and focus policies preserve the shar
     for (let index = 0; index < row.style.length; index += 1) {
       const property = row.style.item(index);
       assert.ok(!['--text-xs', '--text-sm'].includes(property), 'Keep shared small-text tokens');
-      if (row.selectors.some((selected) => ['.messages-app-root > .flex > .flex > header', '.messages-app-root > .flex > .flex > footer'].includes(selected))) {
-        assert.ok(!['height', 'min-height', 'max-height'].includes(property), 'Do not override shared header/footer height');
-      }
     }
-  }
-  for (const target of ['.messages-app-root > .flex > .flex > header', '.messages-app-root > .flex > .flex > footer']) {
-    assert.equal(last(target, 'flex-shrink'), '0');
   }
   const outline = (target, condition = null) => {
     const tokens = last(target, 'outline', condition).trim().split(/\s+(?![^()]*\))/);
     const lengths = tokens.filter((token) => Number.isFinite(Number.parseFloat(token)));
     const colors = tokens.filter((token) => token !== 'solid' && !Number.isFinite(Number.parseFloat(token)));
     assert.deepEqual(lengths, ['2px']); assert.ok(tokens.includes('solid')); assert.equal(colors.length, 1);
-    assert.equal(color(colors[0]), 'rgb(62, 106, 98)');
+    assert.equal(color(colors[0]), 'rgb(45, 120, 108)');
   };
   outline('.messages-module [role="region"]:focus-visible');
   outline('.messages-pane-switch:focus-visible', '(max-width: 1023px)');
-  assert.equal(last('.messages-operation-status', 'flex-shrink'), '0');
+  // MAIR-854: errors and operation statuses are lib alerts, no local class.
+  assert.deepEqual(rows.filter((row) => row.selectors.some((selected) => /messages-(error|operation-status)/.test(selected))), []);
   // Preserve configuration; native keyboard/scrolling and RGAA certification remain separate.
+});
+
+test('MAIR-838 app-shell.css keeps only the module geometry and never targets the lib frame', (t) => {
+  const { rows } = policyDocument(t);
+  const frame = /(?:^|[\s>+~,(])(?:html|body|main|header|footer|nav|aside\[aria-label|\[aria-label="Navigation)|\.messages-app-root|\.app-[\w-]+|\[data-m360-component|\[data-layout/;
+  for (const row of rows) {
+    for (const selected of row.selectors) {
+      assert.doesNotMatch(selected, frame, `${selected} targets the lib frame`);
+      assert.match(selected, /^\.messages-/, `${selected} must be scoped to the messaging module`);
+    }
+    for (let index = 0; index < row.style.length; index += 1) {
+      assert.ok(!['font-family', 'font-size'].includes(row.style.item(index)) || !row.selectors.some((selected) => /^\.messages-(main-inner|module-stack|module-frame)$/.test(selected)),
+        'Typography and scale come from the lib');
+    }
+  }
+  assert.doesNotMatch(stylesheet, /font-size:\s*17px|system-ui/);
+});
+
+test('MAIR-1162 only the thread scrolls: the composer and the header keep their height', (t) => {
+  const { last } = policyDocument(t);
+  assert.equal(last('.messages-module > div:nth-child(2) > :not(.flex-1)', 'flex-shrink'), '0');
+  assert.equal(last('.messages-module > div:nth-child(2) > .flex-1', 'overflow-y'), 'auto');
 });

@@ -4,6 +4,7 @@ export type Reader<T = unknown> = (value: unknown) => T;
 const invalid = (): never => { throw new Error('Les données reçues ne correspondent pas au contrat publié.'); };
 export const text: Reader<string> = value => typeof value === 'string' ? value : invalid();
 export const number: Reader<number> = value => typeof value === 'number' && Number.isFinite(value) ? value : invalid();
+export const boolean: Reader<boolean> = value => typeof value === 'boolean' ? value : invalid();
 export const optional = (read: Reader): Reader => value => value === undefined ? undefined : read(value);
 export const union = (...readers: Reader[]): Reader => value => {
   for (const read of readers) { try { return read(value); } catch { /* The next declared scalar alternative may match. */ } }

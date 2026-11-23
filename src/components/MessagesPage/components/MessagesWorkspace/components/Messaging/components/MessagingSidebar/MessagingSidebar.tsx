@@ -16,6 +16,8 @@ export interface MessagingSidebarProps extends Omit<React.HTMLAttributes<HTMLEle
   newMessageLabel?: string;
   createGroupLabel?: string;
   emptyLabel?: React.ReactNode;
+  /** MAIR-1171: short text of a list without any conversation (the thread shows the illustrated state). */
+  noConversationsLabel?: React.ReactNode;
   onSearchValueChange?: (value: string) => void;
   onConversationSelect?: (conversation: MessagingConversation) => void;
   onNewMessageClick?: () => void;
@@ -26,11 +28,12 @@ export const MessagingSidebar = ({
   conversations,
   activeConversationId,
   title = 'Messagerie',
-  searchPlaceholder = 'Rechercher un contact...',
+  searchPlaceholder = 'Rechercher une conversation',
   searchValue,
   newMessageLabel = 'Nouveau message',
   createGroupLabel = 'Créer un groupe',
   emptyLabel = 'Aucune conversation trouvée.',
+  noConversationsLabel = 'Aucune conversation pour l’instant.',
   onSearchValueChange,
   onConversationSelect,
   onNewMessageClick,
@@ -68,7 +71,7 @@ export const MessagingSidebar = ({
       <ConversationList
         conversations={filterConversations(conversations, currentSearch)}
         activeConversationId={activeConversationId}
-        emptyLabel={emptyLabel}
+        emptyLabel={conversations.length === 0 ? noConversationsLabel : emptyLabel}
         onSelect={onConversationSelect}
       />
     </aside>

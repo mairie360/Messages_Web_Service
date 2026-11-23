@@ -29,3 +29,8 @@ it('ignores the close button and Escape while a request is pending', async () =>
   expect(onClose).not.toHaveBeenCalled();
   expect(screen.getByRole('dialog', { name: 'Nouveau message' })).toBeInTheDocument();
 });
+
+it('MAIR-878 is the small lib dialog (480 px) of the mockup', () => {
+  frame();
+  expect(screen.getByRole('dialog', { name: 'Nouveau message' })).toHaveStyle({ maxWidth: '480px' });
+});

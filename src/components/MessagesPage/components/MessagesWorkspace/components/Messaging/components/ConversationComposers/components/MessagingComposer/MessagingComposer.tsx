@@ -1,21 +1,15 @@
 import React from 'react';
 import { Send } from 'lucide-react';
+import { IconButton, ToolTip } from '@mairie360/lib-components/primitives';
 
 import { joinClasses } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-style';
 import { ComposerAttachmentChips } from './components/ComposerAttachmentChips';
-import { ComposerSuggestions } from './components/ComposerSuggestions';
 import { ComposerToolbar } from './components/ComposerToolbar';
-import {
-  addOnce,
-  appendTrigger,
-  businessReferenceSuggestionsFor,
-  getBusinessReferenceMatch,
-  getTriggerMatch,
-  insertToken,
-  mentionSuggestionsFor,
-  revokeDraftUrl,
-} from './composer-text';
-import type { MessagingAttachment, MessagingBusinessReference, MessagingMention, MessagingSendResult } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
+import { ReplyBar } from './components/ReplyBar';
+import { addOnce, appendTrigger, revokeDraftUrl } from './composer-text';
+import { MentionSuggestions, suggestionOptionId } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/MentionSuggestions';
+import { insertTag, useTagSuggestions, type TagOption } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/use-tag-suggestions';
+import type { MessagingAttachment, MessagingBusinessReference, MessagingMention, MessagingSendResult, MessagingTagSuggestionSources } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
 
 export interface MessagingComposerProps extends React.HTMLAttributes<HTMLFormElement> {
   value?: string;
@@ -36,6 +30,13 @@ export interface MessagingComposerProps extends React.HTMLAttributes<HTMLFormEle
   ) => MessagingSendResult;
   onAttach?: (files: File[], attachments: MessagingAttachment[]) => void;
   onEmoji?: (emoji: string) => void;
+  /** MAIR-1162: a draft delivered by « Réessayer l'envoi » of its bubble; released when the draft is unchanged. */
+  releaseDraft?: { content: string; token: number };
+  /** MAIR-1166: suggestions of `@` and `#` from the BFF; the local options are used without them. */
+  suggestionSources?: MessagingTagSuggestionSources;
+  /** MAIR-1167: the message being answered, shown above the text field. */
+  replyTo?: { id: string | number; authorName?: string; excerpt: string };
+  onCancelReply?: () => void;
 }
 
 export const MessagingComposer = ({
@@ -44,7 +45,7 @@ export const MessagingComposer = ({
   placeholder = 'Tapez votre message...',
   sendLabel = 'Envoyer',
   attachLabel = 'Joindre un fichier',
-  emojiLabel = 'Ajouter une réaction',
+  emojiLabel = 'Insérer un emoji',
   disabled = false,
   mentionOptions = [],
   businessReferenceOptions = [],
@@ -52,6 +53,10 @@ export const MessagingComposer = ({
   onSendMessage,
   onAttach,
   onEmoji,
+  releaseDraft,
+  suggestionSources,
+  replyTo,
+  onCancelReply,
   className = '',
   ...props
 }: MessagingComposerProps) => {
@@ -78,15 +83,14 @@ export const MessagingComposer = ({
   const currentValue = value ?? internalValue;
   const isBusy = disabled || isSending;
   const canSend = (currentValue.trim().length > 0 || attachments.length > 0) && !isBusy && !!onSendMessage;
-  const mentionMatch = getTriggerMatch(currentValue, '@');
-  const businessReferenceMatch = getBusinessReferenceMatch(currentValue);
-  const mentionSuggestions = mentionSuggestionsFor(mentionOptions, mentionMatch);
-  const businessReferenceSuggestions =
-    businessReferenceSuggestionsFor(businessReferenceOptions, mentionMatch ? null : businessReferenceMatch);
-  const mentionSuggestionsOpen = mentionSuggestions.length > 0;
-  const businessReferenceSuggestionsOpen = businessReferenceSuggestions.length > 0;
+  // MAIR-1166: the tag being typed and its suggestions (combobox of the text field).
+  const suggestions = useTagSuggestions(currentValue, { mentions: mentionOptions, references: businessReferenceOptions }, suggestionSources);
+  const listId = React.useId();
 
   const focusInputSoon = () => window.setTimeout(() => textInputRef.current?.focus(), 0);
+  // MAIR-1167: « Répondre » takes the agent to the text field.
+  const replyKey = replyTo ? String(replyTo.id) : null;
+  React.useEffect(() => { if (replyKey && !disabled) focusInputSoon(); }, [replyKey, disabled]);
 
   const appendDraftTrigger = (trigger: '@' | '#') => {
     if (disabled) return;
@@ -106,6 +110,27 @@ export const MessagingComposer = ({
     updateValue(event.target.value);
   };
 
+  const clearDraft = () => {
+    if (!mountedRef.current) return;
+    ownedUrlsRef.current.forEach(revokeDraftUrl);
+    ownedUrlsRef.current.clear();
+    if (value === undefined) setInternalValue('');
+    setAttachments([]);
+    setMentions([]);
+    setBusinessLinks([]);
+    setEmojiOpen(false);
+    onValueChange?.('');
+  };
+
+  // MAIR-1162: the bubble delivered this draft; a draft changed since then is kept (MAIR-370).
+  const releasedToken = React.useRef(releaseDraft?.token);
+  React.useEffect(() => {
+    if (!releaseDraft || releaseDraft.token === releasedToken.current) return;
+    releasedToken.current = releaseDraft.token;
+    if (!sendingRef.current && (currentValue.trim() || 'Pièce jointe') === releaseDraft.content) clearDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new release token is an event
+  }, [releaseDraft]);
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -114,18 +139,6 @@ export const MessagingComposer = ({
 
     const messageMentions = mentions.filter((mention) => currentValue.includes(`@${mention.name}`));
     const messageBusinessLinks = businessLinks.filter((reference) => currentValue.includes(`#${reference.title}`));
-
-    const clearDraft = () => {
-      if (!mountedRef.current) return;
-      ownedUrlsRef.current.forEach(revokeDraftUrl);
-      ownedUrlsRef.current.clear();
-      if (value === undefined) setInternalValue('');
-      setAttachments([]);
-      setMentions([]);
-      setBusinessLinks([]);
-      setEmojiOpen(false);
-      onValueChange?.('');
-    };
 
     sendingRef.current = true;
     try {
@@ -195,31 +208,32 @@ export const MessagingComposer = ({
     onEmoji?.(emoji);
   };
 
-  const selectMention = (mention: MessagingMention) => {
-    if (isBusy || !mentionMatch) return;
-
-    updateValue(insertToken(currentValue, mentionMatch, `@${mention.name}`));
-    setMentions((currentMentions) => addOnce(currentMentions, mention));
-    focusInputSoon();
-  };
-
-  const selectBusinessReference = (reference: MessagingBusinessReference) => {
-    if (isBusy || !businessReferenceMatch) return;
-
-    updateValue(insertToken(currentValue, businessReferenceMatch, `#${reference.title}`));
-    setBusinessLinks((currentLinks) => addOnce(currentLinks, reference));
-    focusInputSoon();
-  };
-
-  const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if ((event.key === 'Enter' || event.key === 'Tab') && mentionSuggestionsOpen) {
-      event.preventDefault();
-      selectMention(mentionSuggestions[0]);
+  // The chosen tag is frozen: it is followed by a space and what is typed next is plain text.
+  const selectOption = (option: TagOption) => {
+    if (isBusy || !suggestions.match) return;
+    const { mention, reference } = option;
+    if (mention) {
+      updateValue(insertTag(currentValue, suggestions.match, mention.name));
+      setMentions((currentMentions) => addOnce(currentMentions, mention));
+    } else if (reference) {
+      updateValue(insertTag(currentValue, suggestions.match, reference.title));
+      setBusinessLinks((currentLinks) => addOnce(currentLinks, reference));
     }
+    focusInputSoon();
+  };
 
-    if ((event.key === 'Enter' || event.key === 'Tab') && businessReferenceSuggestionsOpen) {
+  // MAIR-1166: ↑ ↓ move in the open list, Entrée / Tab choose, Échap closes it; Entrée sends when it is closed.
+  const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!suggestions.open) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
-      selectBusinessReference(businessReferenceSuggestions[0]);
+      suggestions.move(event.key === 'ArrowDown' ? 1 : -1);
+    } else if ((event.key === 'Enter' || event.key === 'Tab') && suggestions.activeOption) {
+      event.preventDefault();
+      selectOption(suggestions.activeOption);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      suggestions.dismiss();
     }
   };
 
@@ -242,12 +256,24 @@ export const MessagingComposer = ({
         tabIndex={-1}
         onChange={handleFilesChange}
       />
+      {replyTo && (
+        <ReplyBar
+          authorName={replyTo.authorName}
+          excerpt={replyTo.excerpt}
+          onCancel={() => { onCancelReply?.(); focusInputSoon(); }}
+        />
+      )}
       <div className="flex items-center gap-3">
         <div className="relative min-w-0 flex-1">
           <input
             ref={textInputRef}
             aria-label="Écrire un message"
             type="text"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={suggestions.open}
+            aria-controls={suggestions.open ? listId : undefined}
+            aria-activedescendant={suggestions.open ? suggestionOptionId(listId, suggestions.activeIndex) : undefined}
             value={currentValue}
             placeholder={placeholder}
             disabled={isBusy || !onSendMessage}
@@ -255,23 +281,20 @@ export const MessagingComposer = ({
             onChange={handleChange}
             onKeyDown={handleInputKeyDown}
           />
-          <ComposerSuggestions
-            mentions={mentionSuggestions}
-            businessReferences={businessReferenceSuggestions}
-            disabled={isBusy}
-            onSelectMention={selectMention}
-            onSelectBusinessReference={selectBusinessReference}
-          />
+          {suggestions.open && (
+            <MentionSuggestions
+              id={listId}
+              options={suggestions.options}
+              activeIndex={suggestions.activeIndex}
+              disabled={isBusy}
+              onSelect={selectOption}
+              onActiveChange={suggestions.setActiveIndex}
+            />
+          )}
         </div>
-        <button
-          type="submit"
-          aria-label={sendLabel}
-          title={sendLabel}
-          disabled={!canSend}
-          className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-[var(--mairie-action-background)] text-[var(--mairie-on-action)] shadow-sm transition hover:bg-[var(--mairie-action-hover-background)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/35 disabled:cursor-not-allowed disabled:bg-[var(--mairie-border)]"
-        >
-          <Send className="size-4" strokeWidth={1.8} />
-        </button>
+        <ToolTip text={sendLabel}>
+          <IconButton type="submit" icon={Send} label={sendLabel} title="" tone="primary" disabled={!canSend} />
+        </ToolTip>
       </div>
       <ComposerAttachmentChips attachments={attachments} disabled={isBusy} onRemove={removeAttachment} />
       <ComposerToolbar

@@ -7,9 +7,14 @@ import userEvent from '@testing-library/user-event';
 import { ConversationSearch } from './ConversationSearch';
 
 describe('ConversationSearch', () => {
-  it('is named by its placeholder and reports typing', async () => {
+  it('MAIR-1157 is the lib search field named « Rechercher une conversation », reporting each keystroke and the clear', async () => {
     const onChange = vi.fn();
-    render(<ConversationSearch placeholder="Rechercher un contact..." value="" onChange={onChange} />);
-    await userEvent.type(screen.getByRole('searchbox', { name: 'Rechercher un contact...' }), 'M'); expect(onChange).toHaveBeenCalledWith('M');
+    const { rerender } = render(<ConversationSearch placeholder="Rechercher une conversation" value="" onChange={onChange} />);
+    const field = screen.getByRole('searchbox', { name: 'Rechercher une conversation' });
+    expect(field.closest('[data-m360-component~="SearchField"]')).not.toBeNull();
+    await userEvent.type(field, 'M'); expect(onChange).toHaveBeenCalledWith('M');
+    rerender(<ConversationSearch placeholder="Rechercher une conversation" value="Ma" onChange={onChange} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Effacer la recherche' }));
+    expect(onChange).toHaveBeenLastCalledWith('');
   });
 });

@@ -1,21 +1,38 @@
 import React from 'react';
+import type { LucideIcon } from 'lucide-react';
+import { IconButton, ToolTip } from '@mairie360/lib-components/primitives';
 
-export interface HeaderIconButtonProps {
+export interface HeaderIconButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'onClick'> {
   label: string;
+  icon: LucideIcon;
+  /** Shown in the tooltip; the label by default. */
+  tooltip?: string;
+  /**
+   * MAIR-1158: an action that is not available yet (« bientôt disponible »). The button stays focusable so the
+   * keyboard reaches its tooltip, is announced as unavailable (`aria-disabled`) and does nothing.
+   */
+  unavailable?: boolean;
   expanded?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+  onClick?: () => void;
 }
 
-export const HeaderIconButton = ({ label, expanded, onClick, children }: HeaderIconButtonProps) => (
-  <button
-    type="button"
-    aria-label={label}
-    title={label}
-    aria-expanded={expanded}
-    className="inline-flex size-9 items-center justify-center rounded-md text-[var(--mairie-text)] transition hover:bg-[var(--mairie-background)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/30"
-    onClick={onClick}
-  >
-    {children}
-  </button>
-);
+/** Icon action of the conversation header (MAIR-1158): lib `IconButton` described by a lib `ToolTip`. */
+export const HeaderIconButton = React.forwardRef<HTMLButtonElement, HeaderIconButtonProps>(function HeaderIconButton(
+  { label, icon, tooltip, unavailable = false, expanded, onClick, className, ...buttonProps }, ref,
+) {
+  return (
+    <ToolTip text={tooltip ?? label}>
+      <IconButton
+        {...buttonProps}
+        ref={ref}
+        icon={icon}
+        label={label}
+        title=""
+        aria-expanded={expanded}
+        aria-disabled={unavailable || undefined}
+        className={unavailable ? `cursor-not-allowed opacity-50 ${className ?? ''}`.trim() : className}
+        onClick={unavailable ? undefined : onClick}
+      />
+    </ToolTip>
+  );
+});

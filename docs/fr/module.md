@@ -182,3 +182,155 @@ Le brouillon et ses aperçus restent disponibles si la réponse de succès est i
 ## Direction visuelle commune — MAIR-547
 
 DA claire option 1 : tokens et police communs, navigation accessible et contenu métier conservé. Voir la [recette visuelle](../qa/design-qa.md) pour les preuves, vérifications et limites RGAA.
+
+## Écran V2 (epic MAIR-821)
+
+La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://www.figma.com/design/aZKHSHhAj0NQnutKdS82jk/?node-id=18-902)) sur `@mairie360/lib-components` 2.
+
+- **Cadre (MAIR-838).** Lib 2 : le bandeau de navigation repliable, la barre du haut,
+  la typographie et la zone principale pleine hauteur (`mainLayout="fill"` : pas de défilement de page,
+  marges 20 px / 24 px) viennent du cadre de la lib ; `app-shell.css` ne garde que la géométrie du module
+  de messagerie. Le thème est toujours clair.
+- **Cadre (MAIR-844).** Le bandeau affiche le logo de la lib et le nom de la commune (`COMMUNE_NAME`),
+  « Messagerie » est actif avec le total des non-lus en badge (« 9+ » au-delà de 9 depuis MAIR-1156), et le pied de page affiche
+  la version (`APP_VERSION`) ainsi que les mentions légales et la politique de confidentialité du front Login.
+- **États de démarrage (MAIR-847).** Le chargement et l'indisponibilité de la messagerie utilisent
+  `Card`, `ErrorAlert` (le démarrage refusé), `Skeleton` et `RetryButton` de la lib (« Chargement en
+  cours… », désactivé pendant le chargement).
+- **Erreurs et statuts (MAIR-854).** Une action refusée s'affiche dans un `ErrorAlert` de la lib que l'on
+  peut fermer, une synchronisation refusée dans un `ErrorAlert` durable (la lecture suivante l'efface) ;
+  « Suppression de la conversation en cours… » et le texte d'ouverture d'un fil sont des `Alert` info. Les
+  textes et les annonces `alert` / `status` ne changent pas.
+- **Réception (MAIR-860).** L'état de la réception automatique est un `StatusPill` de la lib (active :
+  succès, actualisation : info, connexion : neutre, retardée : avertissement) ; « Réessayer la réception »
+  est un `Button` de la lib (cible de 44 px) affiché seulement quand la réception est retardée.
+- **Confirmations (MAIR-865).** « Message direct créé. », « Groupe … créé. » et les autres confirmations
+  d'action s'affichent dans un toast de la lib en bas à droite, au-dessus du pied de page, sans déplacer le
+  module (5 s, sans titre, fermable à la souris ou au clavier).
+- **États vides (MAIR-870).** « Sélectionnez une conversation » (en-tête vide, grand et semi-gras),
+  « Aucune conversation trouvée. » (recherche locale sans résultat), « Aucun contact trouvé. » et les textes
+  d'attente du fil sont des `Text` de la lib (ton atténué), sans paragraphe stylé à la main ; le fil affiche
+  tel quel un `DataState` déjà construit.
+- **Icônes du champ de saisie (MAIR-872).** Joindre, mentionner, élément métier, emoji, envoyer, les
+  pièces jointes et les suggestions de mention rendent leur glyphe lucide via `Icon` de la lib (`s`, jeton de
+  16 px, couleur du texte courant) ; les boutons gardent leur libellé accessible.
+- **Fenêtres (MAIR-878).** « Nouveau message » et « Créer un groupe » sont des `Modal` de la lib en petite
+  taille (480 px). Le bouton principal (`SendButton` / `CreateButton` de la lib avec son icône) reste désactivé
+  tant que le formulaire est incomplet (destinataire + message ; nom du groupe + un membre). Un refus s'affiche
+  dans un `ErrorAlert` au-dessus du formulaire, la fenêtre reste ouverte et garde la saisie ; Échap, le fond et
+  « Annuler » sont sans effet pendant l'envoi.
+- **Base de page (MAIR-1156).** Base de page de la lib 2.3.0 : pas de pied de page (`showFooter={false}`), le
+  module est la carte blanche bordée (rayon 12 px, `--mairie-radius-l`) de la zone principale, et le seul titre de
+  la page est le `h1` « Messagerie » de la liste. « Messagerie » est actif dans la navigation avec le total des
+  non-lus dans le `Counter` de la lib, « 9+ » au-delà de 9 ; Administration reste réservée au rôle.
+- **Liste des conversations (MAIR-1157).** La liste a pour titre « Messagerie » et un seul « + » (`IconButton` de la
+  lib, infobulle `ToolTip` « Nouvelle conversation ») qui ouvre un `DropdownMenu` de la lib : « Nouveau message » et
+  « Créer un groupe » ouvrent les fenêtres existantes. Le menu est annoncé comme tel, s'ouvre avec Entrée / Espace /
+  ↓, se parcourt avec ↑ ↓ Début Fin, se ferme avec Échap, Tab ou un clic à l'extérieur et rend le focus au « + »
+  (`use-menu-keyboard.ts`, partagé avec le menu de l'en-tête). « Rechercher une conversation » est le `SearchField`
+  de la lib qui filtre au fil de la saisie (nom, groupe, service) ; sans résultat, « Aucune conversation trouvée. ».
+  Chaque ligne affiche l'`Avatar` de la lib (photo ou initiales, groupes compris) avec sa pastille de présence, le nom
+  et l'aperçu tronqués sur une ligne, l'heure dans une colonne fixe à droite et le `Counter` des non-lus de la lib
+  (« 9+ »), lu « N messages non lus ».
+- **Icônes explicites (MAIR-1158).** Toutes les icônes passent par `Icon` de la lib (`icons` de la lib 2.3 pour les
+  glyphes de la messagerie). Saisie : « Joindre un fichier » `file-up`, « Mentionner une personne » `at-sign`, « Lier
+  un élément » `hash`, « Insérer un emoji » `smile-plus`, « Envoyer » `send`, chacun un `IconButton` de la lib avec
+  son `ToolTip`. En-tête : « Appeler » `phone` et « Lancer une visio » `video` sont affichés indisponibles
+  (`aria-disabled`, toujours atteignables au clavier, infobulle « … · bientôt disponible »), « Rechercher dans la
+  conversation » `text-search` seulement s'il est branché, « Plus d'actions » `more-horizontal`. Menus :
+  `check-check`, `trash`, `message-square-plus`, `users`. Éléments liés : projet `folder-kanban`, tâche
+  `list-checks`, dossier `folder-open`, événement `calendar`, service `building-2`.
+- **Mes bulles (MAIR-1159).** Mes messages utilisent les jetons de la lib 2.3 `--mairie-message-own-background`
+  (#efebe2), `--mairie-message-own-on` (#383f51, contraste 8,8:1) et `--mairie-message-own-border` (#d6d0c3), leurs
+  éléments liés et pièces jointes aussi ; les bulles reçues gardent la surface blanche et `--mairie-border`. L'heure
+  est au-dessus de la bulle, alignée à droite pour mes messages.
+- **Messages non lus (MAIR-1160).** Le bandeau « N notifications non lues » disparaît (« Marquer comme lus » reste
+  dans « Plus d'actions »). Une conversation s'ouvre sur son premier message non lu, après le `Divider` de la lib
+  « Nouveaux messages » (`NewMessagesSeparator`) ; les non-lus sont les `unreadCount` derniers messages écrits par
+  d'autres. La pastille neutre `UnreadMessagesPill` (`Button` de la lib, collée en bas du fil, région live polie)
+  annonce « N nouveaux messages » et diminue à mesure qu'ils deviennent visibles ; un clic fait défiler en douceur
+  jusqu'au dernier message (instantané avec `prefers-reduced-motion`). Atteindre la fin du fil par l'agent (molette,
+  toucher, clavier, pointeur, pastille) retire la pastille et marque la conversation lue ; un fil sans défilement est
+  lu à l'ouverture ; le placement à l'ouverture et les autres défilements programmatiques ne lisent jamais. Les
+  compteurs de la liste et de la navigation suivent tous deux la conversation rafraîchie.
+- **Réception retardée (MAIR-1161).** « Réception automatique active » et les autres pastilles de réception
+  disparaissent : rien n'est affiché tant que la réception fonctionne. Quand la connexion temps réel est perdue,
+  `MessagesReceptionDelayed` affiche au-dessus du module une petite `Alert` d'avertissement de la lib « Réception des
+  messages retardée », annoncée par sa région live polie sans prendre le focus, avec « Réessayer la réception ». À la
+  reconnexion, le flux reprend à son dernier événement (`Last-Event-ID`) et le module relit les messages manqués, puis
+  le bandeau disparaît.
+- **Statut d'envoi (MAIR-1162).** `MessageSendStatus` sous mes bulles : « Envoyé » (check) sous mon dernier message
+  confirmé, « Envoi… » (loader-circle qui ne tourne que sans `prefers-reduced-motion`, bulle atténuée) pendant la
+  confirmation, « Non envoyé · Réessayer l'envoi » (circle-alert, `Button` lien de la lib avec refresh-cw, bord en
+  pointillés couleur erreur) après un échec. Chaque changement est annoncé par une région live polie du fil. Une
+  relance envoie le même message une seule fois (une tentative par conversation ; un envoi depuis la saisie d'un message
+  déjà remis par la bulle n'écrit rien) ; la saisie garde son brouillon jusqu'à la confirmation (MAIR-370) et le libère
+  quand la bulle l'a remis sans changement. Seul le fil défile : la zone de saisie garde sa hauteur.
+- **« Plus d'actions » (MAIR-1163).** Le menu de l'en-tête est un `DropdownMenu` de la lib (clavier : Entrée / Espace /
+  ↓ pour ouvrir, ↑ ↓ Début Fin, Échap et clic extérieur pour fermer, focus rendu au bouton). Direct : « Marquer les
+  messages comme lus », « Rechercher dans la conversation », « Créer un groupe avec <personne> » (ouvre « Créer un
+  groupe » avec la personne présélectionnée) ; groupe : « Marquer comme lus », « Rechercher dans la conversation »,
+  « Gérer les membres » ; puis « Supprimer la conversation » (danger, séparée). Recherche et membres n'apparaissent
+  qu'une fois branchés (MAIR-1164, MAIR-1165). « Marquer comme lus » acquitte jusqu'au dernier message : les compteurs
+  de la liste et de la navigation reviennent à zéro. La suppression est confirmée dans le `ConfirmModal` de la lib
+  (danger), puis le toast « Conversation supprimée. » ; un échec est l'`ErrorAlert` danger au-dessus du module.
+- **Recherche dans la conversation (MAIR-1164).** « Rechercher dans la conversation » (bouton de l'en-tête ou « Plus
+  d'actions ») ouvre un `Drawer` de la lib (taille m, focus gardé dans le panneau, rendu au bouton à la fermeture) :
+  un champ de recherche, des `Tabs` fixes « Messages · Fichiers · Personnes » avec leur compteur, et les résultats
+  qui défilent dessous (`GET /conversations/{id}/search`, les trois onglets cherchés ensemble 300 ms après la dernière
+  touche, les requêtes précédentes annulées). Les correspondances trouvées par le BFF sont surlignées dans chaque
+  extrait ; « Afficher plus de résultats » charge la page suivante. Choisir un message ferme le panneau, fait défiler
+  le fil en douceur jusqu'à lui (sans animation si le mouvement est réduit) et le met en évidence deux secondes ;
+  « Écrire » d'une personne ouvre la conversation directe avec elle, ou « Nouveau message » vers elle. Chargement,
+  erreur (avec « Réessayer ») et aucun résultat sont des `DataState` de la lib. L'onglet fichiers reste vide tant que
+  le BFF ne stocke pas de pièce jointe.
+- **Membres d'un groupe (MAIR-1165).** L'en-tête d'un groupe affiche un `AvatarGroup` de la lib « N membres, gérer
+  les membres » (aussi « Gérer les membres » dans « Plus d'actions »), qui ouvre le `Drawer` de la lib « Membres du
+  groupe » (`GET /conversations/{id}/members`, lu à l'ouverture du panneau puis quand la taille du groupe change).
+  Chaque membre est listé avec son service et le badge « Administrateur » (`Tag` de la lib) ; l'administrateur du
+  groupe (`canManage`) a aussi « Ajouter des membres » (recherche dans l'annuaire, cases `Checkbox` de la lib,
+  validation) et « Retirer » par membre ; ces actions sont masquées pour un simple membre. Chacun peut « Quitter le
+  groupe » après un `ConfirmModal` de la lib : la conversation quitte la liste et un toast le confirme. Une action
+  refusée est un `ErrorAlert` de la lib dans le panneau, la sélection conservée. Chaque changement ajoute au fil la note
+  système renvoyée par le BFF, centrée (« Vous avez ajouté Sophie Leroy au groupe. », « Paul Martin vous a retiré du
+  groupe. »…), et la nouvelle taille du groupe à la liste ; une note système n'est jamais non lue ni « Envoyé ».
+- **Mentions et liens (MAIR-1166).** Taper `@` (ou le bouton « Mentionner une personne ») ouvre
+  `MentionSuggestions` avec les sections « Tout le monde », « Groupes et services » et « Personnes »
+  (`GET /conversations/{id}/mention-suggestions`) ; `#` (« Lier un élément ») liste les projets, événements et tâches
+  que l'agent peut lire, avec l'icône de leur type et leur détail (`GET /link-suggestions`). Le champ est une combobox
+  et la liste une listbox : ↑ ↓ pour se déplacer, Entrée / Tab pour choisir, Échap pour fermer, et la liste disparaît
+  quand plus rien ne correspond ; Entrée envoie quand aucune liste n'est ouverte. Un tag choisi est figé (suivi d'une
+  espace, la suite est du texte). L'envoi porte `mentionIds`, `mentionEveryone`, `groupMentionIds` et `links`. Dans
+  les bulles, les tags sont soulignés en couleur d'accent, et un élément lié qui a une page (`url` du BFF) est un
+  `Link` de la lib qui l'ouvre. Une personne mentionnée n'a pas encore de page à ouvrir : son tag reste souligné.
+- **Actions d'un message et réponse (MAIR-1167).** Survoler une bulle, lui donner le focus clavier (chaque bulle qui a
+  des actions est focalisable) ou un appui long sur écran tactile affiche `MessageActionsToolbar` (`IconButton` de la
+  lib avec leur `ToolTip`) : « Réagir », « Répondre », et sur mes messages « Modifier » et « Supprimer ». « Répondre »
+  affiche `ReplyBar` au-dessus du champ (auteur, extrait, « Annuler la réponse ») et y place le focus ; l'envoi porte
+  `replyTo` et la barre disparaît une fois le message confirmé. Une réponse affiche `MessageQuote` au-dessus de sa
+  bulle (auteur et extrait de `quoted`) ; un clic fait défiler en douceur jusqu'au message d'origine et le met en
+  évidence. La citation d'un message supprimé indique « Message supprimé ».
+- **Modifier un message (MAIR-1168).** « Modifier » (barre d'actions, mes messages seulement) remplace la bulle par
+  `MessageEditBox` : un `TextArea` de la lib avec les mêmes boutons et suggestions `@` / `#` que la saisie (les tags du
+  message restent des tags), l'aide « Échap pour annuler · Entrée pour enregistrer », Annuler et Enregistrer
+  (désactivé tant que le texte est vide ou inchangé). L'enregistrement (`PATCH /conversations/{id}/messages/{messageId}`,
+  tous les champs de tags envoyés pour qu'un tag retiré disparaisse) remplace le message ; son heure est alors suivie
+  de « · modifié ». Un refus est un `ErrorAlert` de la lib sous la zone, le texte conservé.
+- **Supprimer un message (MAIR-1169).** « Supprimer » (barre d'actions, mes messages seulement) ouvre le
+  `ConfirmModal` de la lib (danger) « Supprimer le message ? » / « Le message sera remplacé par « Message supprimé »
+  pour tous les participants. ». Une fois confirmé (`DELETE /conversations/{id}/messages/{messageId}`),
+  `DeletedMessage` (icône ban, italique atténué) remplace la bulle, ses tags, sa citation et ses réactions ; plus
+  aucune action n'y est proposée, et l'aperçu de la liste indique « Message supprimé » quand c'était le dernier
+  message. Un échec est un `ErrorAlert` danger au-dessus du fil, le message conservé.
+- **Réactions (MAIR-1170).** « Réagir » (barre d'actions) ouvre `ReactionPicker` (👍 ❤️ 😂 🎉 👀 🙏 ✅, `Button` de
+  la lib qui prennent le focus, ← → pour se déplacer, Échap pour fermer). `MessageReactions` affiche une pastille par
+  emoji sous la bulle : un bouton bascule (`aria-pressed`, « 👍 3, dont vous »), la mienne mise en avant, les noms des
+  agents dans son `ToolTip` de la lib, et « Ajouter une réaction ». Un clic ajoute ou retire ma réaction (`POST` /
+  `DELETE /conversations/{id}/messages/{messageId}/reactions`) ; les réactions renvoyées par le BFF remplacent celles
+  du message. Les autres participants les voient au rafraîchissement déclenché par l'événement `message_reacted` du
+  flux. Un échec est l'`ErrorAlert` danger au-dessus du fil.
+- **États vides (MAIR-1171).** Un seul visuel illustré par écran, avec le `DataState` de la lib 2.3 : sans aucune
+  conversation, la liste dit seulement « Aucune conversation pour l'instant. » et le fil affiche « Commencez à
+  échanger » (taille m, illustré) ; avec des conversations sans sélection, « Sélectionnez une conversation » (taille
+  m) ; une conversation sans message (groupe tout juste créé) affiche « Aucun message pour l'instant » (taille s,
+  icône), centré. Une recherche sans résultat garde « Aucune conversation trouvée. ».

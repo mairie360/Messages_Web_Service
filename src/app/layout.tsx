@@ -6,6 +6,8 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { readFrontUrlsFromEnv } from "@/lib/front-urls";
 import { FrontUrlsProvider } from "@/lib/front-urls-provider";
+import { readShellInfoFromEnv } from "@/lib/shell-info";
+import { ShellInfoProvider } from "@/lib/shell-info-provider";
 import "./globals.css";
 import "./app-shell.css";
 
@@ -37,11 +39,11 @@ export default async function RootLayout({
   const appearance = parseAppearanceCookie(cookieStore.get(APPEARANCE_COOKIE)?.value);
   const timeZone = instanceTimeZone(process.env.INSTANCE_TIMEZONE);
   return (
-    <html lang="fr" data-theme={appearance?.theme ?? "system"} data-density={appearance?.density ?? "normal"}>
+    <html lang="fr" data-theme="light" data-density={appearance?.density ?? "normal"}>
       <head>
         <meta name="apple-mobile-web-app-title" content="Mairie360" />
       </head>
-      <body className={`${geistSans.variable} mairie-ui antialiased`}><InstanceProvider role={role} timeZone={timeZone} appearance={appearance} appearanceCookieDomain={process.env.COOKIE_DOMAIN}><FrontUrlsProvider urls={readFrontUrlsFromEnv()} cookieDomain={process.env.COOKIE_DOMAIN}>{children}</FrontUrlsProvider></InstanceProvider></body>
+      <body className={`${geistSans.variable} mairie-ui antialiased`}><InstanceProvider role={role} timeZone={timeZone} appearance={appearance} appearanceCookieDomain={process.env.COOKIE_DOMAIN}><FrontUrlsProvider urls={readFrontUrlsFromEnv()} cookieDomain={process.env.COOKIE_DOMAIN}><ShellInfoProvider info={readShellInfoFromEnv()}>{children}</ShellInfoProvider></FrontUrlsProvider></InstanceProvider></body>
     </html>
   );
 }

@@ -1,4 +1,5 @@
 import { FileText } from 'lucide-react';
+import { Icon } from '@mairie360/lib-components/primitives';
 
 import { joinClasses } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-style';
 import type { MessagingAttachment } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
@@ -16,7 +17,7 @@ export const BubbleAttachments = ({ attachments, outgoing, downloadPending, onDo
   if (attachments.length === 0) return null;
   const attachmentClassName = joinClasses(
     'flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition',
-    outgoing ? 'border-[var(--mairie-surface)]/35 bg-[var(--mairie-surface)]/10 text-[var(--mairie-on-action)]' : 'border-[var(--mairie-border)] bg-[var(--mairie-surface-raised)] text-[var(--mairie-text)]'
+    outgoing ? 'border-[var(--mairie-message-own-border)] bg-[var(--mairie-surface)]/60 text-[var(--mairie-message-own-on)]' : 'border-[var(--mairie-border)] bg-[var(--mairie-surface-raised)] text-[var(--mairie-text)]'
   );
 
   return (
@@ -24,7 +25,7 @@ export const BubbleAttachments = ({ attachments, outgoing, downloadPending, onDo
       {attachments.map((attachment) =>
         onDownload ? (
           <button key={attachment.id} type="button" className={attachmentClassName} disabled={downloadPending} onClick={() => onDownload(attachment)}>
-            <FileText className="size-4 shrink-0" />
+            <Icon icon={FileText} size="s" className="shrink-0" />
             <span className="min-w-0 truncate">{attachment.name}</span>
             <span>{downloadPending ? 'Téléchargement…' : 'Télécharger'}</span>
           </button>
@@ -35,14 +36,14 @@ export const BubbleAttachments = ({ attachments, outgoing, downloadPending, onDo
             download={attachment.name}
             target="_blank"
             rel="noreferrer"
-            className={joinClasses(attachmentClassName, outgoing ? 'hover:bg-[var(--mairie-surface)]/15' : 'hover:bg-[var(--mairie-background)]')}
+            className={joinClasses(attachmentClassName, outgoing ? 'hover:bg-[var(--mairie-surface)]' : 'hover:bg-[var(--mairie-background)]')}
           >
-            <FileText className="size-4 shrink-0" strokeWidth={1.8} />
+            <Icon icon={FileText} size="s" className="shrink-0" />
             <span className="min-w-0 truncate">{attachment.name}</span>
           </a>
         ) : (
           <div key={attachment.id} className={attachmentClassName}>
-            <FileText className="size-4 shrink-0" strokeWidth={1.8} />
+            <Icon icon={FileText} size="s" className="shrink-0" />
             <span className="min-w-0 truncate">{attachment.name}</span>
           </div>
         )
