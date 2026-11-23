@@ -240,3 +240,7 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   conversation » `text-search` seulement s'il est branché, « Plus d'actions » `more-horizontal`. Menus :
   `check-check`, `trash`, `message-square-plus`, `users`. Éléments liés : projet `folder-kanban`, tâche
   `list-checks`, dossier `folder-open`, événement `calendar`, service `building-2`.
+- **Mes bulles (MAIR-1159).** Mes messages utilisent les jetons de la lib 2.3 `--mairie-message-own-background`
+  (#efebe2), `--mairie-message-own-on` (#383f51, contraste 8,8:1) et `--mairie-message-own-border` (#d6d0c3), leurs
+  éléments liés et pièces jointes aussi ; les bulles reçues gardent la surface blanche et `--mairie-border`. L'heure
+  est au-dessus de la bulle, alignée à droite pour mes messages.
