@@ -75,6 +75,16 @@ export const messageClient = {
     return (await bffMessage.deleteConversationsConversationIdMessagesMessageId(encodeId(conversationId), encodeId(messageId))).data;
   },
 
+  /** MAIR-1170: add my reaction with `emoji`; the answer is every reaction of the message. */
+  async addReaction(conversationId: MessageId, messageId: MessageId, emoji: string) {
+    return (await bffMessage.postConversationsConversationIdMessagesMessageIdReactions(encodeId(conversationId), encodeId(messageId), { emoji })).data;
+  },
+
+  /** MAIR-1170: remove my reaction with `emoji`. */
+  async removeReaction(conversationId: MessageId, messageId: MessageId, emoji: string) {
+    return (await bffMessage.deleteConversationsConversationIdMessagesMessageIdReactions(encodeId(conversationId), encodeId(messageId), { emoji })).data;
+  },
+
   /** MAIR-1166: what the agent may mention after `@` in a conversation. */
   async getMentionSuggestions(conversationId: MessageId, q: string, signal?: AbortSignal) {
     return (await bffMessage.getConversationsConversationIdMentionSuggestions(encodeId(conversationId), { q }, { signal })).data;

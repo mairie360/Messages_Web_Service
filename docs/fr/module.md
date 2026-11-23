@@ -322,6 +322,13 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   `DeletedMessage` (icône ban, italique atténué) remplace la bulle, ses tags, sa citation et ses réactions ; plus
   aucune action n'y est proposée, et l'aperçu de la liste indique « Message supprimé » quand c'était le dernier
   message. Un échec est un `ErrorAlert` danger au-dessus du fil, le message conservé.
+- **Réactions (MAIR-1170).** « Réagir » (barre d'actions) ouvre `ReactionPicker` (👍 ❤️ 😂 🎉 👀 🙏 ✅, `Button` de
+  la lib qui prennent le focus, ← → pour se déplacer, Échap pour fermer). `MessageReactions` affiche une pastille par
+  emoji sous la bulle : un bouton bascule (`aria-pressed`, « 👍 3, dont vous »), la mienne mise en avant, les noms des
+  agents dans son `ToolTip` de la lib, et « Ajouter une réaction ». Un clic ajoute ou retire ma réaction (`POST` /
+  `DELETE /conversations/{id}/messages/{messageId}/reactions`) ; les réactions renvoyées par le BFF remplacent celles
+  du message. Les autres participants les voient au rafraîchissement déclenché par l'événement `message_reacted` du
+  flux. Un échec est l'`ErrorAlert` danger au-dessus du fil.
 - **États vides (MAIR-1171).** Un seul visuel illustré par écran, avec le `DataState` de la lib 2.3 : sans aucune
   conversation, la liste dit seulement « Aucune conversation pour l'instant. » et le fil affiche « Commencez à
   échanger » (taille m, illustré) ; avec des conversations sans sélection, « Sélectionnez une conversation » (taille

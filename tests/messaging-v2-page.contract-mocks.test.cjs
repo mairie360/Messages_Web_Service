@@ -144,3 +144,17 @@ test('MAIR-1169 a deleted message becomes its tombstone and the preview of the l
   bff.on('delete', '/conversations/{conversationId}/messages/{messageId}', { status: 404, outOfContract: true, body: { error: { code: 'NOT_FOUND', message: 'Message introuvable.', details: [] } } });
   await assert.rejects(view.act(() => messaging().onDeleteMessage({ ...mine })), /introuvable|supprimé/);
 });
+
+test('MAIR-1170 my reaction is added and removed, the reactions of the BFF replace those of the message', async () => {
+  await loaded();
+  const target = messaging().messages.find(item => item.id === 'message-1');
+  bff.on('post', '/conversations/{conversationId}/messages/{messageId}/reactions', { body: { reactions: [{ emoji: '👍', count: 1, reactedByMe: true, userNames: [users.agent.name] }] } });
+  await view.act(() => messaging().onToggleReaction(target, '👍', true));
+  await view.waitFor(() => messaging().messages.find(item => item.id === 'message-1').reactions?.[0]?.reactedByMe === true);
+  bff.on('delete', '/conversations/{conversationId}/messages/{messageId}/reactions', { body: { reactions: [] } });
+  await view.act(() => messaging().onToggleReaction(target, '👍', false));
+  await view.waitFor(() => messaging().messages.find(item => item.id === 'message-1').reactions.length === 0);
+  assert.equal(bff.calls('/conversations/{conversationId}/messages/{messageId}/reactions', 'delete')[0].url.searchParams.get('emoji'), '👍');
+  bff.on('post', '/conversations/{conversationId}/messages/{messageId}/reactions', { status: 404, outOfContract: true, body: { error: { code: 'NOT_FOUND', message: 'Message introuvable.', details: [] } } });
+  await assert.rejects(view.act(() => messaging().onToggleReaction(target, '🎉', true)), /introuvable|réaction/);
+});

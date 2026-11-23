@@ -95,6 +95,18 @@ const clientScenarios = {
     assert.deepEqual(await messageClient.deleteMessage('conversation-4', 'message-3'), body);
     assert.deepEqual(upstream(), ['DELETE /conversations/conversation-4/messages/message-3']);
   },
+  async addReaction() {
+    const body = { reactions: [{ emoji: '👍', count: 1, reactedByMe: true, userNames: [users.agent.name] }] };
+    messageBff.on('post', '/conversations/{conversationId}/messages/{messageId}/reactions', { body });
+    assert.deepEqual(await messageClient.addReaction('conversation-4', 'message-3', '👍'), body);
+    assert.deepEqual(messageBff.calls('/conversations/{conversationId}/messages/{messageId}/reactions', 'post')[0].body, { emoji: '👍' });
+  },
+  async removeReaction() {
+    messageBff.on('delete', '/conversations/{conversationId}/messages/{messageId}/reactions', { body: { reactions: [] } });
+    assert.deepEqual(await messageClient.removeReaction('conversation-4', 'message-3', '👍'), { reactions: [] });
+    const [call] = messageBff.calls('/conversations/{conversationId}/messages/{messageId}/reactions', 'delete');
+    assert.equal(call.url.searchParams.get('emoji'), '👍');
+  },
   async getMentionSuggestions() {
     const body = { everyone: true, groups: [{ id: 'group-4', name: 'Service urbanisme' }], people: [{ id: `user-${users.sophie.id}`, name: users.sophie.name }] };
     messageBff.on('get', '/conversations/{conversationId}/mention-suggestions', { body });
