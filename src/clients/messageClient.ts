@@ -70,6 +70,11 @@ export const messageClient = {
     return (await bffMessage.patchConversationsConversationIdMessagesMessageId(encodeId(conversationId), encodeId(messageId), body)).data;
   },
 
+  /** MAIR-1169: delete one of my messages; the answer is its tombstone (`deleted: true`). */
+  async deleteMessage(conversationId: MessageId, messageId: MessageId) {
+    return (await bffMessage.deleteConversationsConversationIdMessagesMessageId(encodeId(conversationId), encodeId(messageId))).data;
+  },
+
   /** MAIR-1166: what the agent may mention after `@` in a conversation. */
   async getMentionSuggestions(conversationId: MessageId, q: string, signal?: AbortSignal) {
     return (await bffMessage.getConversationsConversationIdMentionSuggestions(encodeId(conversationId), { q }, { signal })).data;

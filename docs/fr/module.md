@@ -316,6 +316,12 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   (désactivé tant que le texte est vide ou inchangé). L'enregistrement (`PATCH /conversations/{id}/messages/{messageId}`,
   tous les champs de tags envoyés pour qu'un tag retiré disparaisse) remplace le message ; son heure est alors suivie
   de « · modifié ». Un refus est un `ErrorAlert` de la lib sous la zone, le texte conservé.
+- **Supprimer un message (MAIR-1169).** « Supprimer » (barre d'actions, mes messages seulement) ouvre le
+  `ConfirmModal` de la lib (danger) « Supprimer le message ? » / « Le message sera remplacé par « Message supprimé »
+  pour tous les participants. ». Une fois confirmé (`DELETE /conversations/{id}/messages/{messageId}`),
+  `DeletedMessage` (icône ban, italique atténué) remplace la bulle, ses tags, sa citation et ses réactions ; plus
+  aucune action n'y est proposée, et l'aperçu de la liste indique « Message supprimé » quand c'était le dernier
+  message. Un échec est un `ErrorAlert` danger au-dessus du fil, le message conservé.
 - **États vides (MAIR-1171).** Un seul visuel illustré par écran, avec le `DataState` de la lib 2.3 : sans aucune
   conversation, la liste dit seulement « Aucune conversation pour l'instant. » et le fil affiche « Commencez à
   échanger » (taille m, illustré) ; avec des conversations sans sélection, « Sélectionnez une conversation » (taille
