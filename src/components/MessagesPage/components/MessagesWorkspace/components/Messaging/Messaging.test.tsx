@@ -1061,7 +1061,7 @@ describe('Messaging reply (MAIR-1167)', () => {
     render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" onSendMessage={onSendMessage} />);
     const bubble = document.querySelector('[data-messaging-message-id="m1"] [data-direction]') as HTMLElement;
     expect(bubble).toHaveAttribute('tabindex', '0');
-    fireEvent.click(within(document.querySelector('[data-messaging-message-id="m1"]') as HTMLElement).getByRole('button', { name: 'Répondre' }));
+    fireEvent.click(actionsOf('m1').getByRole('button', { name: 'Répondre' }));
     expect(screen.getByText('Réponse à Sophie Leroy')).toBeVisible();
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'Écrire un message' })).toHaveFocus());
     fireEvent.change(screen.getByRole('combobox', { name: 'Écrire un message' }), { target: { value: 'Merci !' } });
@@ -1097,14 +1097,40 @@ describe('Messaging reply (MAIR-1167)', () => {
   });
 });
 
+/** Hovers a message, which mounts its actions toolbar (MAIR-1169: not rendered before), and scopes queries to it. */
+const actionsOf = (id: string) => {
+  const row = document.querySelector(`[data-messaging-message-id="${id}"]`) as HTMLElement;
+  fireEvent.pointerOver(row);
+  return within(row);
+};
+
+describe('Messaging actions toolbar (MAIR-1169)', () => {
+  it('mounts the toolbar of a message only from the first hover or keyboard focus, then keeps it', () => {
+    const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+    const thread = [
+      { id: 'm1', conversationId: 'g1', content: 'Un', authorId: 'u2' },
+      { id: 'm2', conversationId: 'g1', content: 'Deux', authorId: 'me' },
+    ];
+    render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" onSendMessage={vi.fn()} onEditMessage={vi.fn()} />);
+    const row = (id: string) => document.querySelector(`[data-messaging-message-id="${id}"]`) as HTMLElement;
+    expect(screen.queryAllByRole('toolbar', { name: 'Actions du message' })).toHaveLength(0);
+    fireEvent.pointerOver(row('m1'));
+    expect(within(row('m1')).getByRole('button', { name: 'Répondre' })).toBeInTheDocument();
+    fireEvent.pointerOut(row('m1'));
+    expect(within(row('m1')).getByRole('toolbar')).toBeInTheDocument();
+    fireEvent.focus(row('m2').querySelector('[tabindex="0"]') as HTMLElement);
+    expect(within(row('m2')).getByRole('button', { name: 'Modifier' })).toBeInTheDocument();
+  });
+});
+
 describe('Messaging edit (MAIR-1168)', () => {
   it('edits one of my messages in place, then shows « · modifié » after its time', async () => {
     const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
     const mine = { id: 'm1', conversationId: 'g1', content: 'Réunion à 14h', authorId: 'me', sentAt: '10:02' };
     const onEditMessage = vi.fn(() => Promise.resolve(true));
     const { rerender } = render(<Messaging conversations={[group]} messages={[mine, { id: 'm2', conversationId: 'g1', content: 'Ok', authorId: 'u3' }]} activeConversationId="g1" currentUserId="me" onEditMessage={onEditMessage} />);
-    expect(within(document.querySelector('[data-messaging-message-id="m2"]') as HTMLElement).queryByRole('button', { name: 'Modifier' })).toBeNull();
-    fireEvent.click(within(document.querySelector('[data-messaging-message-id="m1"]') as HTMLElement).getByRole('button', { name: 'Modifier' }));
+    expect(actionsOf('m2').queryByRole('button', { name: 'Modifier' })).toBeNull();
+    fireEvent.click(actionsOf('m1').getByRole('button', { name: 'Modifier' }));
     const field = screen.getByRole('textbox', { name: 'Modifier le message' });
     fireEvent.change(field, { target: { value: 'Réunion à 15h' } });
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
@@ -1123,13 +1149,13 @@ describe('Messaging delete (MAIR-1169)', () => {
     const onDeleteMessage = vi.fn().mockRejectedValueOnce(new Error('Le message n’a pas pu être supprimé.')).mockResolvedValue(true);
     const { rerender } = render(<Messaging conversations={[group]} messages={[mine]} activeConversationId="g1" currentUserId="me" onDeleteMessage={onDeleteMessage} />);
     const row = () => document.querySelector('[data-messaging-message-id="m1"]') as HTMLElement;
-    fireEvent.click(within(row()).getByRole('button', { name: 'Supprimer' }));
+    fireEvent.click(actionsOf('m1').getByRole('button', { name: 'Supprimer' }));
     const dialog = screen.getByRole('alertdialog', { name: 'Supprimer le message ?' });
     expect(dialog).toHaveTextContent('Le message sera remplacé par « Message supprimé » pour tous les participants.');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Supprimer' }));
     expect(await screen.findByText('Le message n’a pas pu être supprimé.')).toBeVisible();
     expect(within(row()).getByText('Erreur de fil')).toBeVisible();
-    fireEvent.click(within(row()).getByRole('button', { name: 'Supprimer' }));
+    fireEvent.click(actionsOf('m1').getByRole('button', { name: 'Supprimer' }));
     fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Supprimer' }));
     await waitFor(() => expect(onDeleteMessage).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText('Le message n’a pas pu être supprimé.')).toBeNull());
@@ -1142,7 +1168,7 @@ describe('Messaging delete (MAIR-1169)', () => {
   it('cancels the deletion', () => {
     const onDeleteMessage = vi.fn();
     render(<Messaging conversations={[group]} messages={[mine]} activeConversationId="g1" currentUserId="me" onDeleteMessage={onDeleteMessage} />);
-    fireEvent.click(within(document.querySelector('[data-messaging-message-id="m1"]') as HTMLElement).getByRole('button', { name: 'Supprimer' }));
+    fireEvent.click(actionsOf('m1').getByRole('button', { name: 'Supprimer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
     expect(onDeleteMessage).not.toHaveBeenCalled();
   });
