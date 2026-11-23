@@ -1,11 +1,13 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  Icon,
   IconButton,
   ToolTip,
+  icons,
 } from '@mairie360/lib-components/primitives';
 
 import { useMenuKeyboard } from '../../../../../../use-menu-keyboard';
@@ -35,10 +37,14 @@ export const NewConversationMenu = ({
       </ToolTip>
       <DropdownMenuContent align="end" className="w-56" {...menuProps(label)}>
         {onNewMessageClick && (
-          <DropdownMenuItem {...itemProps()} onClick={onNewMessageClick}>{newMessageLabel}</DropdownMenuItem>
+          <DropdownMenuItem {...itemProps()} onClick={onNewMessageClick}>
+            <Icon icon={icons['message-square-plus']} size="s" />{newMessageLabel}
+          </DropdownMenuItem>
         )}
         {onCreateGroupClick && (
-          <DropdownMenuItem {...itemProps()} onClick={onCreateGroupClick}>{createGroupLabel}</DropdownMenuItem>
+          <DropdownMenuItem {...itemProps()} onClick={onCreateGroupClick}>
+            <Icon icon={Users} size="s" />{createGroupLabel}
+          </DropdownMenuItem>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

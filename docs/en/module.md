@@ -224,3 +224,10 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   group, service); without result, « Aucune conversation trouvée. ». Each line shows the lib `Avatar` (photo or
   initials, groups included) with its presence dot, the name and the preview truncated on one line, the time in a
   fixed right column and the unread lib `Counter` (« 9+ »), spoken as « N messages non lus ».
+- **Explicit icons (MAIR-1158).** Every icon goes through the lib `Icon` (lib 2.3 `icons` for the Messagerie
+  glyphs). Composer: « Joindre un fichier » `file-up`, « Mentionner une personne » `at-sign`, « Lier un élément »
+  `hash`, « Insérer un emoji » `smile-plus`, « Envoyer » `send`, each a lib `IconButton` with its `ToolTip`. Header:
+  « Appeler » `phone` and « Lancer une visio » `video` are shown unavailable (`aria-disabled`, still focusable,
+  tooltip « … · bientôt disponible »), « Rechercher dans la conversation » `text-search` only when wired, « Plus
+  d'actions » `more-horizontal`. Menus: `check-check`, `trash`, `message-square-plus`, `users`. Linked elements:
+  project `folder-kanban`, task `list-checks`, folder `folder-open`, event `calendar`, service `building-2`.

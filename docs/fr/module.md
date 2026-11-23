@@ -232,3 +232,11 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   Chaque ligne affiche l'`Avatar` de la lib (photo ou initiales, groupes compris) avec sa pastille de présence, le nom
   et l'aperçu tronqués sur une ligne, l'heure dans une colonne fixe à droite et le `Counter` des non-lus de la lib
   (« 9+ »), lu « N messages non lus ».
+- **Icônes explicites (MAIR-1158).** Toutes les icônes passent par `Icon` de la lib (`icons` de la lib 2.3 pour les
+  glyphes de la messagerie). Saisie : « Joindre un fichier » `file-up`, « Mentionner une personne » `at-sign`, « Lier
+  un élément » `hash`, « Insérer un emoji » `smile-plus`, « Envoyer » `send`, chacun un `IconButton` de la lib avec
+  son `ToolTip`. En-tête : « Appeler » `phone` et « Lancer une visio » `video` sont affichés indisponibles
+  (`aria-disabled`, toujours atteignables au clavier, infobulle « … · bientôt disponible »), « Rechercher dans la
+  conversation » `text-search` seulement s'il est branché, « Plus d'actions » `more-horizontal`. Menus :
+  `check-check`, `trash`, `message-square-plus`, `users`. Éléments liés : projet `folder-kanban`, tâche
+  `list-checks`, dossier `folder-open`, événement `calendar`, service `building-2`.

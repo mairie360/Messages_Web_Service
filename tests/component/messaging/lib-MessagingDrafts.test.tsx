@@ -152,10 +152,10 @@ describe('Messaging conversation drafts', () => {
     const pending = new Promise<boolean>(yes => { resolve = yes; });
     render(<Messaging {...props} onSendMessage={() => pending} />);
     edit('@Ag');
-    fireEvent.click(screen.getByRole('button', { name: 'Ajouter une réaction' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Insérer un emoji' }));
     fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
     expect(screen.getByRole('button', { name: /@Agent/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Ajouter une réaction' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Insérer un emoji' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Ajouter 👍' })).toBeDisabled();
     await act(async () => { resolve(false); await pending; });
     expect(input()).toHaveValue('@Ag');

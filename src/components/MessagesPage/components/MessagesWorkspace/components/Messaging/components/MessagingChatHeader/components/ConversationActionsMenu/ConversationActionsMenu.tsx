@@ -1,5 +1,6 @@
 import React from 'react';
-import { CheckCheck, MoreVertical, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Trash } from 'lucide-react';
+import { Icon, icons } from '@mairie360/lib-components/primitives';
 
 import type { MessagingConversation } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
 import { HeaderIconButton } from '../HeaderIconButton';
@@ -47,14 +48,13 @@ export const ConversationActionsMenu = ({
     <div ref={menuRef} className="relative">
       <HeaderIconButton
         label={label}
+        icon={MoreHorizontal}
         expanded={open}
         onClick={() => {
           if (hasMenu) setOpen((current) => !current);
           onMoreActions?.(conversation);
         }}
-      >
-        <MoreVertical className="size-4" strokeWidth={1.8} />
-      </HeaderIconButton>
+      />
       {open && hasMenu && (
         <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-56 overflow-hidden rounded-md border border-[var(--mairie-border)] bg-[var(--mairie-surface)] p-1 text-sm text-[var(--mairie-text)] shadow-lg">
           {onReadVisibleMessages && (
@@ -64,7 +64,7 @@ export const ConversationActionsMenu = ({
               className="flex w-full items-center gap-2 rounded px-3 py-2 text-left transition hover:bg-[var(--mairie-background)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/30"
               onClick={() => run(onReadVisibleMessages)}
             >
-              <CheckCheck className="size-4 shrink-0" strokeWidth={1.8} />
+              <Icon icon={icons['check-check']} size="s" className="shrink-0" />
               <span>Marquer les messages affichés comme lus</span>
             </button>
           )}
@@ -74,7 +74,7 @@ export const ConversationActionsMenu = ({
               className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-[var(--mairie-error-text)] transition hover:bg-[var(--mairie-error-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/25"
               onClick={() => run(onDeleteConversation)}
             >
-              <Trash2 className="size-4 shrink-0" strokeWidth={1.8} />
+              <Icon icon={Trash} size="s" className="shrink-0" />
               <span>{deleteLabel}</span>
             </button>
           )}

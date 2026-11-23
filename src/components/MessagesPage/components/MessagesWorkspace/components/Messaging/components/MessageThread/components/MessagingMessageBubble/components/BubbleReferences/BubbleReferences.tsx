@@ -23,7 +23,7 @@ export const BubbleReferences = ({ references, outgoing, onReferenceClick }: Bub
   );
   const content = (reference: MessagingBusinessReference) => (
     <>
-      <BusinessReferenceIcon reference={reference} className="size-3.5 shrink-0" />
+      <BusinessReferenceIcon reference={reference} size="xs" className="shrink-0" />
       <span className="min-w-0 truncate">{reference.title}</span>
     </>
   );

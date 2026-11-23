@@ -49,8 +49,8 @@ export interface MessagingProps extends React.HTMLAttributes<HTMLElement> {
   onAttach?: (files: File[], attachments: MessagingAttachment[]) => void;
   onEmoji?: (emoji: string) => void;
   onBusinessReferenceClick?: (reference: MessagingBusinessReference) => void;
-  onCall?: (conversation: MessagingConversation) => void;
-  onVideoCall?: (conversation: MessagingConversation) => void;
+  /** MAIR-1158: header « Rechercher dans la conversation », shown only when given. */
+  onSearchConversation?: (conversation: MessagingConversation) => void;
   onMoreActions?: (conversation: MessagingConversation) => void;
 }
 
@@ -82,8 +82,7 @@ export const Messaging = ({
   onAttachmentDownload,
   onEmoji,
   onBusinessReferenceClick,
-  onCall,
-  onVideoCall,
+  onSearchConversation,
   onMoreActions,
   className = '',
   ...props
@@ -180,8 +179,7 @@ export const Messaging = ({
         <MessagingChatHeader
           key={activeConversation ? String(activeConversation.id) : 'no-conversation'}
           conversation={activeConversation}
-          onCall={onCall}
-          onVideoCall={onVideoCall}
+          onSearchConversation={onSearchConversation}
           onMoreActions={onMoreActions}
           onDeleteConversation={onConversationDelete ? handleDeleteConversation : undefined}
           onReadVisibleMessages={onReadVisibleMessages ? conversation => void readVisibleMessages(conversation) : undefined}

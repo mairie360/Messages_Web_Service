@@ -1,4 +1,5 @@
 import { FileText } from 'lucide-react';
+import { Icon } from '@mairie360/lib-components/primitives';
 
 import { joinClasses } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-style';
 import type { MessagingAttachment } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
@@ -24,7 +25,7 @@ export const BubbleAttachments = ({ attachments, outgoing, downloadPending, onDo
       {attachments.map((attachment) =>
         onDownload ? (
           <button key={attachment.id} type="button" className={attachmentClassName} disabled={downloadPending} onClick={() => onDownload(attachment)}>
-            <FileText className="size-4 shrink-0" />
+            <Icon icon={FileText} size="s" className="shrink-0" />
             <span className="min-w-0 truncate">{attachment.name}</span>
             <span>{downloadPending ? 'Téléchargement…' : 'Télécharger'}</span>
           </button>
@@ -37,12 +38,12 @@ export const BubbleAttachments = ({ attachments, outgoing, downloadPending, onDo
             rel="noreferrer"
             className={joinClasses(attachmentClassName, outgoing ? 'hover:bg-[var(--mairie-surface)]/15' : 'hover:bg-[var(--mairie-background)]')}
           >
-            <FileText className="size-4 shrink-0" strokeWidth={1.8} />
+            <Icon icon={FileText} size="s" className="shrink-0" />
             <span className="min-w-0 truncate">{attachment.name}</span>
           </a>
         ) : (
           <div key={attachment.id} className={attachmentClassName}>
-            <FileText className="size-4 shrink-0" strokeWidth={1.8} />
+            <Icon icon={FileText} size="s" className="shrink-0" />
             <span className="min-w-0 truncate">{attachment.name}</span>
           </div>
         )
