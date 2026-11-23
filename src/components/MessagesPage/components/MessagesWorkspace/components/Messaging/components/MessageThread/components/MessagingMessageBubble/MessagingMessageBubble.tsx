@@ -74,6 +74,11 @@ export const MessagingMessageBubble = ({
 }: MessagingMessageBubbleProps) => {
   // MAIR-1167: a long press opens the toolbar on a touch screen; leaving the message closes it.
   const [actionsOpen, setActionsOpen] = React.useState(false);
+  // The toolbar is invisible until the bubble is hovered or focused (CSS), so it is only mounted from the first hover,
+  // focus or long press on: one per message on every render made a thread of 30 messages twice as long to render
+  // (MAIR-1169, k6 `/health` p95 over budget). Once mounted it stays, so the CSS shows and hides it as before.
+  const [engaged, setEngaged] = React.useState(false);
+  const engage = () => setEngaged(true);
   const pressTimer = React.useRef<number | undefined>(undefined);
   const stopPress = () => { window.clearTimeout(pressTimer.current); pressTimer.current = undefined; };
   React.useEffect(() => stopPress, []);
@@ -108,6 +113,8 @@ export const MessagingMessageBubble = ({
   return (
     <div
       // MAIR-1164: a message reached from the search (or a quote) is highlighted for a moment (`data-revealed`).
+      onPointerEnter={hasActions ? engage : undefined}
+      onFocus={hasActions ? engage : undefined}
       onPointerDown={hasActions ? event => {
         if (event.pointerType !== 'touch') return;
         stopPress();
@@ -183,7 +190,7 @@ export const MessagingMessageBubble = ({
         />
       </div>
       )}
-      {hasActions && !editing && (
+      {hasActions && !editing && (engaged || actionsOpen) && (
         <MessageActionsToolbar
           open={actionsOpen}
           outgoing={outgoing}
