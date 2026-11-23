@@ -48,6 +48,8 @@ export function MessagesWorkspace({
   handleCreateGroup,
   handleConversationDelete,
   handleSearch,
+  handleSuggestMentions,
+  handleSuggestLinks,
   handleLoadMembers,
   handleAddMembers,
   handleRemoveMember,
@@ -107,6 +109,8 @@ export function MessagesWorkspace({
                 onCreateGroup={handleCreateGroup}
                 onConversationDelete={deletingConversation || !hasConfirmedThread ? undefined : handleConversationDelete}
                 onSearch={hasConfirmedThread ? handleSearch : undefined}
+                onSuggestMentions={handleSuggestMentions}
+                onSuggestLinks={handleSuggestLinks}
                 onLoadMembers={hasConfirmedThread ? handleLoadMembers : undefined}
                 onAddMembers={handleAddMembers}
                 onRemoveMember={handleRemoveMember}

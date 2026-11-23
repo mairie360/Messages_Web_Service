@@ -4,6 +4,8 @@ const path = require('node:path');
 const { test } = require('node:test');
 
 const COMPOSER = path.join(__dirname, '../src/components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/ConversationComposers/components/MessagingComposer');
+// MAIR-1166: the suggestions of the composer are the shared MentionSuggestions (also used by the edit box).
+const SUGGESTIONS = path.join(COMPOSER, '../../../MentionSuggestions');
 const sources = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
   const full = path.join(dir, entry.name);
   if (entry.isDirectory()) return sources(full);
@@ -11,7 +13,7 @@ const sources = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e
 });
 
 test('MAIR-872 the composer renders lucide glyphs only through the lib Icon, without hard-coded size or stroke', () => {
-  const files = sources(COMPOSER);
+  const files = [...sources(COMPOSER), ...sources(SUGGESTIONS)];
   assert.ok(files.length > 4);
   for (const file of files) {
     const source = fs.readFileSync(file, 'utf8');

@@ -294,6 +294,15 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   refusée est un `ErrorAlert` de la lib dans le panneau, la sélection conservée. Chaque changement ajoute au fil la note
   système renvoyée par le BFF, centrée (« Vous avez ajouté Sophie Leroy au groupe. », « Paul Martin vous a retiré du
   groupe. »…), et la nouvelle taille du groupe à la liste ; une note système n'est jamais non lue ni « Envoyé ».
+- **Mentions et liens (MAIR-1166).** Taper `@` (ou le bouton « Mentionner une personne ») ouvre
+  `MentionSuggestions` avec les sections « Tout le monde », « Groupes et services » et « Personnes »
+  (`GET /conversations/{id}/mention-suggestions`) ; `#` (« Lier un élément ») liste les projets, événements et tâches
+  que l'agent peut lire, avec l'icône de leur type et leur détail (`GET /link-suggestions`). Le champ est une combobox
+  et la liste une listbox : ↑ ↓ pour se déplacer, Entrée / Tab pour choisir, Échap pour fermer, et la liste disparaît
+  quand plus rien ne correspond ; Entrée envoie quand aucune liste n'est ouverte. Un tag choisi est figé (suivi d'une
+  espace, la suite est du texte). L'envoi porte `mentionIds`, `mentionEveryone`, `groupMentionIds` et `links`. Dans
+  les bulles, les tags sont soulignés en couleur d'accent, et un élément lié qui a une page (`url` du BFF) est un
+  `Link` de la lib qui l'ouvre. Une personne mentionnée n'a pas encore de page à ouvrir : son tag reste souligné.
 - **États vides (MAIR-1171).** Un seul visuel illustré par écran, avec le `DataState` de la lib 2.3 : sans aucune
   conversation, la liste dit seulement « Aucune conversation pour l'instant. » et le fil affiche « Commencez à
   échanger » (taille m, illustré) ; avec des conversations sans sélection, « Sélectionnez une conversation » (taille

@@ -27,6 +27,7 @@ import type {
   MessagingSendResult,
   MessagingMember,
   MessagingMembers,
+  MessagingMentionSuggestions,
   MessagingSearchPage,
   MessagingSearchPersonItem,
   MessagingSearchRequest,
@@ -81,6 +82,10 @@ export interface MessagingProps extends React.HTMLAttributes<HTMLElement> {
   onAddMembers?: (conversation: MessagingConversation, userIds: MessagingContactId[]) => Promise<MessagingMembers | false>;
   onRemoveMember?: (conversation: MessagingConversation, member: MessagingMember) => Promise<MessagingMembers | false>;
   onLeaveConversation?: (conversation: MessagingConversation) => Promise<boolean>;
+  /** MAIR-1166: `@` suggestions of a conversation (Tout le monde, groups and services, members). */
+  onSuggestMentions?: (conversation: MessagingConversation, query: string, signal: AbortSignal) => Promise<MessagingMentionSuggestions>;
+  /** MAIR-1166: `#` suggestions (projects, events, tasks the agent may read, with the URL of their page). */
+  onSuggestLinks?: (query: string, signal: AbortSignal) => Promise<MessagingBusinessReference[]>;
 }
 
 const emptyConversations: MessagingConversation[] = [];
@@ -120,6 +125,8 @@ export const Messaging = ({
   onAddMembers,
   onRemoveMember,
   onLeaveConversation,
+  onSuggestMentions,
+  onSuggestLinks,
   className = '',
   ...props
 }: MessagingProps) => {
@@ -324,6 +331,8 @@ export const Messaging = ({
           businessReferenceOptions={businessReferences}
           onSendMessage={onSendMessage ? handleSendMessage : undefined}
           releasedDrafts={sends.released}
+          onSuggestMentions={onSuggestMentions}
+          onSuggestLinks={onSuggestLinks}
           onAttach={onAttach}
           onEmoji={onEmoji}
         />

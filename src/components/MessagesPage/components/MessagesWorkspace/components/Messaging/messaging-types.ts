@@ -20,6 +20,24 @@ export interface MessagingMention {
   name: string;
   kind?: MessagingConversationKind;
   description?: string;
+  /**
+   * MAIR-1166: what the tag mentions, from the suggestions of the conversation: a member (`mentionIds`), a group or
+   * service (`groupMentionIds`) or everyone (`mentionEveryone`). Absent for the local options (a person).
+   */
+  target?: 'person' | 'group' | 'everyone';
+}
+
+/** MAIR-1166: what an agent may mention after `@` in a conversation (BFF `mention-suggestions`). */
+export interface MessagingMentionSuggestions {
+  everyone: boolean;
+  groups: Array<{ id: MessagingContactId; name: string }>;
+  people: Array<{ id: MessagingContactId; name: string }>;
+}
+
+/** MAIR-1166: remote suggestions of the composer; each request is aborted once the agent typed further. */
+export interface MessagingTagSuggestionSources {
+  mentions?: (query: string, signal: AbortSignal) => Promise<MessagingMentionSuggestions>;
+  links?: (query: string, signal: AbortSignal) => Promise<MessagingBusinessReference[]>;
 }
 
 export interface MessagingBusinessReference {
@@ -65,6 +83,18 @@ export interface MessagingMessage {
   /** MAIR-1165: `system` for a note the conversation writes itself (a membership change), centred in the thread. */
   kind?: 'user' | 'system';
   systemEvent?: MessagingSystemEvent;
+  /** MAIR-1166: tags of the message (BFF). */
+  mentionsEveryone?: boolean;
+  groupMentions?: Array<{ id: MessagingContactId; name?: string }>;
+  links?: MessagingMessageLink[];
+}
+
+/** MAIR-1166: a project, task or event a message links to; `url` is its page when the BFF knows it. */
+export interface MessagingMessageLink {
+  id: MessagingContactId;
+  kind: 'project' | 'task' | 'event';
+  title?: string;
+  url?: string;
 }
 
 /** MAIR-1165: a membership change recorded in the thread as a system note. */

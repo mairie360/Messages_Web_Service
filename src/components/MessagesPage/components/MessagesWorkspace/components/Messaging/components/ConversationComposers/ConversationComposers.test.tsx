@@ -13,16 +13,16 @@ describe('ConversationComposers', () => {
     const onSendMessage = vi.fn();
     const props = { conversations: [marie, pierre], mentionOptions: [], businessReferenceOptions: [], onSendMessage };
     const { rerender } = render(<ConversationComposers {...props} activeConversation={marie} />);
-    await userEvent.type(screen.getByRole('textbox', { name: 'Écrire un message' }), 'Brouillon Marie');
+    await userEvent.type(screen.getByRole('combobox', { name: 'Écrire un message' }), 'Brouillon Marie');
     rerender(<ConversationComposers {...props} activeConversation={pierre} />);
-    expect(screen.getByRole('textbox', { name: 'Écrire un message' })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: 'Écrire un message' })).toHaveValue('');
     rerender(<ConversationComposers {...props} activeConversation={marie} />);
-    expect(screen.getByRole('textbox', { name: 'Écrire un message' })).toHaveValue('Brouillon Marie');
+    expect(screen.getByRole('combobox', { name: 'Écrire un message' })).toHaveValue('Brouillon Marie');
     await userEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
     expect(onSendMessage).toHaveBeenCalledWith(marie.id, 'Brouillon Marie', [], [], []);
   });
   it('renders one disabled composer without an active thread', () => {
     render(<ConversationComposers conversations={[marie]} activeConversation={null} mentionOptions={[]} businessReferenceOptions={[]} />);
-    expect(screen.getByRole('textbox', { name: 'Écrire un message' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Écrire un message' })).toBeDisabled();
   });
 });

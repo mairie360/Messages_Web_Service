@@ -12,7 +12,7 @@ const conversations = [
 ];
 const mention = { id: 'agent', name: 'Agent', kind: 'direct' as const };
 const reference = { id: 'project', title: 'Projet', kind: 'project' as const };
-const input = () => screen.getAllByRole('textbox').find(element => element.getAttribute('placeholder') === 'Tapez votre message...')!;
+const input = () => screen.getAllByRole('combobox').find(element => element.getAttribute('placeholder') === 'Tapez votre message...')!;
 const edit = (value: string) => fireEvent.change(input(), { target: { value } });
 const select = (name: string) => fireEvent.click(screen.getByRole('button', { name: new RegExp(name) }));
 const visibleComposer = () => input().closest('form')!;
@@ -35,9 +35,9 @@ describe('Messaging conversation drafts', () => {
     const send = vi.fn(() => false);
     render(<Messaging {...props} onSendMessage={send} />);
     edit('@Ag');
-    fireEvent.click(screen.getByRole('button', { name: /@Agent/ }));
+    fireEvent.click(screen.getByRole('option', { name: /@Agent/ }));
     edit('@Agent #Pr');
-    fireEvent.click(screen.getByRole('button', { name: /#Projet/ }));
+    fireEvent.click(screen.getByRole('option', { name: /#Projet/ }));
     attach();
     select('Fil B');
     expect(input()).toHaveValue('');
@@ -154,12 +154,12 @@ describe('Messaging conversation drafts', () => {
     edit('@Ag');
     fireEvent.click(screen.getByRole('button', { name: 'Insérer un emoji' }));
     fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
-    expect(screen.getByRole('button', { name: /@Agent/ })).toBeDisabled();
+    expect(screen.getByRole('option', { name: /@Agent/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Insérer un emoji' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Ajouter 👍' })).toBeDisabled();
     await act(async () => { resolve(false); await pending; });
     expect(input()).toHaveValue('@Ag');
-    expect(screen.getByRole('button', { name: /@Agent/ })).toBeEnabled();
+    expect(screen.getByRole('option', { name: /@Agent/ })).toBeEnabled();
   });
 
   it('freezes attachment removal and business suggestions without losing a refused draft', async () => {
@@ -170,7 +170,7 @@ describe('Messaging conversation drafts', () => {
     edit('#Pr');
     attach();
     fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
-    expect(screen.getByRole('button', { name: /#Projet/ })).toBeDisabled();
+    expect(screen.getByRole('option', { name: /#Projet/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Retirer draft.txt' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Joindre un fichier' })).toBeDisabled();
     select('Fil B');
@@ -180,7 +180,7 @@ describe('Messaging conversation drafts', () => {
     select('Fil A');
     expect(input()).toHaveValue('#Pr');
     expect(screen.getByRole('button', { name: 'Retirer draft.txt' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /#Projet/ })).toBeEnabled();
+    expect(screen.getByRole('option', { name: /#Projet/ })).toBeEnabled();
     expect(send).toHaveBeenCalledTimes(1);
     expect(revoke).not.toHaveBeenCalled();
   });
