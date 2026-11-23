@@ -266,7 +266,10 @@ describe('Messaging components', () => {
     render(<DemoMessaging onConversationDelete={handleDelete} />);
 
     fireEvent.click(screen.getByLabelText("Plus d'actions"));
-    fireEvent.click(screen.getByText('Supprimer la conversation'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Supprimer la conversation' }));
+    // MAIR-1163: the deletion is confirmed first.
+    expect(handleDelete).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Supprimer' }));
 
     expect(handleDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 'marie-dubois' }));
     expect(screen.getByText('Bonjour Jean, j\'ai examiné le dossier du projet de rénovation.')).toBeInTheDocument();
@@ -282,9 +285,9 @@ describe('Messaging components', () => {
 
     fireEvent.click(screen.getByRole('button', { name: "Plus d'actions" }));
     expect(handleMoreActions).toHaveBeenCalledWith(expect.objectContaining({ id: 'marie-dubois' }));
-    expect(screen.getByRole('button', { name: 'Supprimer la conversation' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Supprimer la conversation' })).toBeInTheDocument();
     fireEvent.mouseDown(document.body);
-    expect(screen.queryByRole('button', { name: 'Supprimer la conversation' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Supprimer la conversation' })).not.toBeInTheDocument();
   });
 
   it('delegates sending without fabricating a persisted message', () => {
@@ -910,5 +913,33 @@ describe('Messaging send status (MAIR-1162)', () => {
     await waitFor(() => expect(screen.queryByText('Envoi…')).toBeNull());
     expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('Premier modifié');
     expect(onSendMessage).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Messaging actions menu (MAIR-1163)', () => {
+  it('« Créer un groupe avec <personne> » opens the group dialog with the contact preselected', () => {
+    const direct = { id: 'c1', name: 'Sophie Leroy', kind: 'direct' as const, contactId: 'user-7' };
+    const contacts = [{ id: 'user-7', name: 'Sophie Leroy' }, { id: 'user-8', name: 'Paul Martin' }];
+    const onCreateGroupClick = vi.fn();
+    render(<Messaging conversations={[direct]} contacts={contacts} activeConversationId="c1" onCreateGroup={vi.fn()} onCreateGroupClick={onCreateGroupClick} />);
+    fireEvent.click(screen.getByRole('button', { name: "Plus d'actions" }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Créer un groupe avec Sophie Leroy' }));
+    expect(screen.getByRole('dialog', { name: 'Créer un groupe' })).toBeInTheDocument();
+    expect(onCreateGroupClick).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('checkbox', { name: /Sophie Leroy/ })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Paul Martin/ })).not.toBeChecked();
+  });
+
+  it('« Marquer comme lus » acknowledges up to the last message so that the counters reach zero', async () => {
+    const group = { id: 'g1', name: 'Conseil', kind: 'group' as const, unreadCount: 2 };
+    const thread = [
+      { id: 'a', conversationId: 'g1', content: 'Un', authorId: 'u2' },
+      { id: 'b', conversationId: 'g1', content: 'Deux', authorId: 'u2' },
+    ];
+    const onReadVisibleMessages = vi.fn(() => true);
+    render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" onReadVisibleMessages={onReadVisibleMessages} />);
+    fireEvent.click(screen.getByRole('button', { name: "Plus d'actions" }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Marquer comme lus' }));
+    await waitFor(() => expect(onReadVisibleMessages).toHaveBeenCalledWith(group, expect.objectContaining({ id: 'b' })));
   });
 });

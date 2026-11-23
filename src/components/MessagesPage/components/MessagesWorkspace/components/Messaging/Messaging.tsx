@@ -5,7 +5,7 @@ import { CreateGroupModal } from './components/CreateGroupModal';
 import { MessagingChatHeader } from './components/MessagingChatHeader';
 import { MessagingSidebar } from './components/MessagingSidebar';
 import { NewMessageModal } from './components/NewMessageModal';
-import { buildMentionOptions, buildSendPayload, closeWhenConfirmed, getMessageDirection, mergeMessagesById, messagingIdsMatch, unreadMessageIds, withSentStatus } from './messaging-model';
+import { buildMentionOptions, buildSendPayload, closeWhenConfirmed, getMessageDirection, mergeMessagesById, messagingIdsMatch, directContactIds, unreadMessageIds, withSentStatus } from './messaging-model';
 import { ContextReferenceBar } from './components/ContextReferenceBar';
 import { ConversationComposers } from './components/ConversationComposers';
 import { MessageThread } from './components/MessageThread';
@@ -51,6 +51,8 @@ export interface MessagingProps extends React.HTMLAttributes<HTMLElement> {
   onBusinessReferenceClick?: (reference: MessagingBusinessReference) => void;
   /** MAIR-1158: header « Rechercher dans la conversation », shown only when given. */
   onSearchConversation?: (conversation: MessagingConversation) => void;
+  /** MAIR-1163: « Gérer les membres » in « Plus d'actions », shown only when given. */
+  onManageMembers?: (conversation: MessagingConversation) => void;
   onMoreActions?: (conversation: MessagingConversation) => void;
 }
 
@@ -83,12 +85,15 @@ export const Messaging = ({
   onEmoji,
   onBusinessReferenceClick,
   onSearchConversation,
+  onManageMembers,
   onMoreActions,
   className = '',
   ...props
 }: MessagingProps) => {
   const [newMessageOpen, setNewMessageOpen] = React.useState(false);
   const [createGroupOpen, setCreateGroupOpen] = React.useState(false);
+  // MAIR-1163: « Créer un groupe avec <personne> » preselects the contact once the contacts are known.
+  const [groupWith, setGroupWith] = React.useState<MessagingConversation | null>(null);
   const displayedConversations = conversations ?? emptyConversations;
   const displayedContacts =
     contacts ?? displayedConversations.filter((conversation) => conversation.kind !== 'group');
@@ -134,7 +139,13 @@ export const Messaging = ({
     onNewMessageClick?.();
   };
 
-  const handleCreateGroupClick = () => {
+  const groupWithIds = React.useMemo(
+    () => (groupWith ? directContactIds(groupWith, displayedContacts) : []),
+    [groupWith, displayedContacts],
+  );
+
+  const handleCreateGroupClick = (withConversation: MessagingConversation | null = null) => {
+    setGroupWith(withConversation);
     setCreateGroupOpen(true);
     onCreateGroupClick?.();
   };
@@ -178,7 +189,7 @@ export const Messaging = ({
         activeConversationId={resolvedActiveId}
         onConversationSelect={handleConversationSelect}
         onNewMessageClick={onNewMessageSend ? handleNewMessageClick : undefined}
-        onCreateGroupClick={onCreateGroup ? handleCreateGroupClick : undefined}
+        onCreateGroupClick={onCreateGroup ? () => handleCreateGroupClick() : undefined}
       />
 
       <div className="flex min-h-0 flex-col bg-[var(--mairie-surface)]">
@@ -188,7 +199,9 @@ export const Messaging = ({
           onSearchConversation={onSearchConversation}
           onMoreActions={onMoreActions}
           onDeleteConversation={onConversationDelete ? handleDeleteConversation : undefined}
-          onReadVisibleMessages={onReadVisibleMessages ? conversation => void readVisibleMessages(conversation) : undefined}
+          onReadVisibleMessages={onReadVisibleMessages ? conversation => void readVisibleMessages(conversation, { untilLast: true }) : undefined}
+          onManageMembers={onManageMembers}
+          onCreateGroupWith={onCreateGroup ? conversation => handleCreateGroupClick(conversation) : undefined}
           readPending={readPending}
         />
 
@@ -240,6 +253,7 @@ export const Messaging = ({
         <CreateGroupModal
           isOpen={createGroupOpen}
           members={displayedContacts}
+          initialMemberIds={groupWithIds}
           onCancel={() => setCreateGroupOpen(false)}
           onCreateGroup={handleCreateGroup}
         />

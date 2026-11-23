@@ -2,7 +2,7 @@ import React from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { IconButton, ToolTip } from '@mairie360/lib-components/primitives';
 
-export interface HeaderIconButtonProps {
+export interface HeaderIconButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'onClick'> {
   label: string;
   icon: LucideIcon;
   /** Shown in the tooltip; the label by default. */
@@ -18,18 +18,19 @@ export interface HeaderIconButtonProps {
 
 /** Icon action of the conversation header (MAIR-1158): lib `IconButton` described by a lib `ToolTip`. */
 export const HeaderIconButton = React.forwardRef<HTMLButtonElement, HeaderIconButtonProps>(function HeaderIconButton(
-  { label, icon, tooltip, unavailable = false, expanded, onClick }, ref,
+  { label, icon, tooltip, unavailable = false, expanded, onClick, className, ...buttonProps }, ref,
 ) {
   return (
     <ToolTip text={tooltip ?? label}>
       <IconButton
+        {...buttonProps}
         ref={ref}
         icon={icon}
         label={label}
         title=""
         aria-expanded={expanded}
         aria-disabled={unavailable || undefined}
-        className={unavailable ? 'cursor-not-allowed opacity-50' : undefined}
+        className={unavailable ? `cursor-not-allowed opacity-50 ${className ?? ''}`.trim() : className}
         onClick={unavailable ? undefined : onClick}
       />
     </ToolTip>

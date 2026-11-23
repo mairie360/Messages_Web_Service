@@ -42,6 +42,8 @@ export interface MessagingConversation {
   lastMessageAt?: string;
   unreadCount?: number;
   memberIds?: MessagingContactId[];
+  /** The other person of a direct conversation (BFF `contactId`, MAIR-204). */
+  contactId?: MessagingContactId;
 }
 
 export interface MessagingMessage {

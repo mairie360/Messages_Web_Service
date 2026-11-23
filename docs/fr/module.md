@@ -266,3 +266,11 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   relance envoie le même message une seule fois (une tentative par conversation ; un envoi depuis la saisie d'un message
   déjà remis par la bulle n'écrit rien) ; la saisie garde son brouillon jusqu'à la confirmation (MAIR-370) et le libère
   quand la bulle l'a remis sans changement. Seul le fil défile : la zone de saisie garde sa hauteur.
+- **« Plus d'actions » (MAIR-1163).** Le menu de l'en-tête est un `DropdownMenu` de la lib (clavier : Entrée / Espace /
+  ↓ pour ouvrir, ↑ ↓ Début Fin, Échap et clic extérieur pour fermer, focus rendu au bouton). Direct : « Marquer les
+  messages comme lus », « Rechercher dans la conversation », « Créer un groupe avec <personne> » (ouvre « Créer un
+  groupe » avec la personne présélectionnée) ; groupe : « Marquer comme lus », « Rechercher dans la conversation »,
+  « Gérer les membres » ; puis « Supprimer la conversation » (danger, séparée). Recherche et membres n'apparaissent
+  qu'une fois branchés (MAIR-1164, MAIR-1165). « Marquer comme lus » acquitte jusqu'au dernier message : les compteurs
+  de la liste et de la navigation reviennent à zéro. La suppression est confirmée dans le `ConfirmModal` de la lib
+  (danger), puis le toast « Conversation supprimée. » ; un échec est l'`ErrorAlert` danger au-dessus du module.

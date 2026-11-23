@@ -255,3 +255,11 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   (one attempt per conversation; a composer send of a message the bubble already delivered writes nothing); the
   composer keeps its draft until a send is confirmed (MAIR-370) and releases it when the bubble delivered it unchanged.
   Only the thread scrolls: the composer keeps its height.
+- **« Plus d'actions » (MAIR-1163).** The header menu is a lib `DropdownMenu` (keyboard: Entrée / Espace / ↓ to open,
+  ↑ ↓ Début Fin, Échap and outside click to close, focus back on the button). Direct: « Marquer les messages comme
+  lus », « Rechercher dans la conversation », « Créer un groupe avec <personne> » (opens « Créer un groupe » with the
+  person preselected); group: « Marquer comme lus », « Rechercher dans la conversation », « Gérer les membres »; then
+  « Supprimer la conversation » (danger, separated). Search and members only appear once wired (MAIR-1164, MAIR-1165).
+  « Marquer comme lus » acknowledges up to the last message, so the list and navigation counters reach zero. The
+  deletion is confirmed in the lib `ConfirmModal` (danger), then the toast « Conversation supprimée. »; a failure is the
+  danger `ErrorAlert` above the module.

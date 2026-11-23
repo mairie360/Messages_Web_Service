@@ -72,7 +72,7 @@ test('an empty confirmed thread offers deletion without a meaningless read actio
   await view.waitFor(() => view.props('Messaging').conversations[0].unreadCount === 3);
   await view.settle();
   await view.click(props => props['aria-label'] === "Plus d'actions");
-  assert.doesNotMatch(view.text(), /Marquer les messages affichés comme lus/);
+  assert.doesNotMatch(view.text(), /Marquer (les messages )?comme lus/);
   assert.match(view.text(), /Supprimer la conversation/);
   assert.equal(reads().length, 0);
   bff.on('get', '/conversations/{conversationId}/messages', { outOfContract: true, body: {
@@ -81,7 +81,7 @@ test('an empty confirmed thread offers deletion without a meaningless read actio
   } });
   browser.tickIntervals(2000);
   await view.waitFor(() => view.text().includes('Premier message reçu dans le fil vide'));
-  assert.match(view.text(), /Marquer les messages affichés comme lus/);
+  assert.match(view.text(), /Marquer (les messages )?comme lus/);
   assert.equal(reads().length, 0, 'new content enables an explicit action without acknowledging automatically');
 });
 
@@ -246,4 +246,19 @@ for (const status of [403, 503]) test(`a read refusal ${status} preserves the th
   assert.match(view.text(), /n’ont pas pu être marqués comme lus/);
   assert.doesNotMatch(view.text(), /Internal SQL|service detail|HTTP 403|HTTP 503/);
   assert.equal(bff.calls('/conversations', 'get').length, initialReads);
+});
+
+test('MAIR-1163 « Marquer les messages comme lus » of the actions menu acknowledges up to the last message', async t => {
+  const target = await loaded();
+  bff.on('post', '/conversations/{conversationId}/read', { body: { conversationId: target.conversation.id, unreadCount: 0 } });
+  bff.on('get', '/conversations', { body: { conversations: [conversation(4, 'Équipe communication', { unreadCount: 0 })] } });
+  // The hook waits one frame for the menu to close; the server view has no animation frames of its own.
+  const previousFrame = global.requestAnimationFrame;
+  global.requestAnimationFrame = callback => setImmediate(() => callback(0));
+  t.after(() => { global.requestAnimationFrame = previousFrame; });
+  await view.click(props => props['aria-label'] === "Plus d'actions");
+  await view.click((props, text) => props.role === 'menuitem' && /Marquer (les messages )?comme lus/.test(text));
+  await view.waitFor(() => reads().length === 1);
+  assert.deepEqual(reads()[0].body, { readUntilMessageId: target.message.id });
+  await view.waitFor(() => view.props('Messaging').conversations[0].unreadCount === 0);
 });

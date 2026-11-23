@@ -20,6 +20,10 @@ export interface MessagingChatHeaderProps extends React.HTMLAttributes<HTMLDivEl
   onMoreActions?: (conversation: MessagingConversation) => void;
   onDeleteConversation?: (conversation: MessagingConversation) => void;
   onReadVisibleMessages?: (conversation: MessagingConversation) => void;
+  /** MAIR-1163: « Gérer les membres » of a group (MAIR-1165 wires it). */
+  onManageMembers?: (conversation: MessagingConversation) => void;
+  /** MAIR-1163: « Créer un groupe avec <personne> » of a direct conversation. */
+  onCreateGroupWith?: (conversation: MessagingConversation) => void;
   readPending?: boolean;
 }
 
@@ -34,6 +38,8 @@ export const MessagingChatHeader = ({
   onMoreActions,
   onDeleteConversation,
   onReadVisibleMessages,
+  onManageMembers,
+  onCreateGroupWith,
   readPending = false,
   className = '',
   ...props
@@ -66,7 +72,7 @@ export const MessagingChatHeader = ({
         {onSearchConversation && (
           <HeaderIconButton label={searchLabel} icon={icons['text-search']} onClick={() => onSearchConversation(conversation)} />
         )}
-        {(onMoreActions || onDeleteConversation || onReadVisibleMessages) && (
+        {(onMoreActions || onDeleteConversation || onReadVisibleMessages || onSearchConversation || onManageMembers || onCreateGroupWith) && (
           <ConversationActionsMenu
             conversation={conversation}
             label={moreActionsLabel}
@@ -75,6 +81,9 @@ export const MessagingChatHeader = ({
             onMoreActions={onMoreActions}
             onDeleteConversation={onDeleteConversation}
             onReadVisibleMessages={onReadVisibleMessages}
+            onSearch={onSearchConversation}
+            onManageMembers={onManageMembers}
+            onCreateGroupWith={onCreateGroupWith}
           />
         )}
       </div>
