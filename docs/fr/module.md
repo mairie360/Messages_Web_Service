@@ -274,3 +274,8 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   qu'une fois branchés (MAIR-1164, MAIR-1165). « Marquer comme lus » acquitte jusqu'au dernier message : les compteurs
   de la liste et de la navigation reviennent à zéro. La suppression est confirmée dans le `ConfirmModal` de la lib
   (danger), puis le toast « Conversation supprimée. » ; un échec est l'`ErrorAlert` danger au-dessus du module.
+- **États vides (MAIR-1171).** Un seul visuel illustré par écran, avec le `DataState` de la lib 2.3 : sans aucune
+  conversation, la liste dit seulement « Aucune conversation pour l'instant. » et le fil affiche « Commencez à
+  échanger » (taille m, illustré) ; avec des conversations sans sélection, « Sélectionnez une conversation » (taille
+  m) ; une conversation sans message (groupe tout juste créé) affiche « Aucun message pour l'instant » (taille s,
+  icône), centré. Une recherche sans résultat garde « Aucune conversation trouvée. ».

@@ -70,7 +70,9 @@ test('an agent outside the conversation does not see it', async ({ page, context
   await signInAs(context, baseURL!, users.outsider);
   await openMessaging(page);
 
-  await expect(page.getByText('Aucune conversation trouvée.')).toBeVisible();
+  // MAIR-1171: a list without any conversation says so in a short text; the thread shows « Commencez à échanger ».
+  await expect(page.getByText('Aucune conversation pour l’instant.')).toBeVisible();
+  await expect(page.getByText('Commencez à échanger')).toBeVisible();
   await expect(page.getByText(message)).toHaveCount(0);
 });
 

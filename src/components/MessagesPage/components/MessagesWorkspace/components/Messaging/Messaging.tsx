@@ -71,7 +71,7 @@ export const Messaging = ({
   activeConversationId,
   defaultActiveConversationId,
   currentUserId,
-  emptyStateLabel = 'Sélectionnez une conversation pour commencer.',
+  emptyStateLabel,
   onConversationSelect,
   onNewMessageClick,
   onCreateGroupClick,
@@ -214,6 +214,7 @@ export const Messaging = ({
           hasConversation={activeConversation !== null}
           messages={threadMessages}
           emptyStateLabel={emptyStateLabel}
+          conversationCount={displayedConversations.length}
           mentionOptions={displayedMentionOptions}
           businessReferenceOptions={businessReferences}
           onAttachmentDownload={onAttachmentDownload}

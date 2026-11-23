@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from '@mairie360/lib-components/primitives';
+import { DataState, Text } from '@mairie360/lib-components/primitives';
 
 import { MessagingMessageBubble } from './components/MessagingMessageBubble';
 import { NewMessagesSeparator } from './components/NewMessagesSeparator';
@@ -10,7 +10,10 @@ import type { MessagingAttachment, MessagingBusinessReference, MessagingMention,
 export interface MessageThreadProps {
   hasConversation: boolean;
   messages: MessagingMessage[];
-  emptyStateLabel: React.ReactNode;
+  /** A consumer placeholder (loading text, ready-made DataState); without it the thread picks its empty state. */
+  emptyStateLabel?: React.ReactNode;
+  /** MAIR-1171: conversations of the list, to tell « no conversation at all » from « nothing selected ». */
+  conversationCount?: number;
   mentionOptions: MessagingMention[];
   businessReferenceOptions: MessagingBusinessReference[];
   onAttachmentDownload?: (attachment: MessagingAttachment, message: MessagingMessage) => Promise<void>;
@@ -40,13 +43,22 @@ const ThreadPlaceholder = ({ children }: { children: React.ReactNode }) => (
 );
 
 /**
+ * MAIR-1171 (Figma F1 / F6): one illustrated visual per screen. No conversation at all: « Commencez à échanger »
+ * (the list only says it in a short text); a list without selection: « Sélectionnez une conversation »; both are lib
+ * `DataState` empty at size m (illustrated). An empty conversation: « Aucun message pour l'instant », size s (icon).
+ */
+const defaultThreadState = (conversationCount: number) => (conversationCount === 0
+  ? <DataState state="empty" size="m" title="Commencez à échanger" description="Écrivez un message ou créez un groupe avec le bouton « + » de la liste." />
+  : <DataState state="empty" size="m" title="Sélectionnez une conversation" description="Choisissez une conversation dans la liste pour afficher ses messages." />);
+
+/**
  * Scrollable message region; the ref lets the read action measure what is visible. MAIR-1160: opens on the first
  * unread message after the « Nouveaux messages » separator and floats the unread pill at its bottom.
  */
 export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps>(({
   hasConversation, messages, emptyStateLabel, mentionOptions, businessReferenceOptions,
   onAttachmentDownload, onBusinessReferenceClick, conversationKey = null, unreadIds = noIds, onRead,
-  pendingMessages = noMessages, onRetrySend, sendAnnouncement = '',
+  pendingMessages = noMessages, onRetrySend, sendAnnouncement = '', conversationCount = 0,
 }, ref) => {
   const region = React.useRef<HTMLDivElement | null>(null);
   const setRegion = React.useCallback((node: HTMLDivElement | null) => {
@@ -60,9 +72,9 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
   return (
     <div ref={setRegion} className="min-h-[340px] flex-1 space-y-5 overflow-y-auto bg-[var(--mairie-surface)] px-4 py-5 sm:px-5">
       {!hasConversation
-        ? <ThreadPlaceholder>{emptyStateLabel}</ThreadPlaceholder>
+        ? <ThreadPlaceholder>{emptyStateLabel ?? defaultThreadState(conversationCount)}</ThreadPlaceholder>
         : messages.length === 0 && pendingMessages.length === 0
-          ? <ThreadPlaceholder>Aucun message dans cette conversation.</ThreadPlaceholder>
+          ? <ThreadPlaceholder><DataState state="empty" size="s" title="Aucun message pour l’instant" /></ThreadPlaceholder>
           : messages.map((message) => (
             <React.Fragment key={message.id}>
               {tracking.separatorBeforeId === String(message.id) && <NewMessagesSeparator />}
