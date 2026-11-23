@@ -1096,3 +1096,21 @@ describe('Messaging reply (MAIR-1167)', () => {
     }
   });
 });
+
+describe('Messaging edit (MAIR-1168)', () => {
+  it('edits one of my messages in place, then shows « · modifié » after its time', async () => {
+    const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+    const mine = { id: 'm1', conversationId: 'g1', content: 'Réunion à 14h', authorId: 'me', sentAt: '10:02' };
+    const onEditMessage = vi.fn(() => Promise.resolve(true));
+    const { rerender } = render(<Messaging conversations={[group]} messages={[mine, { id: 'm2', conversationId: 'g1', content: 'Ok', authorId: 'u3' }]} activeConversationId="g1" currentUserId="me" onEditMessage={onEditMessage} />);
+    expect(within(document.querySelector('[data-messaging-message-id="m2"]') as HTMLElement).queryByRole('button', { name: 'Modifier' })).toBeNull();
+    fireEvent.click(within(document.querySelector('[data-messaging-message-id="m1"]') as HTMLElement).getByRole('button', { name: 'Modifier' }));
+    const field = screen.getByRole('textbox', { name: 'Modifier le message' });
+    fireEvent.change(field, { target: { value: 'Réunion à 15h' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Modifier le message' })).toBeNull());
+    expect(onEditMessage).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }), { content: 'Réunion à 15h', mentions: [], businessLinks: [] });
+    rerender(<Messaging conversations={[group]} messages={[{ ...mine, content: 'Réunion à 15h', editedAt: '2026-06-23T12:40:00Z' }]} activeConversationId="g1" currentUserId="me" onEditMessage={onEditMessage} />);
+    expect(screen.getByText(/10:02 · modifié/)).toBeInTheDocument();
+  });
+});

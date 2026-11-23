@@ -118,3 +118,16 @@ test('MAIR-1167 a reply is sent with the message it answers', async () => {
   assert.equal(bff.calls('/conversations/{conversationId}/messages', 'post')[0].body.replyTo, 'message-1');
   await view.waitFor(() => messaging().messages.some(item => item.id === 'message-31' && item.quoted?.excerpt === 'Bonjour à tous'));
 });
+
+test('MAIR-1168 an edit replaces the message in the thread, a refusal keeps it', async () => {
+  await loaded();
+  const mine = message(32, 4, 'Réunion à 14h');
+  bff.on('post', '/conversations/{conversationId}/messages', { status: 201, body: { message: mine, conversation: conversation(4, 'Équipe communication', { memberCount: 2 }) } });
+  await view.act(() => messaging().onSendMessage({ conversationId: 'conversation-4', content: 'Réunion à 14h' }));
+  bff.on('patch', '/conversations/{conversationId}/messages/{messageId}', { body: { message: { ...mine, content: 'Réunion à 15h', editedAt: '2026-09-15T09:40:00.000Z' } } });
+  assert.equal(await view.act(() => messaging().onEditMessage({ ...mine }, { content: 'Réunion à 15h', mentions: [], businessLinks: [] })), true);
+  assert.deepEqual(bff.calls('/conversations/{conversationId}/messages/{messageId}', 'patch')[0].body, { content: 'Réunion à 15h', mentionIds: [], mentionEveryone: false, groupMentionIds: [], links: [] });
+  await view.waitFor(() => messaging().messages.some(item => item.id === mine.id && item.editedAt));
+  bff.on('patch', '/conversations/{conversationId}/messages/{messageId}', { status: 403, outOfContract: true, body: { error: { code: 'FORBIDDEN', message: 'Seul l’auteur peut modifier ce message.', details: [] } } });
+  await assert.rejects(view.act(() => messaging().onEditMessage({ ...mine }, { content: 'Autre', mentions: [], businessLinks: [] })), /auteur/);
+});

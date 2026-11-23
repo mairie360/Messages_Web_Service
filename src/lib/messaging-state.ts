@@ -162,3 +162,12 @@ type LinkSuggestion = { id: string; kind: "project" | "task" | "event"; title: s
 export function toLinkReference(item: LinkSuggestion): MessagingBusinessReference {
   return { id: item.id, kind: item.kind, title: item.title, ...(item.detail ? { description: item.detail } : {}), ...(item.url ? { href: item.url } : {}) };
 }
+
+/**
+ * MAIR-1168: the tags of an edited message, every field sent so that a tag removed from the text is removed from
+ * the message too.
+ */
+export function toEditTagPayload(mentions: TagMention[] = [], businessLinks: Array<{ id: MessageId }> = []) {
+  const tags = toTagPayload(mentions, businessLinks);
+  return { mentionIds: tags.mentionIds, mentionEveryone: tags.mentionEveryone === true, groupMentionIds: tags.groupMentionIds ?? [], links: tags.links ?? [] };
+}

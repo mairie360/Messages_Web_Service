@@ -5,10 +5,14 @@ import { BubbleAttachments } from './components/BubbleAttachments';
 import { BubbleReferences } from './components/BubbleReferences';
 import { MentionedContent } from './components/MentionedContent';
 import { MessageActionsToolbar } from './components/MessageActionsToolbar';
+import { MessageEditBox } from './components/MessageEditBox';
+import { messageText } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-model';
 import { MessageQuote } from './components/MessageQuote';
 import { MessageSendStatus } from './components/MessageSendStatus';
 import { uniqueBusinessReferences } from './bubble-model';
 import type {
+  MessagingEditPayload,
+  MessagingTagSuggestionSources,
   MessagingAttachment,
   MessagingBusinessReference,
   MessagingMention,
@@ -32,6 +36,11 @@ export interface MessagingMessageBubbleProps extends React.HTMLAttributes<HTMLDi
   onOpenQuote?: (messageId: MessagingMessage['id']) => void;
   /** MAIR-1167: the quoted message was deleted. */
   quoteDeleted?: boolean;
+  /** MAIR-1168: the bubble is replaced by the edit box. */
+  editing?: boolean;
+  onSaveEdit?: (message: MessagingMessage, payload: MessagingEditPayload) => Promise<boolean | void> | boolean | void;
+  onCancelEdit?: () => void;
+  suggestionSources?: MessagingTagSuggestionSources;
 }
 
 /** Time of a press that opens the actions of a message on a touch screen. */
@@ -50,6 +59,10 @@ export const MessagingMessageBubble = ({
   onDelete,
   onOpenQuote,
   quoteDeleted = false,
+  editing = false,
+  onSaveEdit,
+  onCancelEdit,
+  suggestionSources,
   className = '',
   ...props
 }: MessagingMessageBubbleProps) => {
@@ -96,6 +109,8 @@ export const MessagingMessageBubble = ({
           className={joinClasses('mb-1 text-xs leading-5 text-[var(--mairie-muted)]', outgoing ? 'mr-1 self-end text-right' : 'ml-1')}
         >
           {message.sentAt}
+          {/* MAIR-1168: an edited message says so after its time. */}
+          {message.editedAt && !message.deleted ? ' · modifié' : ''}
         </span>
       )}
       {message.citation !== undefined && (
@@ -107,6 +122,17 @@ export const MessagingMessageBubble = ({
           onOpen={onOpenQuote ? () => onOpenQuote(message.citation!) : undefined}
         />
       )}
+      {editing && onSaveEdit ? (
+        <MessageEditBox
+          message={message}
+          initialText={messageText(message)}
+          mentionOptions={mentionOptions}
+          businessReferenceOptions={businessReferenceOptions}
+          suggestionSources={suggestionSources}
+          onSave={payload => onSaveEdit(message, payload)}
+          onCancel={() => onCancelEdit?.()}
+        />
+      ) : (
       <div
         // MAIR-1167: the bubble takes the keyboard focus so that its actions are reachable.
         tabIndex={hasActions ? 0 : undefined}
@@ -137,7 +163,8 @@ export const MessagingMessageBubble = ({
           onDownload={onAttachmentDownload ? attachment => void download(attachment) : undefined}
         />
       </div>
-      {hasActions && (
+      )}
+      {hasActions && !editing && (
         <MessageActionsToolbar
           open={actionsOpen}
           outgoing={outgoing}

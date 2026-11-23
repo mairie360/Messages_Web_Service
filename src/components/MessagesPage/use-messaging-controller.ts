@@ -11,6 +11,7 @@ import {
   idsMatch,
   replaceConversationMessages,
   toLinkReference,
+  toEditTagPayload,
   toTagPayload,
   toMessagingContacts,
   toMessagingUserId,
@@ -843,6 +844,25 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       }
     };
 
+  // MAIR-1168: edit one of my messages; the answer replaces it in the thread.
+  const handleEditMessage: NonNullable<MessagingProps["onEditMessage"]> = async (message, payload) => {
+    if (message.conversationId === undefined) return false;
+    beginMutation();
+    try {
+      const { message: edited } = await messageClient.editMessage(message.conversationId, message.id, {
+        content: payload.content, ...toEditTagPayload(payload.mentions, payload.businessLinks),
+      });
+      if (!idsMatch(edited?.id, message.id)) throw new Error("La modification du message n’a pas été confirmée.");
+      setMessages(current => appendMessage(current, edited));
+      return true;
+    } catch (failure) {
+      if (await recoverSessionNavigation(failure)) return false;
+      throw new Error(describeBffError(failure, "Le message n’a pas pu être modifié."));
+    } finally {
+      endMutation(true);
+    }
+  };
+
   // MAIR-1166: suggestions of `@` (members, groups and services, everyone) and of `#` (projects, events, tasks).
   const handleSuggestMentions: NonNullable<MessagingProps["onSuggestMentions"]> = (conversation, query, signal) =>
     messageClient.getMentionSuggestions(conversation.id, query, signal);
@@ -957,6 +977,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     handleSearch,
     handleSuggestMentions,
     handleSuggestLinks,
+    handleEditMessage,
     handleLoadMembers,
     handleAddMembers,
     handleRemoveMember,

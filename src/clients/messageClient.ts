@@ -8,6 +8,7 @@ import type {
   PostGroupsBody,
   PostConversationsConversationIdReadBody,
   GetConversationsConversationIdSearchParams,
+  PatchConversationsConversationIdMessagesMessageIdBody,
 } from "@mairie360/bff-message-openapi/model";
 import { bffMessage } from "../lib/bff-client";
 
@@ -62,6 +63,11 @@ export const messageClient = {
       throw new Error("L’acquittement des messages n’a pas été confirmé.");
     }
     return reply;
+  },
+
+  /** MAIR-1168: edit one of my messages (text and tags); the answer is the message after the edit. */
+  async editMessage(conversationId: MessageId, messageId: MessageId, body: PatchConversationsConversationIdMessagesMessageIdBody) {
+    return (await bffMessage.patchConversationsConversationIdMessagesMessageId(encodeId(conversationId), encodeId(messageId), body)).data;
   },
 
   /** MAIR-1166: what the agent may mention after `@` in a conversation. */

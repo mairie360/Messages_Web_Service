@@ -187,3 +187,10 @@ export interface MessagingSearchRequest {
   offset?: number;
   signal?: AbortSignal;
 }
+
+/** MAIR-1168: the new text of one of my messages and the tags it keeps. */
+export interface MessagingEditPayload {
+  content: string;
+  mentions: MessagingMention[];
+  businessLinks: MessagingBusinessReference[];
+}
