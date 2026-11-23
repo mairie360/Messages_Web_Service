@@ -18,7 +18,7 @@ export const GroupMemberPicker = ({ label, members, selectedValues, search, disa
   const displayedMembers = filterMembers(members, search);
   return (
     <fieldset>
-      <legend className="mb-1 block text-sm font-semibold leading-5 text-[var(--mairie-text)]">{label}</legend>
+      <legend className="mb-1"><Text as="span" size="s" weight="semibold">{label}</Text></legend>
       <SearchField
         label="Rechercher un contact"
         name="memberSearch"

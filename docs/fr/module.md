@@ -214,3 +214,8 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
 - **Icônes du champ de saisie (MAIR-872).** Joindre, mentionner, élément métier, emoji, envoyer, les
   pièces jointes et les suggestions de mention rendent leur glyphe lucide via `Icon` de la lib (`s`, jeton de
   16 px, couleur du texte courant) ; les boutons gardent leur libellé accessible.
+- **Fenêtres (MAIR-878).** « Nouveau message » et « Créer un groupe » sont des `Modal` de la lib en petite
+  taille (480 px). Le bouton principal (`SendButton` / `CreateButton` de la lib avec son icône) reste désactivé
+  tant que le formulaire est incomplet (destinataire + message ; nom du groupe + un membre). Un refus s'affiche
+  dans un `ErrorAlert` au-dessus du formulaire, la fenêtre reste ouverte et garde la saisie ; Échap, le fond et
+  « Annuler » sont sans effet pendant l'envoi.
