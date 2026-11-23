@@ -157,12 +157,17 @@ describe('Messaging components', () => {
     expect(screen.getAllByText('Message reçu en différé')[0]).toBeInTheDocument();
   });
 
-  it('surfaces messaging notifications from unread conversations', () => {
-    render(<DemoMessaging />);
-
-    expect(screen.getByRole('status', { name: 'Notifications de messagerie' })).toHaveTextContent(
-      '6 notifications non lues'
-    );
+  it('MAIR-1160 drops the unread banner: the thread shows the separator and the pill of the open conversation', () => {
+    const conversation = { id: 'c1', name: 'Conseil municipal – élus', kind: 'group' as const, unreadCount: 2 };
+    const thread = [
+      { id: 'a', conversationId: 'c1', content: 'Ancien', authorId: 'u2' },
+      { id: 'b', conversationId: 'c1', content: 'Nouveau 1', authorId: 'u2' },
+      { id: 'c', conversationId: 'c1', content: 'Nouveau 2', authorId: 'u2' },
+    ];
+    render(<Messaging conversations={[conversation]} messages={thread} activeConversationId="c1" currentUserId="me" />);
+    expect(screen.queryByRole('status', { name: 'Notifications de messagerie' })).toBeNull();
+    expect(screen.queryByText(/notifications? non lues?/)).toBeNull();
+    expect(screen.getByRole('separator', { name: 'Nouveaux messages' }).nextElementSibling).toHaveAttribute('data-messaging-message-id', 'b');
   });
 
   it('opens the correct modal from each sidebar icon', () => {

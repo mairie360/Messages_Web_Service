@@ -5,12 +5,11 @@ import { CreateGroupModal } from './components/CreateGroupModal';
 import { MessagingChatHeader } from './components/MessagingChatHeader';
 import { MessagingSidebar } from './components/MessagingSidebar';
 import { NewMessageModal } from './components/NewMessageModal';
-import { buildMentionOptions, buildSendPayload, closeWhenConfirmed, getMessageDirection, mergeMessagesById, messagingIdsMatch } from './messaging-model';
+import { buildMentionOptions, buildSendPayload, closeWhenConfirmed, getMessageDirection, mergeMessagesById, messagingIdsMatch, unreadMessageIds } from './messaging-model';
 import { ContextReferenceBar } from './components/ContextReferenceBar';
 import { ConversationComposers } from './components/ConversationComposers';
 import { MessageThread } from './components/MessageThread';
 import { ReadFailureAlert } from './components/ReadFailureAlert';
-import { UnreadNotificationsBar } from './components/UnreadNotificationsBar';
 import { useVisibleMessagesRead } from './use-visible-messages-read';
 import type {
   CreateGroupPayload,
@@ -114,11 +113,9 @@ export const Messaging = ({
       ...message,
       direction: getMessageDirection(message, currentUserId),
     }));
-  const unreadNotificationCount = displayedConversations.reduce(
-    (total, conversation) => total + (conversation.unreadCount ?? 0),
-    0
-  );
-  const firstUnreadConversation = displayedConversations.find((conversation) => (conversation.unreadCount ?? 0) > 0);
+  // MAIR-1160: the banner is gone; the thread shows a separator and a pill for the unread messages.
+  const unreadIdsKey = unreadMessageIds(visibleMessages, activeConversation?.unreadCount).join(',');
+  const activeUnreadIds = React.useMemo(() => (unreadIdsKey ? unreadIdsKey.split(',') : []), [unreadIdsKey]);
 
   const { messageRegionRef, readPending, readFailure, readVisibleMessages } =
     useVisibleMessagesRead(resolvedActiveId, visibleMessages, onReadVisibleMessages);
@@ -190,14 +187,6 @@ export const Messaging = ({
           <ReadFailureAlert message={readFailure.message} />
         )}
 
-        {unreadNotificationCount > 0 && (
-          <UnreadNotificationsBar
-            count={unreadNotificationCount}
-            firstUnreadConversation={firstUnreadConversation}
-            onOpen={handleConversationSelect}
-          />
-        )}
-
         <MessageThread
           ref={messageRegionRef}
           hasConversation={activeConversation !== null}
@@ -207,6 +196,9 @@ export const Messaging = ({
           businessReferenceOptions={businessReferences}
           onAttachmentDownload={onAttachmentDownload}
           onBusinessReferenceClick={onBusinessReferenceClick}
+          conversationKey={activeConversation ? String(activeConversation.id) : null}
+          unreadIds={activeUnreadIds}
+          onRead={onReadVisibleMessages && activeConversation ? () => void readVisibleMessages(activeConversation) : undefined}
         />
 
         {contextReference && <ContextReferenceBar reference={contextReference} onOpen={onBusinessReferenceClick} />}

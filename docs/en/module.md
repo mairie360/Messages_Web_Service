@@ -235,3 +235,11 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   `--mairie-message-own-on` (#383f51, contrast 8.8:1) and `--mairie-message-own-border` (#d6d0c3), their links and
   attachments too; received bubbles keep the white surface and `--mairie-border`. The time sits above the bubble,
   right-aligned for my messages.
+- **Unread messages (MAIR-1160).** The « N notifications non lues » banner is gone (« Marquer comme lus » stays in
+  « Plus d'actions »). A conversation opens on its first unread message, after the lib `Divider` « Nouveaux
+  messages » (`NewMessagesSeparator`); the unread ones are the last `unreadCount` messages written by others. The
+  neutral `UnreadMessagesPill` (lib `Button`, sticky at the bottom of the thread, polite live region) says « N
+  nouveaux messages » and counts down as they come into view; a click scrolls smoothly to the last message (instant
+  under `prefers-reduced-motion`). Reaching the end by the agent (wheel, touch, keyboard, pointer, pill) hides the pill
+  and marks the conversation read; a thread that does not scroll is read when opened; the opening placement and other
+  programmatic scrolls never read. The list and navigation counters both follow the refreshed conversation.

@@ -102,3 +102,17 @@ export const buildSendPayload = (
   if (context) payload.context = context;
   return payload;
 };
+
+/**
+ * MAIR-1160: the unread messages of the open thread, as ids. The BFF gives a count per conversation, not a flag per
+ * message: the unread ones are the last `unreadCount` messages written by someone else, oldest first.
+ */
+export const unreadMessageIds = (messages: MessagingMessage[], unreadCount: number | undefined): string[] => {
+  const count = Number.isSafeInteger(unreadCount) && (unreadCount ?? 0) > 0 ? unreadCount! : 0;
+  if (count === 0) return [];
+  const incoming = messages.filter((message) => message.direction !== 'outgoing');
+  return incoming.slice(-count).map((message) => String(message.id));
+};
+
+/** « 1 nouveau message » / « N nouveaux messages ». */
+export const newMessagesLabel = (count: number) => (count === 1 ? '1 nouveau message' : `${count} nouveaux messages`);

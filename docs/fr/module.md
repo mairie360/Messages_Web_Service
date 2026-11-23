@@ -244,3 +244,12 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   (#efebe2), `--mairie-message-own-on` (#383f51, contraste 8,8:1) et `--mairie-message-own-border` (#d6d0c3), leurs
   éléments liés et pièces jointes aussi ; les bulles reçues gardent la surface blanche et `--mairie-border`. L'heure
   est au-dessus de la bulle, alignée à droite pour mes messages.
+- **Messages non lus (MAIR-1160).** Le bandeau « N notifications non lues » disparaît (« Marquer comme lus » reste
+  dans « Plus d'actions »). Une conversation s'ouvre sur son premier message non lu, après le `Divider` de la lib
+  « Nouveaux messages » (`NewMessagesSeparator`) ; les non-lus sont les `unreadCount` derniers messages écrits par
+  d'autres. La pastille neutre `UnreadMessagesPill` (`Button` de la lib, collée en bas du fil, région live polie)
+  annonce « N nouveaux messages » et diminue à mesure qu'ils deviennent visibles ; un clic fait défiler en douceur
+  jusqu'au dernier message (instantané avec `prefers-reduced-motion`). Atteindre la fin du fil par l'agent (molette,
+  toucher, clavier, pointeur, pastille) retire la pastille et marque la conversation lue ; un fil sans défilement est
+  lu à l'ouverture ; le placement à l'ouverture et les autres défilements programmatiques ne lisent jamais. Les
+  compteurs de la liste et de la navigation suivent tous deux la conversation rafraîchie.
