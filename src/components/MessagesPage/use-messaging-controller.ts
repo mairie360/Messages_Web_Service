@@ -72,6 +72,9 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   const selectionReadRef = useRef<AbortController | null>(null);
   const [streamState, setStreamState] = useState<MessageStreamState>('connecting');
   const [streamRetry, setStreamRetry] = useState(0);
+  // A socket evicted by a 6th connection (4008) stays closed until focus or an explicit retry, across effect restarts,
+  // so that it does not evict another tab of the same agent in turn.
+  const socketEvictedRef = useRef(false);
   const streamCursorRef = useRef<StreamCursor & { account: unknown }>({ account: null, lastEventId: '', seen: [] });
   const downloadRef = useRef<AbortController | null>(null);
   useEffect(() => () => downloadRef.current?.abort(), []);
@@ -114,7 +117,10 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     setFeedback(null);
     pendingSendsRef.current.clear();
     unconfirmedSendsRef.current.clear();
-    if (streamCursorRef.current.account !== currentUser?.id) streamCursorRef.current = { account: currentUser?.id, lastEventId: '', seen: [] };
+    if (streamCursorRef.current.account !== currentUser?.id) {
+      streamCursorRef.current = { account: currentUser?.id, lastEventId: '', seen: [] };
+      socketEvictedRef.current = false;
+    }
   }, [senderIdentity]);
 
   useEffect(() => { downloadRef.current?.abort(); }, [activeConversationId, currentUser?.id]);
@@ -395,6 +401,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     const receiveEvent = () => { eventPending = true; if (eventTimer === undefined) eventTimer = window.setTimeout(flushEvents, 100); };
     const startStream = () => {
       if (disposed || navigationStartedRef.current || !streamingSupported || !pageIsVisible()) { if (!disposed) setStreamState('polling'); return; }
+      if (socketMode && socketEvictedRef.current) { setStreamState('offline'); return; }
       if (bootstrapLifecycleRef.current.pending) { bootstrapWaitTimer = window.setTimeout(startStream, 100); return; }
       streamController?.abort();
       streamController = new AbortController();
@@ -411,7 +418,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
           onEvent: receiveEvent,
           checkSession: () => messageClient.getCurrentUser(),
           onAuthenticationError: async error => { if (!disposed && pageIsVisible()) await recoverSessionNavigation(error); },
-        }).catch(() => { if (!disposed && !signal.aborted) { streamConnected = false; setStreamState('offline'); } });
+        }).then(outcome => { if (outcome === 'evicted' && !signal.aborted) socketEvictedRef.current = true; })
+          .catch(() => { if (!disposed && !signal.aborted) { streamConnected = false; setStreamState('offline'); } });
         return;
       }
       void receiveMessageStream({
@@ -441,7 +449,15 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
         return;
       }
       if (hiddenTimer !== undefined) { window.clearTimeout(hiddenTimer); hiddenTimer = undefined; }
-      if (socketMode && streamConnected) { receiveEvent(); return; }
+      if (socketMode && streamConnected) {
+        // Another tab may have switched the account: re-read who is signed in before reading the conversations again.
+        if (mutationCountRef.current === 0 && selectionLoadingRef.current === null && !bootstrapLifecycleRef.current.pending) {
+          void loadBootstrap().finally(receiveEvent);
+        } else receiveEvent();
+        return;
+      }
+      // Coming back to the tab is the contract's "focus": an evicted socket may reconnect.
+      if (socketMode && pageIsVisible()) socketEvictedRef.current = false;
       if (!pageIsVisible()) { streamController?.abort(); readController?.abort(); streamConnected = false; return; }
       if (streamingSupported && mutationCountRef.current === 0 && selectionLoadingRef.current === null) {
         if (!bootstrapLifecycleRef.current.pending) void loadBootstrap().finally(startStream);
@@ -455,7 +471,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     const timer = window.setInterval(triggerRefresh, MESSAGE_REFRESH_INTERVAL_MS);
     const receiveFocus = () => { if (streamingSupported) receiveVisibility(); else triggerRefresh(); };
     // A fallen-back socket keeps trying when the network comes back.
-    const receiveOnline = () => { if (socketMode && !streamConnected && pageIsVisible()) startStream(); };
+    const receiveOnline = () => { if (socketMode && !streamConnected && !socketEvictedRef.current && pageIsVisible()) startStream(); };
     window.addEventListener("focus", receiveFocus);
     window.addEventListener("online", receiveOnline);
     document.addEventListener("visibilitychange", receiveVisibility);
@@ -1018,7 +1034,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
 
   return {
     streamState,
-    retryReception: () => setStreamRetry(retry => retry + 1),
+    retryReception: () => { socketEvictedRef.current = false; setStreamRetry(retry => retry + 1); },
     handleAttachmentDownload: attachmentPort.download ? handleAttachmentDownload : undefined,
     // The shared composer always offers "Joindre un fichier"; without an upload capability the files are not
     // registered and a draft carrying them is refused by handleSendMessage.

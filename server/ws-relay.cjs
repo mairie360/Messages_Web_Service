@@ -53,7 +53,8 @@ function liveAccessToken(cookieHeader, now = Date.now()) {
 function isWebSocketHandshake(request) {
   const header = name => String(request.headers[name] ?? '');
   return request.method === 'GET'
-    && header('upgrade').split(',').some(value => value.trim().toLowerCase() === 'websocket')
+    // Exactly `websocket`, as the ws server requires it: a list such as `websocket, h2c` is refused here, before upstream.
+    && header('upgrade').trim().toLowerCase() === 'websocket'
     && header('connection').split(',').some(value => value.trim().toLowerCase() === 'upgrade')
     && header('sec-websocket-version').trim() === '13'
     && /^[A-Za-z0-9+/]{22}==$/.test(header('sec-websocket-key').trim());
@@ -86,8 +87,10 @@ function upstreamCloseCode(code) {
 }
 
 /** Passes frames, pings and closes between the two sockets until one of them ends. */
-function bridge(client, upstream) {
+function bridge(client, upstream, open) {
   let closed = false;
+  open.add(client);
+  client.once('close', () => open.delete(client));
   const closeBoth = (target, code, reason) => {
     if (closed) return;
     closed = true;
@@ -111,8 +114,9 @@ function bridge(client, upstream) {
 function createWsRelay({ WebSocket, WebSocketServer, paths, bffUrl, frontUrl, now = Date.now, handshakeTimeout = HANDSHAKE_TIMEOUT_MS, log = () => undefined }) {
   const path = '/ws';
   const server = new WebSocketServer({ noServer: true, maxPayload: MAX_FRAME_BYTES, perMessageDeflate: false, clientTracking: false });
+  const open = new Set();
 
-  return function handleUpgrade(request, socket, head) {
+  function handleUpgrade(request, socket, head) {
     let pathname;
     try { pathname = new URL(request.url ?? '/', 'http://front.invalid').pathname; } catch { return false; }
     if (pathname !== path) return false;
@@ -132,7 +136,10 @@ function createWsRelay({ WebSocket, WebSocketServer, paths, bffUrl, frontUrl, no
       perMessageDeflate: false, followRedirects: false, autoPong: false,
     });
     let settled = false;
-    const browserLeft = () => { if (!settled) { settled = true; upstream.terminate(); } };
+    let bridged = false;
+    // Until the browser is upgraded, its socket owns the upstream connection: if it goes away (it left, or the upgrade
+    // failed and ws destroyed it), the upstream one is closed too.
+    const browserLeft = () => { settled = true; if (!bridged) upstream.terminate(); };
     socket.once('close', browserLeft);
     upstream.once('unexpected-response', (_request, response) => {
       response.resume();
@@ -150,11 +157,18 @@ function createWsRelay({ WebSocket, WebSocketServer, paths, bffUrl, frontUrl, no
     upstream.once('open', () => {
       if (settled) { upstream.close(1000); return; }
       settled = true;
-      socket.off('close', browserLeft);
-      server.handleUpgrade(request, socket, head, client => bridge(client, upstream));
+      server.handleUpgrade(request, socket, head, client => {
+        bridged = true;
+        socket.off('close', browserLeft);
+        bridge(client, upstream, open);
+      });
     });
     return true;
-  };
+  }
+
+  /** Closes every relayed browser socket (and through it its upstream), e.g. `1001` on shutdown. */
+  handleUpgrade.closeAll = (code = 1001, reason = 'going away') => { for (const client of open) client.close(code, reason); };
+  return handleUpgrade;
 }
 
 module.exports = { createWsRelay, liveAccessToken, isWebSocketHandshake, upstreamSocketUrl, publicOrigin, clientCloseCode, upstreamCloseCode };

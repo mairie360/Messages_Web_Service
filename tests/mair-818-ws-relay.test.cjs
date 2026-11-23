@@ -14,7 +14,7 @@ const LIVE = jwt({ sub: '2', exp: Math.floor(Date.now() / 1000) + 3600 });
 const EXPIRED = jwt({ sub: '2', exp: Math.floor(Date.now() / 1000) - 10 });
 const FRONT = 'http://messages.mairie.test';
 
-let bff; let bffServer; let front; let frontUrl; let config; const upgrades = [];
+let bff; let bffServer; let front; let frontUrl; let config; let relay; const upgrades = [];
 let onBffConnection = () => {};
 let bffRefusal;
 
@@ -30,7 +30,7 @@ before(async () => {
   });
   const bffAddress = await listen(bffServer);
   config = { bff: `http://${bffAddress}`, front: FRONT, paths: contract.paths };
-  const relay = createWsRelay({
+  relay = createWsRelay({
     WebSocket, WebSocketServer, paths: () => config.paths, bffUrl: () => config.bff, frontUrl: () => config.front, handshakeTimeout: 1_000,
   });
   front = http.createServer((_request, response) => { response.writeHead(204); response.end(); });
@@ -206,4 +206,57 @@ test('MAIR-818 relay helpers: cookie, handshake, upstream URL and close-code map
   assert.equal(upstreamSocketUrl('not a url', '/ws'), undefined);
   assert.deepEqual([1000, 1001, 1009, 1011, 4001, 4008, 1005, 1006, 1015, 2000].map(clientCloseCode), [1000, 1001, 1009, 1011, 4001, 4008, 1013, 1013, 1013, 1013]);
   assert.deepEqual([1000, 1001, 4000, 1002, 1005, 1006].map(upstreamCloseCode), [1000, 1001, 4000, 1000, 1000, 1000]);
+});
+
+test('MAIR-818 an Upgrade header listing more than websocket is refused with 400 before any upstream call', async () => {
+  const { port } = new URL(frontUrl.replace('ws:', 'http:'));
+  const status = await new Promise(resolve => {
+    const request = http.request({ host: '127.0.0.1', port, path: '/ws', headers: {
+      Connection: 'Upgrade', Upgrade: 'websocket, h2c', Origin: FRONT, Cookie: `accessToken=${LIVE}`,
+      'Sec-WebSocket-Version': '13', 'Sec-WebSocket-Key': randomBytes(16).toString('base64'),
+    } });
+    request.on('response', response => { response.resume(); resolve(response.statusCode); });
+    request.on('upgrade', (response, socket) => { socket.destroy(); resolve(response.statusCode); });
+    request.end();
+  });
+  assert.equal(status, 400);
+  assert.equal(upgrades.length, 0);
+});
+
+test('MAIR-818 a browser leaving during the upstream handshake leaves no upstream connection behind', async () => {
+  let accept;
+  onBffConnection = () => {};
+  const { port } = new URL(frontUrl.replace('ws:', 'http:'));
+  const slowBff = new Promise(resolve => { accept = resolve; });
+  const original = bffServer.listeners('upgrade')[0];
+  bffServer.removeAllListeners('upgrade');
+  bffServer.on('upgrade', async (request, socket, head) => { upgrades.push({ url: request.url }); await slowBff; original(request, socket, head); });
+  try {
+    const request = http.request({ host: '127.0.0.1', port, path: '/ws', headers: {
+      Connection: 'Upgrade', Upgrade: 'websocket', Origin: FRONT, Cookie: `accessToken=${LIVE}`,
+      'Sec-WebSocket-Version': '13', 'Sec-WebSocket-Key': randomBytes(16).toString('base64'),
+    } });
+    request.on('error', () => {});
+    request.end();
+    await new Promise(resolve => { const wait = () => (upgrades.length ? resolve() : setTimeout(wait, 5)); wait(); });
+    request.destroy();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    accept();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(bff.clients.size, 0, 'the upstream connection was closed with the browser');
+  } finally {
+    bffServer.removeAllListeners('upgrade');
+    bffServer.on('upgrade', original);
+  }
+});
+
+test('MAIR-818 closeAll closes the relayed sockets with 1001 and their upstream connections', async () => {
+  const connection = bffConnection();
+  const { socket } = await connect();
+  const { client } = await connection;
+  const browserEnd = closed(socket);
+  const upstreamEnd = closed(client);
+  relay.closeAll(1001, 'going away');
+  assert.deepEqual(await browserEnd, { code: 1001, reason: 'going away' });
+  assert.equal((await upstreamEnd).code, 1001);
 });

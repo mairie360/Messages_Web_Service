@@ -29,7 +29,7 @@ const next = require('next');
 const { WebSocket, WebSocketServer } = require('ws');
 const contract = require('./contracts/openapi.json');
 const { createWsRelay } = require('./server/ws-relay.cjs');
-const { startFrontServer } = require('./server/front-server.cjs');
+const { startFrontServer, stopFrontServer } = require('./server/front-server.cjs');
 
 // Same variables as the HTTP proxy (src/lib/bff-proxy.ts).
 const bffUrl = () => (process.env.BFF_MESSAGE_BASE_URL ?? process.env.MESSAGE_BFF_URL ?? process.env.NEXT_PUBLIC_BFF_MESSAGE_BASE_URL ?? '').trim();
@@ -45,7 +45,7 @@ async function main() {
     options: { dev, dir, hostname: dev ? 'localhost' : hostname, port, ...(conf ? { conf } : {}) },
     keepAliveTimeout: Number.parseInt(process.env.KEEP_ALIVE_TIMEOUT ?? '', 10),
   });
-  const stop = () => { server.close(); server.closeAllConnections?.(); process.exit(0); };
+  const stop = () => stopFrontServer(server, { closeSockets: () => relay.closeAll(1001, 'going away'), done: () => process.exit(0) });
   process.once('SIGTERM', stop);
   process.once('SIGINT', stop);
 }

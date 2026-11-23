@@ -2,12 +2,14 @@ const assert = require('node:assert/strict');
 const { randomBytes } = require('node:crypto');
 const http = require('node:http');
 const { afterEach, test } = require('node:test');
-const { startFrontServer } = require('../server/front-server.cjs');
+const { startFrontServer, stopFrontServer } = require('../server/front-server.cjs');
 
 // MAIR-818 bug found on the e2e stack: once the page had served one HTTP request, every /ws handshake was hung up.
 // Next's request handler attaches an `upgrade` listener to the server of the first request it serves (unless it is
-// given `httpServer`), and that listener ends the upgrades it does not route. The fake below reproduces
-// `NextCustomServer.setupWebSocketHandler` (next/dist/server/next.js) as it is.
+// given `httpServer`), and that listener ends the upgrades it does not route. The fake below reproduces Next 16's
+// `NextCustomServer` (next/dist/server/next.js): `setupWebSocketHandler` puts the router's upgrade handler (hot reload,
+// ends anything else) on `httpServer` or the request's server, and `getUpgradeHandler()` reaches the render server,
+// whose `handleUpgrade` does nothing.
 
 let server;
 afterEach(async () => { server?.closeAllConnections(); await new Promise(resolve => (server ? server.close(resolve) : resolve())); server = undefined; });
@@ -23,16 +25,18 @@ function fakeNext() {
         if (!didWebSocketSetup) {
           didWebSocketSetup = true;
           const customServer = options.httpServer || request.socket.server;
-          // Next's upgrade handler: what it does not route is ended.
-          customServer.on('upgrade', (_request, socket) => socket.destroy());
+          // Next's router upgrade handler: the hot reload is answered, anything else is ended.
+          customServer.on('upgrade', (request, socket) => {
+            if (request.url !== '/_next/webpack-hmr') { socket.destroy(); return; }
+            seen.nextUpgrades.push(request.url);
+            socket.end('HTTP/1.1 426 Upgrade Required\r\nContent-Length: 0\r\n\r\n');
+          });
         }
         response.writeHead(200, { 'Content-Type': 'text/plain' });
         response.end('page');
       },
-      getUpgradeHandler: () => async (request, socket) => {
-        seen.nextUpgrades.push(request.url);
-        socket.end('HTTP/1.1 426 Upgrade Required\r\nContent-Length: 0\r\n\r\n');
-      },
+      // The render server's handleUpgrade: it never answers.
+      getUpgradeHandler: () => async () => {},
     };
   };
   return { next, seen };
@@ -80,4 +84,44 @@ test('MAIR-818 other upgrades (hot reload) still go to Next', async () => {
   await get(port, '/');
   assert.equal(await upgrade(port, '/_next/webpack-hmr'), 426);
   assert.deepEqual(seen.nextUpgrades, ['/_next/webpack-hmr']);
+});
+
+test('MAIR-818 an upgrade before Next served any request is closed rather than left hanging', async () => {
+  const { next } = fakeNext();
+  server = await startFrontServer({ next, relay, options: { dev: true }, port: 0, hostname: '127.0.0.1', log: () => {} });
+  assert.equal(await upgrade(server.address().port, '/_next/webpack-hmr'), 'socket hang up');
+});
+
+test('MAIR-818 a shutdown closes the WebSockets with 1001 and lets an in-flight request finish', async () => {
+  let release;
+  const slow = () => ({
+    prepare: async () => {},
+    getRequestHandler: () => async (_request, response) => { await new Promise(resolve => { release = resolve; }); response.end('done'); },
+  });
+  server = await startFrontServer({ next: slow, relay, options: {}, port: 0, hostname: '127.0.0.1', log: () => {} });
+  const { port } = server.address();
+  const answer = new Promise(resolve => http.get({ host: '127.0.0.1', port, path: '/' }, response => {
+    let body = ''; response.on('data', chunk => { body += chunk; }); response.on('end', () => resolve(body));
+  }));
+  await new Promise(resolve => setTimeout(resolve, 50));
+  const closed = [];
+  const stopped = new Promise(resolve => stopFrontServer(server, { closeSockets: () => closed.push(1001), deadline: 5_000, done: resolve }));
+  release();
+  assert.equal(await answer, 'done', 'the in-flight request is answered');
+  await stopped;
+  assert.deepEqual(closed, [1001]);
+  server = undefined;
+});
+
+test('MAIR-818 a shutdown cuts what is still open at the deadline', async () => {
+  const stuck = () => ({ prepare: async () => {}, getRequestHandler: () => async () => {} });
+  server = await startFrontServer({ next: stuck, relay, options: {}, port: 0, hostname: '127.0.0.1', log: () => {} });
+  const { port } = server.address();
+  const request = new Promise(resolve => http.get({ host: '127.0.0.1', port, path: '/' }).on('error', error => resolve(error.message)));
+  await new Promise(resolve => setTimeout(resolve, 50));
+  const started = Date.now();
+  await new Promise(resolve => stopFrontServer(server, { deadline: 200, done: resolve }));
+  assert.ok(Date.now() - started >= 150);
+  assert.equal(await request, 'socket hang up');
+  server = undefined;
 });

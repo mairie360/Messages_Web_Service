@@ -61,15 +61,21 @@ test('MAIR-818 a colleague’s message appears in the open conversation without 
   const conversationId = await directConversation(request, baseURL!);
   await signInAs(context, baseURL!, users.recipient);
   const socketOpened = page.waitForEvent('websocket', socket => new URL(socket.url()).pathname === '/ws');
+  const isListRead = (method: string, url: string) => method === 'GET' && new URL(url).pathname === '/conversations';
+  // Once connected, the page reads the list once to catch up: that read is expected and left out of the measure.
+  const catchUp = page.waitForResponse(r => isListRead(r.request().method(), r.url()), { timeout: 10_000 });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Messagerie', level: 1 })).toBeVisible();
   await page.getByRole('complementary').getByText('Perf Tester').first().click();
   const socket = await socketOpened;
   expect(new URL(socket.url()).origin.replace(/^ws/, 'http')).toBe(new URL(baseURL!).origin);
 
+  await catchUp;
+  await page.waitForTimeout(500);
+
   // Connected: the list is no longer reloaded every 2 s.
   const listReads: string[] = [];
-  page.on('request', r => { if (r.method() === 'GET' && new URL(r.url()).pathname === '/conversations') listReads.push(r.url()); });
+  page.on('request', r => { if (isListRead(r.method(), r.url())) listReads.push(r.url()); });
   await page.waitForTimeout(5_000);
   expect(socket.isClosed(), 'the socket stays open').toBe(false);
   expect(listReads, 'no 2 s reload while the WebSocket is connected').toHaveLength(0);
@@ -82,7 +88,7 @@ test('MAIR-818 a colleague’s message appears in the open conversation without 
   expect(posted.ok(), `POST answered ${posted.status()}`).toBe(true);
   const frame = await signal;
   expect(JSON.parse(String(frame.payload))).toMatchObject({ type: 'NEW_MSG', conversationId });
-  // The list line previews the last message too: the thread bubble is one of the matches.
-  await expect(page.getByText(realtimeMessage).first()).toBeVisible({ timeout: 5_000 });
+  // In the open thread's bubbles, not the list preview, which shows the last message too.
+  await expect(page.locator('[data-messaging-message-id]', { hasText: realtimeMessage })).toBeVisible({ timeout: 5_000 });
   await expect(page.getByText('Réception des messages retardée')).toHaveCount(0);
 });

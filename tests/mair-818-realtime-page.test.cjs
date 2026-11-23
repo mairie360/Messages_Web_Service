@@ -174,3 +174,28 @@ test('MAIR-818 a briefly hidden tab keeps its socket and reads the signals it go
   await view.waitFor(() => view.text().includes('Reçu onglet masqué'));
   assert.equal(sockets.length, 1, 'no reconnection after a short absence');
 });
+
+test('MAIR-818 an evicted socket does not come back on its own when the network returns, only on focus', async () => {
+  const socket = await start();
+  socket.accept();
+  await view.settle();
+  socket.end(4008);
+  await view.waitFor(banner);
+  browser.emitWindow('online');
+  await view.settle();
+  assert.equal(sockets.length, 1, '`online` does not reconnect an evicted tab');
+  browser.focus();
+  await view.waitFor(() => sockets.length === 2);
+  sockets[1].accept();
+  await view.waitFor(() => !banner());
+});
+
+test('MAIR-818 coming back to a connected tab re-reads who is signed in before reading the conversations', async () => {
+  const socket = await start();
+  socket.accept();
+  await view.settle();
+  const before = messageBff.calls('/messaging/bootstrap').length;
+  browser.focus();
+  await view.waitFor(() => messageBff.calls('/messaging/bootstrap').length > before);
+  assert.equal(sockets.length, 1, 'the connected socket is kept');
+});
