@@ -40,7 +40,11 @@ test('production keeps the non-root standalone Node and curl runtime without unu
   assert.ok(runner);
   assert.match(runner, /^USER nextjs$/m);
   assert.match(runner, /^ENV PORT=5003$/m);
-  assert.match(runner, /^CMD \["node", "server\.js"\]$/m);
+  // MAIR-818: the Node server around Next relays /ws; the standalone trace misses it, its ws dependency and the contract.
+  assert.match(runner, /^CMD \["node", "server\.cjs"\]$/m);
+  for (const copied of ['/app/server.cjs ./server.cjs', '/app/server ./server', '/app/contracts/openapi.json ./contracts/openapi.json', '/app/node_modules/ws ./node_modules/ws']) {
+    assert.ok(runner.includes(`COPY --from=builder --chown=nextjs:nodejs ${copied}\n`), copied);
+  }
   assert.doesNotMatch(runner, /NODE_AUTH_TOKEN|\.npmrc|npm|yarn|corepack|COPY \. \./);
   assert.match(dockerfile, /rm -rf \/usr\/local\/lib\/node_modules\/npm \/usr\/local\/lib\/node_modules\/corepack \/opt\/yarn-v1\.22\.22/);
   assert.match(dockerfile, /rm -f \/usr\/local\/bin\/npm \/usr\/local\/bin\/npx \/usr\/local\/bin\/corepack \/usr\/local\/bin\/yarn \/usr\/local\/bin\/yarnpkg/);

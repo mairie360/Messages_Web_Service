@@ -79,9 +79,10 @@ const scans = Object.fromEntries(sourceFiles().map((file) => [relative(file), sc
 const messageContract = messageBffContract();
 
 describe('front network calls are confined to the OpenAPI contracts', () => {
-  test('no HTTP client, socket or beacon other than fetch is used in src/', () => {
+  test('no HTTP client, socket or beacon other than fetch is used in src/, but the messaging WebSocket client', () => {
     const forbidden = Object.entries(scans).flatMap(([file, { forbidden: found }]) => found.map((item) => `${file}: ${item}`));
-    assert.deepEqual(forbidden, []);
+    // MAIR-818: the only socket is the real-time client, which opens the contract's /ws on the page's own origin.
+    assert.deepEqual(forbidden, ['lib/message-socket.ts: new WebSocket']);
   });
 
   test('the server reader calls only the two published GET operations through its proxy adapter', () => {

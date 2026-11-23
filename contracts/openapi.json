@@ -5346,6 +5346,37 @@
         ],
         "type": "string"
       },
+      "MessageRealtimeEvent": {
+        "properties": {
+          "conversationId": {
+            "type": "string"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/MessageRealtimeEventType"
+          },
+          "unreadCount": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "type",
+          "conversationId"
+        ],
+        "type": "object"
+      },
+      "MessageRealtimeEventType": {
+        "enum": [
+          "NEW_MSG",
+          "MSG_EDITED",
+          "MSG_DELETED",
+          "CHAT_READ"
+        ],
+        "type": "string"
+      },
       "MessageStreamEvent": {
         "properties": {
           "conversationId": {
@@ -9316,7 +9347,7 @@
   "info": {
     "title": "bff_message",
     "version": "1.0.0",
-    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-dev.963185a2919e3d0b71c6c519cbce3f6cae139c9a"
+    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-dev.3aa73f40597a165c137e955f4fab16277e736e81"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -10246,6 +10277,22 @@
                 "schema": {
                   "$ref": "#/components/schemas/MessageStreamEvent"
                 }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      }
+    },
+    "/ws": {
+      "get": {
+        "operationId": "getWs",
+        "parameters": [],
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             },
             "description": "Succès (seul statut typé par orval)"

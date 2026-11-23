@@ -61,7 +61,7 @@ Les tables sont des sources ou des besoins cibles, pas un script SQL. Les réfé
 | PATCH, DELETE | Message `/v1/{chatId}/messages/{messageId}/` | Cible `messages` et associations | Client généré ; pas d'action front correspondante exposée dans messageClient actuel |
 | GET, POST | Message `/v1/{chatId}/users/` | Cible `chat_members`, identités Core | Client généré |
 | DELETE | Message `/v1/{chatId}/users/{userId}/` | Cible `chat_members` | Client généré |
-| GET | Message `/v1/stream` | Événements de conversation/message (SSE) | Client généré ; raccordement au front à prévoir si temps réel attendu |
+| GET | Message `/v1/ws` (via BFF `/ws`) | Signaux de conversation/message (WebSocket) | Raccordé ; le SSE `/v1/stream` ne sert plus qu'aux navigateurs sans WebSocket, jusqu'à son retrait |
 | POST | Message `/v1/{chatId}/read` | `chat_read_states`, `messages`, appartenance chat_members | Proposé |
 | POST | Message `/v1/attachments/` | `message_attachments`, Files `files` et stockage objet | Proposé |
 | GET | Message `/v1/attachments/{attachmentId}/content` | `message_attachments`, `chat_members`, Files `files` | Proposé |

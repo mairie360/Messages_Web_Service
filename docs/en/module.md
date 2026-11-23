@@ -246,8 +246,9 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
 - **Delayed reception (MAIR-1161).** « Réception automatique active » and the other reception pills are gone: nothing
   is shown while the reception works. Once the real-time connection is lost, `MessagesReceptionDelayed` shows a small
   lib warning `Alert` « Réception des messages retardée » above the module, announced by its polite live region without
-  taking the focus, with « Réessayer la réception ». On reconnection the stream resumes from its last event
-  (`Last-Event-ID`) and the module reads the missed messages again, then the banner goes away.
+  taking the focus, with « Réessayer la réception ». The connection is a WebSocket: the banner appears
+  once it is given up (5 failed attempts, or this tab was evicted by a 6th one of the same agent), while the messages
+  keep being reloaded every 2 s. On reconnection the module reads the missed messages again, then the banner goes away.
 - **Send status (MAIR-1162).** `MessageSendStatus` under my bubbles: « Envoyé » (check) under my last confirmed
   message, « Envoi… » (loader-circle turning only without `prefers-reduced-motion`, dimmed bubble) while the send is
   confirmed, « Non envoyé · Réessayer l'envoi » (circle-alert, lib link `Button` with refresh-cw, dashed error border)

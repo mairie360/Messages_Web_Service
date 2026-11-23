@@ -1,5 +1,5 @@
 # Stack de développement du front Messages : base, Message API, BFF Message et ce front
-# (development.Dockerfile, `next dev` avec synchronisation de src/).
+# (development.Dockerfile, `npm run dev` : serveur Node autour de `next dev`, avec synchronisation de src/).
 #
 #   docker compose up --watch      (NODE_AUTH_TOKEN exporté pour le build)
 #
@@ -153,7 +153,7 @@ services:
       dockerfile: development.Dockerfile
       secrets:
         - node_auth_token
-    # `npm run dev` écoute sur 5003 (`next dev -p 5003`).
+    # `npm run dev` écoute sur 5003 (`node server.cjs`, qui relaie aussi le WebSocket /ws).
     ports:
       - "5003:5003"
     develop:
