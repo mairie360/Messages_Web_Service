@@ -53,7 +53,8 @@ test('an agent sends a direct message', async ({ page, context, baseURL }) => {
   expect(new URL(response.url()).pathname, 'the message creates the direct conversation').toMatch(/\/direct-messages$/);
   expect(response.status()).toBe(201);
 
-  await expect(page.getByText('Message direct créé.')).toBeVisible();
+  // MAIR-865: the confirmation is a lib toast; its text is also in the hidden live region that announces it.
+  await expect(page.getByRole('group', { name: 'Message direct créé' })).toBeVisible();
   await expect(dialog).toBeHidden();
   await expect(page.getByText(message).first()).toBeVisible();
 });
