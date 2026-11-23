@@ -259,3 +259,10 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   messages retardée », annoncée par sa région live polie sans prendre le focus, avec « Réessayer la réception ». À la
   reconnexion, le flux reprend à son dernier événement (`Last-Event-ID`) et le module relit les messages manqués, puis
   le bandeau disparaît.
+- **Statut d'envoi (MAIR-1162).** `MessageSendStatus` sous mes bulles : « Envoyé » (check) sous mon dernier message
+  confirmé, « Envoi… » (loader-circle qui ne tourne que sans `prefers-reduced-motion`, bulle atténuée) pendant la
+  confirmation, « Non envoyé · Réessayer l'envoi » (circle-alert, `Button` lien de la lib avec refresh-cw, bord en
+  pointillés couleur erreur) après un échec. Chaque changement est annoncé par une région live polie du fil. Une
+  relance envoie le même message une seule fois (une tentative par conversation ; un envoi depuis la saisie d'un message
+  déjà remis par la bulle n'écrit rien) ; la saisie garde son brouillon jusqu'à la confirmation (MAIR-370) et le libère
+  quand la bulle l'a remis sans changement. Seul le fil défile : la zone de saisie garde sa hauteur.

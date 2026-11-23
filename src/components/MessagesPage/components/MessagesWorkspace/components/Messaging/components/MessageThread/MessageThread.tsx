@@ -21,7 +21,14 @@ export interface MessageThreadProps {
   unreadIds?: string[];
   /** MAIR-1160: mark the conversation read (end of the thread reached by the agent, or thread without scroll). */
   onRead?: () => void;
+  /** MAIR-1162: my sends not confirmed yet (« Envoi… », « Non envoyé »), shown after the messages. */
+  pendingMessages?: MessagingMessage[];
+  onRetrySend?: (message: MessagingMessage) => void;
+  /** MAIR-1162: last send state, spoken by the polite live region of the thread. */
+  sendAnnouncement?: string;
 }
+
+const noMessages: MessagingMessage[] = [];
 
 const noIds: string[] = [];
 
@@ -39,6 +46,7 @@ const ThreadPlaceholder = ({ children }: { children: React.ReactNode }) => (
 export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps>(({
   hasConversation, messages, emptyStateLabel, mentionOptions, businessReferenceOptions,
   onAttachmentDownload, onBusinessReferenceClick, conversationKey = null, unreadIds = noIds, onRead,
+  pendingMessages = noMessages, onRetrySend, sendAnnouncement = '',
 }, ref) => {
   const region = React.useRef<HTMLDivElement | null>(null);
   const setRegion = React.useCallback((node: HTMLDivElement | null) => {
@@ -53,7 +61,7 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
     <div ref={setRegion} className="min-h-[340px] flex-1 space-y-5 overflow-y-auto bg-[var(--mairie-surface)] px-4 py-5 sm:px-5">
       {!hasConversation
         ? <ThreadPlaceholder>{emptyStateLabel}</ThreadPlaceholder>
-        : messages.length === 0
+        : messages.length === 0 && pendingMessages.length === 0
           ? <ThreadPlaceholder>Aucun message dans cette conversation.</ThreadPlaceholder>
           : messages.map((message) => (
             <React.Fragment key={message.id}>
@@ -68,6 +76,16 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
               />
             </React.Fragment>
           ))}
+      {hasConversation && pendingMessages.map((message) => (
+        <MessagingMessageBubble
+          key={message.id}
+          message={message}
+          mentionOptions={mentionOptions}
+          businessReferenceOptions={businessReferenceOptions}
+          onRetrySend={onRetrySend ? () => onRetrySend(message) : undefined}
+        />
+      ))}
+      <div className="sr-only" role="status" aria-live="polite">{sendAnnouncement}</div>
       {hasConversation && <UnreadMessagesPill count={tracking.remaining} visible={tracking.pillVisible} onClick={tracking.scrollToEnd} />}
     </div>
   );

@@ -248,3 +248,10 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   lib warning `Alert` « Réception des messages retardée » above the module, announced by its polite live region without
   taking the focus, with « Réessayer la réception ». On reconnection the stream resumes from its last event
   (`Last-Event-ID`) and the module reads the missed messages again, then the banner goes away.
+- **Send status (MAIR-1162).** `MessageSendStatus` under my bubbles: « Envoyé » (check) under my last confirmed
+  message, « Envoi… » (loader-circle turning only without `prefers-reduced-motion`, dimmed bubble) while the send is
+  confirmed, « Non envoyé · Réessayer l'envoi » (circle-alert, lib link `Button` with refresh-cw, dashed error border)
+  after a failure. Each change is spoken by a polite live region of the thread. A retry sends the same message once
+  (one attempt per conversation; a composer send of a message the bubble already delivered writes nothing); the
+  composer keeps its draft until a send is confirmed (MAIR-370) and releases it when the bubble delivered it unchanged.
+  Only the thread scrolls: the composer keeps its height.
