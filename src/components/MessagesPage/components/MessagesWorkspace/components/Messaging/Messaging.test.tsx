@@ -1183,7 +1183,7 @@ describe('Messaging reactions (MAIR-1170)', () => {
     const onToggleReaction = vi.fn().mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('La réaction n’a pas pu être enregistrée.'));
     render(<Messaging conversations={[group]} messages={[message]} activeConversationId="g1" currentUserId="me" onToggleReaction={onToggleReaction} />);
     const row = document.querySelector('[data-messaging-message-id="m1"]') as HTMLElement;
-    fireEvent.click(within(row).getByRole('button', { name: 'Réagir' }));
+    fireEvent.click(actionsOf('m1').getByRole('button', { name: 'Réagir' }));
     fireEvent.click(within(row).getByRole('button', { name: 'Réagir avec cœur' }));
     await waitFor(() => expect(onToggleReaction).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }), '❤️', true));
     expect(within(row).queryByRole('group', { name: 'Choisir une réaction' })).toBeNull();
