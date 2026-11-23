@@ -110,7 +110,8 @@ export const buildSendPayload = (
 export const unreadMessageIds = (messages: MessagingMessage[], unreadCount: number | undefined): string[] => {
   const count = Number.isSafeInteger(unreadCount) && (unreadCount ?? 0) > 0 ? unreadCount! : 0;
   if (count === 0) return [];
-  const incoming = messages.filter((message) => message.direction !== 'outgoing');
+  // MAIR-1165: a system note counts as unread for nobody.
+  const incoming = messages.filter((message) => message.direction !== 'outgoing' && message.kind !== 'system');
   return incoming.slice(-count).map((message) => String(message.id));
 };
 
@@ -120,7 +121,7 @@ export const newMessagesLabel = (count: number) => (count === 1 ? '1 nouveau mes
 /** MAIR-1162: « Envoyé » under my last confirmed message (the server messages are confirmed sends). */
 export const withSentStatus = (messages: MessagingMessage[]): MessagingMessage[] => {
   let last = -1;
-  messages.forEach((message, index) => { if (message.direction === 'outgoing') last = index; });
+  messages.forEach((message, index) => { if (message.direction === 'outgoing' && message.kind !== 'system') last = index; });
   return last < 0 || messages[last].sendStatus
     ? messages
     : messages.map((message, index) => (index === last ? { ...message, sendStatus: 'sent' as const } : message));

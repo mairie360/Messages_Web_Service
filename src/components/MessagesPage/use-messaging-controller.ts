@@ -780,6 +780,30 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     }
   };
 
+  // The conversation is gone for the agent (deleted, or left: MAIR-1165): select another one and drop its data.
+  const forgetConversation = (conversationToDelete: MessagingConversation) => {
+    if (idsMatch(activeConversationRef.current, conversationToDelete.id)) {
+      const fallbackId = conversations.find((conversation) =>
+        !idsMatch(conversation.id, conversationToDelete.id))?.id ?? "";
+      activeConversationRef.current = fallbackId;
+      setActiveConversationId(fallbackId);
+      lastUrlConversation.current = String(fallbackId);
+      pageUrl.update({ conversation: String(fallbackId) }, "replace");
+      if (!fallbackId) setShowConversationList(true);
+      else void loadConversationMessages(fallbackId);
+    }
+    setConversations((currentConversations) => currentConversations.filter(
+      (conversation) => !idsMatch(conversation.id, conversationToDelete.id),
+    ));
+    unconfirmedSendsRef.current.delete(String(conversationToDelete.id));
+    pendingSendsRef.current.delete(String(conversationToDelete.id));
+    setMessages((currentMessages) =>
+      currentMessages.filter(
+        (message) => !idsMatch(message.conversationId, conversationToDelete.id),
+      ),
+    );
+  };
+
   const handleConversationDelete: NonNullable<MessagingProps["onConversationDelete"]> =
     async (conversationToDelete) => {
       // An immediate guard also covers repeated callbacks before React renders.
@@ -800,26 +824,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
           throw new Error("La suppression de la conversation n’a pas été confirmée. Réessayez.");
         }
 
-        if (idsMatch(activeConversationRef.current, conversationToDelete.id)) {
-          const fallbackId = conversations.find((conversation) =>
-            !idsMatch(conversation.id, conversationToDelete.id))?.id ?? "";
-          activeConversationRef.current = fallbackId;
-          setActiveConversationId(fallbackId);
-          lastUrlConversation.current = String(fallbackId);
-          pageUrl.update({ conversation: String(fallbackId) }, "replace");
-          if (!fallbackId) setShowConversationList(true);
-          else void loadConversationMessages(fallbackId);
-        }
-        setConversations((currentConversations) => currentConversations.filter(
-          (conversation) => !idsMatch(conversation.id, conversationToDelete.id),
-        ));
-        unconfirmedSendsRef.current.delete(String(conversationToDelete.id));
-        pendingSendsRef.current.delete(String(conversationToDelete.id));
-        setMessages((currentMessages) =>
-          currentMessages.filter(
-            (message) => !idsMatch(message.conversationId, conversationToDelete.id),
-          ),
-        );
+        forgetConversation(conversationToDelete);
         if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback('Conversation supprimée.');
       } catch (deleteError) {
         setError(
@@ -835,6 +840,50 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
         endMutation(!idsMatch(activeConversationRef.current, conversationToDelete.id));
       }
     };
+
+  // MAIR-1165: members of a group. A change appends its system note to the thread and the new size to the list.
+  const handleLoadMembers: NonNullable<MessagingProps["onLoadMembers"]> = (conversation, signal) =>
+    messageClient.getMembers(conversation.id, signal);
+
+  const applyMembersChange = async (conversation: MessagingConversation, change: () => ReturnType<typeof messageClient.addMembers>, fallback: string) => {
+    beginMutation();
+    try {
+      const response = await change();
+      setConversations(current => current.map(item => idsMatch(item.id, conversation.id) ? { ...item, memberCount: response.members.length } : item));
+      if (response.systemMessage) {
+        const note = response.systemMessage;
+        if (idsMatch(note.conversationId, conversation.id)) setMessages(current => appendMessage(current, note));
+      }
+      return { members: response.members, canManage: response.canManage };
+    } catch (failure) {
+      if (await recoverSessionNavigation(failure)) return false;
+      throw new Error(describeBffError(failure, fallback));
+    } finally {
+      endMutation(true);
+    }
+  };
+
+  const handleAddMembers: NonNullable<MessagingProps["onAddMembers"]> = (conversation, userIds) =>
+    applyMembersChange(conversation, () => messageClient.addMembers(conversation.id, userIds), "Les membres n’ont pas pu être ajoutés.");
+
+  const handleRemoveMember: NonNullable<MessagingProps["onRemoveMember"]> = (conversation, member) =>
+    applyMembersChange(conversation, () => messageClient.removeMember(conversation.id, member.id), `${member.name} n’a pas pu être retiré du groupe.`);
+
+  const handleLeaveConversation: NonNullable<MessagingProps["onLeaveConversation"]> = async (conversation) => {
+    beginMutation();
+    const identity = senderIdentityRef.current;
+    try {
+      await messageClient.leaveConversation(conversation.id);
+      forgetConversation(conversation);
+      if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback(`Vous avez quitté le groupe « ${conversation.name} ».`);
+      return true;
+    } catch (failure) {
+      if (await recoverSessionNavigation(failure)) return false;
+      throw new Error(describeBffError(failure, "Vous n’avez pas pu quitter le groupe."));
+    } finally {
+      endMutation(!idsMatch(activeConversationRef.current, conversation.id));
+    }
+  };
 
   // MAIR-1164: a page of the search panel; the panel owns the debounce and aborts the requests it no longer needs.
   const handleSearch: NonNullable<MessagingProps["onSearch"]> = (conversation, request) =>
@@ -897,6 +946,10 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     handleCreateGroup,
     handleConversationDelete,
     handleSearch,
+    handleLoadMembers,
+    handleAddMembers,
+    handleRemoveMember,
+    handleLeaveConversation,
     toggleConversationList: () => setShowConversationList((current) => !current),
   };
 }

@@ -8,6 +8,7 @@ import { NewMessageModal } from './components/NewMessageModal';
 import { buildMentionOptions, buildSendPayload, closeWhenConfirmed, getMessageDirection, mergeMessagesById, messagingIdsMatch, directContactIds, unreadMessageIds, withSentStatus } from './messaging-model';
 import { ContextReferenceBar } from './components/ContextReferenceBar';
 import { ConversationSearchPanel } from './components/ConversationSearchPanel';
+import { GroupMembersPanel } from './components/GroupMembersPanel';
 import { revealMessage } from './reveal-message';
 import { ConversationComposers } from './components/ConversationComposers';
 import { MessageThread } from './components/MessageThread';
@@ -24,6 +25,8 @@ import type {
   MessagingMessage,
   MessagingSendMessagePayload,
   MessagingSendResult,
+  MessagingMember,
+  MessagingMembers,
   MessagingSearchPage,
   MessagingSearchPersonItem,
   MessagingSearchRequest,
@@ -69,6 +72,15 @@ export interface MessagingProps extends React.HTMLAttributes<HTMLElement> {
    * around it. Without it nothing more happens.
    */
   onMessageNotLoaded?: (conversation: MessagingConversation, messageId: MessagingContactId) => void;
+  /**
+   * MAIR-1165: the members of a group. With it, the header shows the avatar pile of the open group and « Gérer les
+   * membres » opens the members panel instead of calling `onManageMembers`.
+   */
+  onLoadMembers?: (conversation: MessagingConversation, signal: AbortSignal) => Promise<MessagingMembers>;
+  /** MAIR-1165: each answers the members after the change, or `false` when it was refused. */
+  onAddMembers?: (conversation: MessagingConversation, userIds: MessagingContactId[]) => Promise<MessagingMembers | false>;
+  onRemoveMember?: (conversation: MessagingConversation, member: MessagingMember) => Promise<MessagingMembers | false>;
+  onLeaveConversation?: (conversation: MessagingConversation) => Promise<boolean>;
 }
 
 const emptyConversations: MessagingConversation[] = [];
@@ -104,6 +116,10 @@ export const Messaging = ({
   onMoreActions,
   onSearch,
   onMessageNotLoaded,
+  onLoadMembers,
+  onAddMembers,
+  onRemoveMember,
+  onLeaveConversation,
   className = '',
   ...props
 }: MessagingProps) => {
@@ -176,6 +192,31 @@ export const Messaging = ({
       if (!revealMessage(messageRegionRef.current, messageId) && conversation) onMessageNotLoaded?.(conversation, messageId);
     }, 0);
   };
+  // MAIR-1165: members of the open group, read when the panel opens and again when the size of the group changes
+  // while it is open (a change made here or by someone else); the header keeps the last ones read.
+  const [membersOpen, setMembersOpen] = React.useState(false);
+  const [members, setMembers] = React.useState<MessagingMembers | null>(null);
+  const [membersError, setMembersError] = React.useState<string | null>(null);
+  const [membersAttempt, setMembersAttempt] = React.useState(0);
+  const groupKey = activeConversation?.kind === 'group' && onLoadMembers ? String(activeConversation.id) : null;
+  React.useEffect(() => { setMembersOpen(false); setMembers(null); }, [groupKey]);
+  React.useEffect(() => {
+    if (!membersOpen || !groupKey || !activeConversation || !onLoadMembers) return;
+    const controller = new AbortController();
+    setMembersError(null);
+    onLoadMembers(activeConversation, controller.signal)
+      .then(next => { if (!controller.signal.aborted) setMembers(next); })
+      .catch(() => { if (!controller.signal.aborted) setMembersError('Les membres du groupe sont indisponibles.'); });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reloaded per group, size change or retry
+  }, [membersOpen, groupKey, activeConversation?.memberCount, membersAttempt, onLoadMembers]);
+  const changeMembers = async (change: Promise<MessagingMembers | false> | undefined) => {
+    const next = await change;
+    if (!next) return false;
+    setMembers(next);
+    return true;
+  };
+
   const writeTo = (person: MessagingSearchPersonItem) => {
     const direct = displayedConversations.find((conversation) => conversation.kind !== 'group' &&
       conversation.contactId !== undefined && String(conversation.contactId).replace(/^user-/, '') === String(person.id).replace(/^user-/, ''));
@@ -244,7 +285,8 @@ export const Messaging = ({
           onMoreActions={onMoreActions}
           onDeleteConversation={onConversationDelete ? handleDeleteConversation : undefined}
           onReadVisibleMessages={onReadVisibleMessages ? conversation => void readVisibleMessages(conversation, { untilLast: true }) : undefined}
-          onManageMembers={onManageMembers}
+          onManageMembers={onLoadMembers ? () => setMembersOpen(true) : onManageMembers}
+          members={members?.members}
           onCreateGroupWith={onCreateGroup ? conversation => handleCreateGroupClick(conversation) : undefined}
           readPending={readPending}
         />
@@ -269,6 +311,7 @@ export const Messaging = ({
           pendingMessages={pendingMessages}
           onRetrySend={(message) => message.conversationId !== undefined && sends.retry(message.conversationId)}
           sendAnnouncement={sends.announcement}
+          currentUserId={currentUserId}
         />
 
         {contextReference && <ContextReferenceBar reference={contextReference} onOpen={onBusinessReferenceClick} />}
@@ -295,6 +338,25 @@ export const Messaging = ({
           onSearch={searchActive}
           onOpenMessage={openSearchResult}
           onWriteTo={writeTo}
+        />
+      )}
+      {onLoadMembers && (
+        <GroupMembersPanel
+          open={membersOpen}
+          conversation={activeConversation?.kind === 'group' ? activeConversation : null}
+          members={members}
+          loadError={membersError}
+          currentUserId={currentUserId}
+          contacts={displayedContacts}
+          onClose={() => setMembersOpen(false)}
+          onRetry={() => setMembersAttempt(value => value + 1)}
+          onAdd={onAddMembers && activeConversation ? userIds => changeMembers(onAddMembers(activeConversation, userIds)) : undefined}
+          onRemove={onRemoveMember && activeConversation ? member => changeMembers(onRemoveMember(activeConversation, member)) : undefined}
+          onLeave={onLeaveConversation && activeConversation ? async () => {
+            const left = await onLeaveConversation(activeConversation);
+            if (left) setMembersOpen(false);
+            return left;
+          } : undefined}
         />
       )}
       {onNewMessageSend && (

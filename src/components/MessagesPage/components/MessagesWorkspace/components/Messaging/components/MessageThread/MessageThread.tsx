@@ -3,9 +3,10 @@ import { DataState, Text } from '@mairie360/lib-components/primitives';
 
 import { MessagingMessageBubble } from './components/MessagingMessageBubble';
 import { NewMessagesSeparator } from './components/NewMessagesSeparator';
+import { SystemNote } from './components/SystemNote';
 import { UnreadMessagesPill } from './components/UnreadMessagesPill';
 import { useUnreadTracking } from './use-unread-tracking';
-import type { MessagingAttachment, MessagingBusinessReference, MessagingMention, MessagingMessage } from '../../messaging-types';
+import type { MessagingAttachment, MessagingBusinessReference, MessagingContactId, MessagingMention, MessagingMessage } from '../../messaging-types';
 
 export interface MessageThreadProps {
   hasConversation: boolean;
@@ -29,6 +30,8 @@ export interface MessageThreadProps {
   onRetrySend?: (message: MessagingMessage) => void;
   /** MAIR-1162: last send state, spoken by the polite live region of the thread. */
   sendAnnouncement?: string;
+  /** MAIR-1165: the agent, to word the system notes (« Vous avez ajouté… »). */
+  currentUserId?: MessagingContactId;
 }
 
 const noMessages: MessagingMessage[] = [];
@@ -58,7 +61,7 @@ const defaultThreadState = (conversationCount: number) => (conversationCount ===
 export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps>(({
   hasConversation, messages, emptyStateLabel, mentionOptions, businessReferenceOptions,
   onAttachmentDownload, onBusinessReferenceClick, conversationKey = null, unreadIds = noIds, onRead,
-  pendingMessages = noMessages, onRetrySend, sendAnnouncement = '', conversationCount = 0,
+  pendingMessages = noMessages, onRetrySend, sendAnnouncement = '', conversationCount = 0, currentUserId,
 }, ref) => {
   const region = React.useRef<HTMLDivElement | null>(null);
   const setRegion = React.useCallback((node: HTMLDivElement | null) => {
@@ -78,14 +81,16 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
           : messages.map((message) => (
             <React.Fragment key={message.id}>
               {tracking.separatorBeforeId === String(message.id) && <NewMessagesSeparator />}
-              <MessagingMessageBubble
+              {message.kind === 'system' ? (
+                <SystemNote message={message} currentUserId={currentUserId} data-messaging-message-id={String(message.id)} />
+              ) : <MessagingMessageBubble
                 onAttachmentDownload={onAttachmentDownload}
                 message={message}
                 data-messaging-message-id={String(message.id)}
                 mentionOptions={mentionOptions}
                 businessReferenceOptions={businessReferenceOptions}
                 onBusinessReferenceClick={onBusinessReferenceClick}
-              />
+              />}
             </React.Fragment>
           ))}
       {hasConversation && pendingMessages.map((message) => (

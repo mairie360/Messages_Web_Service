@@ -64,6 +64,25 @@ export const messageClient = {
     return reply;
   },
 
+  /** MAIR-1165: the members of a conversation and whether the agent may manage them. */
+  async getMembers(conversationId: MessageId, signal?: AbortSignal) {
+    return (await bffMessage.getConversationsConversationIdMembers(encodeId(conversationId), { signal })).data;
+  },
+
+  /** MAIR-1165: add agents to a group; the answer carries the system note of the change. */
+  async addMembers(conversationId: MessageId, userIds: MessageId[]) {
+    return (await bffMessage.postConversationsConversationIdMembers(encodeId(conversationId), { userIds })).data;
+  },
+
+  async removeMember(conversationId: MessageId, userId: MessageId) {
+    return (await bffMessage.deleteConversationsConversationIdMembersUserId(encodeId(conversationId), encodeId(userId))).data;
+  },
+
+  /** MAIR-1165: leave a group (204). */
+  async leaveConversation(conversationId: MessageId) {
+    await bffMessage.postConversationsConversationIdLeave(encodeId(conversationId));
+  },
+
   /** MAIR-1164: one page of the messages, files or people of a conversation matching `q`. */
   async searchConversation(conversationId: MessageId, params: GetConversationsConversationIdSearchParams, signal?: AbortSignal) {
     return (await bffMessage.getConversationsConversationIdSearch(encodeId(conversationId), params, { signal })).data;

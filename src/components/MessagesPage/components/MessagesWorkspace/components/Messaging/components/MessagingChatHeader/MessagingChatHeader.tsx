@@ -5,8 +5,9 @@ import { Phone, Video } from 'lucide-react';
 import { joinClasses } from '../../messaging-style';
 import { ConversationActionsMenu } from './components/ConversationActionsMenu';
 import { HeaderIconButton } from './components/HeaderIconButton';
+import { HeaderMembers } from './components/HeaderMembers';
 import { HeaderIdentity } from './components/HeaderIdentity';
-import type { MessagingConversation } from '../../messaging-types';
+import type { MessagingConversation, MessagingMember } from '../../messaging-types';
 
 export interface MessagingChatHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
   conversation?: MessagingConversation | null;
@@ -25,6 +26,8 @@ export interface MessagingChatHeaderProps extends React.HTMLAttributes<HTMLDivEl
   /** MAIR-1163: « Créer un groupe avec <personne> » of a direct conversation. */
   onCreateGroupWith?: (conversation: MessagingConversation) => void;
   readPending?: boolean;
+  /** MAIR-1165: members of the open group, for the avatar pile next to its name. */
+  members?: MessagingMember[];
 }
 
 export const MessagingChatHeader = ({
@@ -41,6 +44,7 @@ export const MessagingChatHeader = ({
   onManageMembers,
   onCreateGroupWith,
   readPending = false,
+  members,
   className = '',
   ...props
 }: MessagingChatHeaderProps) => {
@@ -66,6 +70,9 @@ export const MessagingChatHeader = ({
       <HeaderIdentity conversation={conversation} />
 
       <div className="flex shrink-0 items-center gap-1.5">
+        {conversation.kind === 'group' && onManageMembers && (members?.length || conversation.memberCount) ? (
+          <HeaderMembers members={members ?? []} count={conversation.memberCount ?? members?.length} onManage={() => onManageMembers(conversation)} />
+        ) : null}
         {/* MAIR-1158: calls are not available yet; the buttons are shown disabled with their tooltip. */}
         <HeaderIconButton label={callLabel} tooltip={`${callLabel} · bientôt disponible`} icon={Phone} unavailable />
         <HeaderIconButton label={videoCallLabel} tooltip={`${videoCallLabel} · bientôt disponible`} icon={Video} unavailable />
