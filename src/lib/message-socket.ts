@@ -1,4 +1,4 @@
-import type { MessageRealtimeEvent } from '@mairie360/bff-message-openapi/model';
+import type { MessageRealtimeEvent as ContractRealtimeEvent } from '@mairie360/bff-message-openapi/model';
 import { BffNavigationRequiredError, BffRequestError, bffMessage } from './bff-client';
 import type { MessageStreamState } from './message-stream';
 
@@ -8,6 +8,13 @@ import type { MessageStreamState } from './message-stream';
  * caught up by the read that follows every `open`, and a duplicate only costs one read. `MENTIONED` also tells the
  * agent that a message mentions them: the page turns it into one alert per message.
  */
+
+/**
+ * A frame of the socket. BFF_Message also relays `MENTIONED` (with the `messageId` of the mentioning message), in a
+ * contract that no longer has the SSE `/stream` this front still serves; until the front drops the stream and pins
+ * that contract, the type is widened here.
+ */
+export type MessageRealtimeEvent = Omit<ContractRealtimeEvent, 'type'> & { type: ContractRealtimeEvent['type'] | 'MENTIONED' };
 
 /** Close codes the client acts on (any other one is retried with backoff). */
 export const SOCKET_CLOSE = { SESSION_ENDED: 4001, EVICTED: 4008, ABNORMAL: 1006, NORMAL: 1000 } as const;
