@@ -38,6 +38,8 @@ export interface MessageThreadProps {
   onEdit?: (message: MessagingMessage) => void;
   onDelete?: (message: MessagingMessage) => void;
   onOpenQuote?: (messageId: MessagingContactId) => void;
+  /** A `@person` tag of a message was activated (`data-mention-person` button): open that person's card. */
+  onMentionPersonClick?: (person: { id: string; name: string }) => void;
   /** MAIR-1168: the message being edited in place, its save and cancel, and the suggestions of its edit box. */
   editingId?: MessagingContactId | null;
   onSaveEdit?: (message: MessagingMessage, payload: MessagingEditPayload) => Promise<boolean | void> | boolean | void;
@@ -76,7 +78,7 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
   onAttachmentDownload, onBusinessReferenceClick, conversationKey = null, unreadIds = noIds, onRead,
   pendingMessages = noMessages, onRetrySend, sendAnnouncement = '', conversationCount = 0, currentUserId,
   onReact, onReply, onEdit, onDelete, onOpenQuote, editingId = null, onSaveEdit, onCancelEdit, suggestionSources,
-  onToggleReaction,
+  onToggleReaction, onMentionPersonClick,
 }, ref) => {
   // MAIR-1167: a quote of a loaded message that was deleted reads « Message supprimé ».
   const deletedIds = React.useMemo(() => new Set(messages.filter((message) => message.deleted).map((message) => String(message.id))), [messages]);
@@ -90,7 +92,16 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
   const tracking = useUnreadTracking(region, hasConversation ? conversationKey : null, messageIds, unreadIds, onRead);
 
   return (
-    <div ref={setRegion} className="min-h-[340px] flex-1 space-y-5 overflow-y-auto bg-[var(--mairie-surface)] px-4 py-5 sm:px-5">
+    // The tags are rendered in the message content by the page; one listener here opens the card of any of them.
+    <div
+      ref={setRegion}
+      className="min-h-[340px] flex-1 space-y-5 overflow-y-auto bg-[var(--mairie-surface)] px-4 py-5 sm:px-5"
+      onClick={onMentionPersonClick ? (event) => {
+        const tag = (event.target as Element).closest?.('[data-mention-person]');
+        if (!(tag instanceof HTMLElement) || !region.current?.contains(tag)) return;
+        onMentionPersonClick({ id: tag.dataset.mentionPerson ?? '', name: tag.dataset.mentionName ?? tag.textContent?.replace(/^@/, '') ?? '' });
+      } : undefined}
+    >
       {!hasConversation
         ? <ThreadPlaceholder>{emptyStateLabel ?? defaultThreadState(conversationCount)}</ThreadPlaceholder>
         : messages.length === 0 && pendingMessages.length === 0

@@ -292,7 +292,9 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   Entrée sends when no list is open. A chosen tag is frozen (followed by a space, what is typed next is plain text).
   The send carries `mentionIds`, `mentionEveryone`, `groupMentionIds` and `links`. In the bubbles the tags are
   emphasised in the accent colour, and a linked element with a page (`url` from the BFF) is a lib `Link` that opens
-  it. A mentioned person has no page to open yet: their tag stays emphasised.
+  it. A person's tag is an underlined button that opens their card (name, department, presence, « (vous) » for the
+  agent themself); its « Écrire » opens the direct conversation with them, or « Nouveau message » to them when there
+  is none yet. `@tout le monde` and groups are not clickable, so not underlined.
 - **Mention alerts.** When a colleague mentions the agent (by name, `@everyone` or a group), the header bell counts
   it (« Notifications, 1 non lues ») and its panel (lib `NotificationCenter`) lists « Mention dans « <conversation> » »
   with « <personne> vous a mentionné(e). » (the author, read once from the conversation; « Un message vous

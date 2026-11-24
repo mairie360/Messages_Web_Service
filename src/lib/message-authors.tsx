@@ -10,7 +10,12 @@ import type {
 
 type Mention = NonNullable<ComponentProps<typeof Messaging>["mentionOptions"]>[number];
 type MentionKind = "user" | "business";
-type Tag = { kind: MentionKind; href?: string };
+/** `person`: the user a `@` tag names, whose card the tag opens. */
+type Tag = { kind: MentionKind; href?: string; person?: { id: MessagingContactId; name: string } };
+/** A mention that names a person (a contact, or a member the BFF resolved), not a group nor « everyone ». */
+type TextMention = { id?: MessagingContactId; name?: string; kind?: string; target?: string };
+const isPerson = (mention: TextMention) =>
+  mention.id !== undefined && mention.kind !== "group" && mention.target !== "group" && mention.target !== "everyone";
 /** MAIR-1166: label of the « everyone » tag in the text (same as the composer). */
 const EVERYONE_TAG = "@tout le monde";
 
@@ -47,7 +52,7 @@ export function buildMessageMentionOptions(
 // presentation when an author label makes the display content a React node.
 function renderMentionedContent(
   content: React.ReactNode,
-  mentions: Array<{ name?: string }>,
+  mentions: TextMention[],
   references: Array<{ title?: string; href?: string }>,
   everyone = false,
 ): React.ReactNode {
@@ -56,7 +61,10 @@ function renderMentionedContent(
   const kinds = new Map<string, Tag>();
   for (const mention of mentions) {
     const label = `@${mention.name ?? ""}`;
-    if (mention.name?.trim() && content.includes(label)) kinds.set(label, { kind: "user" });
+    if (!mention.name?.trim() || !content.includes(label)) continue;
+    // A person mention wins over a group of the same name, so the tag opens the person's card.
+    if (isPerson(mention)) kinds.set(label, { kind: "user", person: { id: mention.id!, name: mention.name } });
+    else if (!kinds.get(label)?.person) kinds.set(label, { kind: "user" });
   }
   if (everyone && content.includes(EVERYONE_TAG)) kinds.set(EVERYONE_TAG, { kind: "user" });
   for (const reference of references) {
@@ -73,11 +81,26 @@ function renderMentionedContent(
     .map((part, index) => {
       const tag = kinds.get(part);
       if (!tag) return part;
-      // MAIR-1166: a tag with a page is a lib Link that opens it; the others stay emphasised in the accent colour.
-      return tag.href ? (
-        <Link key={`${part}-${index}`} href={tag.href} size="s" weight="semibold" data-mention-kind={tag.kind}>{part}</Link>
-      ) : (
-        <strong key={`${part}-${index}`} className="font-bold text-[var(--mairie-accent)] underline underline-offset-2" data-mention-kind={tag.kind}>
+      // A tag with a page is a lib Link that opens it; a person tag is a button that opens the person's card
+      // (the thread listens to `data-mention-person`); the others stay emphasised, without the underline of a link.
+      if (tag.href) return <Link key={`${part}-${index}`} href={tag.href} size="s" weight="semibold" data-mention-kind={tag.kind}>{part}</Link>;
+      if (tag.person) {
+        return (
+          <button
+            key={`${part}-${index}`}
+            type="button"
+            className="inline cursor-pointer rounded-sm p-0 font-bold text-[var(--mairie-accent)] underline underline-offset-2 hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mairie-accent)]"
+            data-mention-kind={tag.kind}
+            data-mention-person={String(tag.person.id)}
+            data-mention-name={tag.person.name}
+            aria-label={`Ouvrir la fiche de ${tag.person.name}`}
+          >
+            {part}
+          </button>
+        );
+      }
+      return (
+        <strong key={`${part}-${index}`} className="font-bold text-[var(--mairie-accent)]" data-mention-kind={tag.kind}>
           {part}
         </strong>
       );
@@ -119,7 +142,7 @@ export function presentMessageAuthors(
           <span className="whitespace-pre-wrap break-words">
             {renderMentionedContent(
               message.content,
-              [...mentionOptions, ...(message.mentions ?? []), ...(message.groupMentions ?? [])],
+              [...mentionOptions, ...(message.mentions ?? []), ...(message.groupMentions ?? []).map((group) => ({ ...group, kind: "group" }))],
               [...businessReferences, ...references, ...(message.links ?? []).map((link) => ({ title: link.title, href: link.url }))],
               message.mentionsEveryone === true,
             )}
