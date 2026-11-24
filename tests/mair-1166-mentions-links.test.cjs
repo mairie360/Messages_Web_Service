@@ -88,5 +88,5 @@ test('MAIR-1166 a linked element is a link to its page, everyone and groups are 
   assert.match(html, /<strong[^>]*data-mention-kind="user"[^>]*>@tout le monde<\/strong>/);
   assert.match(html, /<strong[^>]*data-mention-kind="user"[^>]*>@Urbanisme<\/strong>/);
   // Only a person tag opens a card; everyone and a group are not buttons and not underlined like a link.
-  assert.doesNotMatch(html, /<button|data-mention-person|underline/);
+  assert.doesNotMatch(html, /<button|data-mention-person|<strong[^>]*underline/);
 });
