@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { mairie360LogoSrc } from '@mairie360/lib-components/shell';
 vi.mock('@/lib/auth-session', () => ({ useAuthSession: () => ({ user: { name: 'Agent' }, isAdmin: false }), logoutAndReload: vi.fn() }));
 vi.mock('@/lib/navigation', () => ({ getActiveFrontHrefs: () => ({ messages: '/', calendar: 'https://calendar.example/' }) }));
 vi.mock('@/lib/front-urls', () => ({ frontUrl: (key: string) => (key === 'LOGIN_FRONT_URL' ? 'https://login.example/' : undefined) }));
 
-import { AppShell } from './AppShell';
+import { AppShell, type ShellNotifications } from './AppShell';
 import { ShellInfoProvider } from '@/lib/shell-info-provider';
 
 const navigation = () => {
@@ -46,6 +46,49 @@ describe('AppShell', () => {
     expect(capped).toHaveAttribute('aria-current', 'page'); expect(capped).toHaveTextContent('9+');
     rerender(<AppShell activeItem="messages" unreadCount={0}><p>Contenu</p></AppShell>);
     expect(within(navigation()).getByRole('button', { name: 'Messagerie', hidden: true })).toHaveAttribute('aria-current', 'page');
+  });
+
+  const mentionBell = (read = false): ShellNotifications => {
+    const item = {
+      id: 'message-9', title: 'Mention dans « Urbanisme »', message: 'Un message vous mentionne.', category: 'messages' as const,
+      read, href: '/?conversation=conversation-7', clickable: true, date: '2026-11-24T10:00:00.000Z',
+    };
+    return {
+      count: read ? 0 : 1,
+      source: { list: async () => [item], markRead: async (ids: string[]) => ids },
+      conversationOf: (href: string) => (href === item.href ? 'conversation-7' : null),
+    };
+  };
+
+  it('MAIR-1182 the header bell counts the unread mentions', () => {
+    const { rerender } = render(<AppShell activeItem="messages" notifications={mentionBell()}><p>Contenu</p></AppShell>);
+    expect(screen.getByRole('button', { name: 'Notifications, 1 non lues' })).toBeInTheDocument();
+    rerender(<AppShell activeItem="messages" notifications={mentionBell(true)}><p>Contenu</p></AppShell>);
+    expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
+  });
+
+  it('MAIR-1182 the bell lists the mention and its link opens the conversation without reloading the page', async () => {
+    const onOpenConversation = vi.fn();
+    render(<AppShell activeItem="messages" notifications={mentionBell()} onOpenConversation={onOpenConversation}><p>Contenu</p></AppShell>);
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications, 1 non lues' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Notifications' });
+    expect(await within(dialog).findByText('Mention dans « Urbanisme »')).toBeInTheDocument();
+    const link = within(dialog).getByRole('link', { name: 'Ouvrir' });
+    expect(link).toHaveAttribute('href', '/?conversation=conversation-7');
+    const followed = fireEvent.click(link);
+    expect(followed).toBe(false); // default prevented: no navigation
+    expect(onOpenConversation).toHaveBeenCalledWith('conversation-7');
+    expect(screen.queryByRole('dialog', { name: 'Notifications' })).toBeNull();
+  });
+
+  it('MAIR-1182 a modified click on the link keeps the browser behaviour (new tab)', async () => {
+    const onOpenConversation = vi.fn();
+    render(<AppShell activeItem="messages" notifications={mentionBell()} onOpenConversation={onOpenConversation}><p>Contenu</p></AppShell>);
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications, 1 non lues' }));
+    const link = await screen.findByRole('link', { name: 'Ouvrir' });
+    const followed = fireEvent.click(link, { ctrlKey: true });
+    expect(followed).toBe(true); // default kept: the browser opens the link (jsdom may log that it cannot navigate)
+    expect(onOpenConversation).not.toHaveBeenCalled();
   });
 
   it('MAIR-844 adds no local class to the lib frame', () => {

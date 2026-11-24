@@ -26,6 +26,7 @@ import { buildMessageMentionOptions, presentMessageAuthors } from '../../lib/mes
 import { isSessionRecoveryPending, navigateToLogin } from '../../lib/logout';
 import type { MessageStreamState } from '../../lib/message-stream';
 import { receiveMessageSocket, socketSupported } from '../../lib/message-socket';
+import { useMentionNotifications } from './use-mention-notifications';
 import { readPageUrlState } from '../../lib/page-url-state';
 import { messagingUrlSchema } from '../../lib/messaging-page-query';
 import { CONTEXT_REMOVED, CONTEXT_UNAVAILABLE, withContextLink, type MessagingFeedback } from '../../lib/messaging-context';
@@ -109,6 +110,10 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   const bootstrapLifecycleRef = useRef({ mounted: false, generation: 0, pending: false });
   const readPendingRef = useRef<symbol | null>(null);
   const confirmedMessagesRef = useRef(messages);
+  const { mentionNotifications, receiveMention, markConversationRead } =
+    useMentionNotifications(conversations, String(currentUser?.id ?? ''));
+  const confirmedIdsRef = useRef(confirmedConversationIds);
+  useLayoutEffect(() => { confirmedIdsRef.current = confirmedConversationIds; }, [confirmedConversationIds]);
   useLayoutEffect(() => { confirmedMessagesRef.current = messages; }, [messages]);
   // Draft descriptors contain local object URLs, never BFF attachment IDs.
   // Weak keys allow removed files to be released without an explicit removal callback.
@@ -420,7 +425,16 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
             setStreamState(state);
             if (streamConnected) receiveEvent(); // Catch up on what was missed while disconnected.
           },
-          onEvent: receiveEvent,
+          onEvent: event => {
+            // The agent reading the mentioned conversation sees the message there: no alert for it. A thread still
+            // being opened, or not confirmed, is not read yet.
+            if (event.type === 'MENTIONED') {
+              const reading = pageIsVisible() && selectionLoadingRef.current === null &&
+                confirmedIdsRef.current.has(String(activeConversationRef.current));
+              receiveMention(event, reading ? activeConversationRef.current : undefined);
+            }
+            receiveEvent();
+          },
           checkSession: () => messageClient.getCurrentUser(),
           onAuthenticationError: async error => { if (!disposed && pageIsVisible()) await recoverSessionNavigation(error); },
         }).then(outcome => { if (outcome === 'evicted' && !signal.aborted) socketEvictedRef.current = true; })
@@ -475,7 +489,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       window.removeEventListener("online", receiveOnline);
       document.removeEventListener("visibilitychange", receiveVisibility);
     };
-  }, [currentUser, loading, recoverSessionNavigation, confirmThread, loadBootstrap, streamRetry]);
+  }, [currentUser, loading, recoverSessionNavigation, confirmThread, loadBootstrap, streamRetry, receiveMention]);
 
   const beginMutation = () => {
     setFeedback(null);
@@ -1090,6 +1104,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     newMessageRequest,
     hasConfirmedThread,
     loadConversationMessages,
+    mentionNotifications,
+    markConversationRead,
     loadContacts,
     handleSendMessage,
     hasConfirmedMessages,
