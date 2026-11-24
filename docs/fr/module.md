@@ -99,6 +99,7 @@ pour réessayer et affiche une erreur ; seule la conversation créée par le ser
 est ajoutée à la liste.
 - Dates des conversations et des messages affichées en français (jour/mois et heure:minute), dans le fuseau du navigateur. Les valeurs absentes ou non reconnues sont conservées sans date inventée ; le contenu des messages reste intact.
 - Chargement des références projets, tâches et événements, avec actualisation des suggestions au retour dans l’onglet visible. Une panne temporaire conserve la dernière liste reçue ; un refus d’accès la vide.
+- Message à propos d’un projet : la page projet du front Projets pointe vers `/?context=project-<n>`. La page lit le titre du projet auprès de BFF_Message (`GET /link-suggestions`, les objets que l’agent peut lire ; jamais dans l’URL), affiche le bandeau « Message contextuel » (« Ouvrir », « Retirer ») et ouvre « Nouveau message » avec « Message lié au projet « <titre> » ». Fermer la fenêtre permet d’écrire dans une conversation existante. Le projet part comme lien métier (`links`) du premier message, sur `POST /direct-messages` ou dans la conversation, puis le bandeau disparaît ; « Retirer » l’enlève avant (toast « Contexte retiré »). Un projet que l’agent ne peut pas lire, ou une lecture en échec, ouvre la page sans contexte avec le toast « Le projet lié n’est pas accessible ».
 
 Les pièces jointes ne sont pas encore disponibles (MAIR-512) : le BFF répond 503 à
 l’upload et refuse tout identifiant de pièce jointe. Le composer partagé affiche

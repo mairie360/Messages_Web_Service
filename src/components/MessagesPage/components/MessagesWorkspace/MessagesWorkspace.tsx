@@ -36,6 +36,9 @@ export function MessagesWorkspace({
   displayedMessages,
   mentionOptions,
   businessReferences,
+  contextReference,
+  removeContext,
+  newMessageRequest,
   hasConfirmedThread,
   loadConversationMessages,
   loadContacts,
@@ -93,6 +96,9 @@ export function MessagesWorkspace({
                 messages={displayedMessages}
                 mentionOptions={mentionOptions}
                 businessReferences={businessReferences}
+                contextReference={contextReference ?? undefined}
+                onContextRemove={removeContext}
+                newMessageRequest={newMessageRequest}
                 activeConversationId={hasConfirmedThread ? activeConversationId : ""}
                 currentUserId={toMessagingUserId(currentUser?.id)}
                 // MAIR-1171: the thread picks its own empty state (no conversation / no selection); only the

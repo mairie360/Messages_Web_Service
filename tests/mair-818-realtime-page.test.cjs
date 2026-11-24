@@ -86,6 +86,7 @@ const start = async () => {
 };
 const threadReads = () => messageBff.calls('/conversations/{conversationId}/messages').length;
 const listReads = () => messageBff.calls('/conversations').length;
+const streamReads = () => messageBff.requests.filter((request) => request.url.pathname === '/stream').length;
 const banner = () => view.text().includes('Réception des messages retardée');
 
 test('MAIR-818 the page opens /ws on its own origin and never the SSE stream when the browser has WebSocket', async () => {
@@ -93,7 +94,20 @@ test('MAIR-818 the page opens /ws on its own origin and never the SSE stream whe
   assert.equal(socket.url, 'ws://localhost:5003/ws');
   socket.accept();
   await view.settle();
-  assert.equal(messageBff.calls('/stream').length, 0);
+  assert.equal(streamReads(), 0);
+});
+
+test('MAIR-662 a browser without WebSocket reloads every 2 s and never asks for the removed SSE stream', async () => {
+  delete window.WebSocket;
+  global.WebSocket = undefined;
+  window.ReadableStream = ReadableStream;
+  try {
+    view = mount(React.createElement(Client, { initial: { status: 'confirmed', data: bootstrap(), requested: '' } }));
+    await view.waitFor(() => listReads() >= 2, { timeout: 6000 });
+    assert.equal(sockets.length, 0);
+    assert.equal(streamReads(), 0);
+    assert.equal(banner(), false);
+  } finally { delete window.ReadableStream; }
 });
 
 test('MAIR-818 a connected socket stops the 2 s reload and a signal reads the conversation again', async () => {

@@ -108,20 +108,3 @@ test('a refused initial server read recovers using the existing same-origin brow
   await view.waitFor(() => bootReads().length === 1 && view.text().includes('Bonjour à tous'));
   assert.doesNotMatch(view.text(), /Initial server read unavailable/);
 });
-
-test('a streamed server-seeded conversation catches up and verifies foreground identity without losing its draft', async () => {
-  window.ReadableStream = ReadableStream;
-  messageBff.on('get', '/stream', { raw: ': connected\n\n', contentType: 'text/event-stream', outOfContract: true });
-  messageBff.on('get', '/messaging/bootstrap', { body: bootstrap() });
-  try {
-    view = mount(React.createElement(Client, { initial: initial() }));
-    await view.waitFor(() => messageBff.calls('/stream').length > 0 && messageBff.calls('/conversations/{conversationId}/messages').length > 0);
-    assert.equal(bootReads().length, 0);
-    await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Draft across SSE catch-up' } });
-    await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages').length >= 2);
-    assert.equal(input().value, 'Draft across SSE catch-up');
-    browser.focus();
-    await view.waitFor(() => bootReads().length === 1 && input().value === 'Draft across SSE catch-up');
-    assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
-  } finally { view?.unmount(); delete window.ReadableStream; }
-});

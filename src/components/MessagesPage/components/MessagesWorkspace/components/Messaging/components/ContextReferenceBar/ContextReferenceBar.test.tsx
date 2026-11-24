@@ -17,4 +17,16 @@ describe('ContextReferenceBar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Ouvrir' }));
     expect(onOpen).toHaveBeenCalledWith(reference);
   });
+
+  it('MAIR-1181 opens the page of the reference and offers « Retirer »', async () => {
+    const reference = { id: 'project-7', kind: 'project' as const, title: 'Médiathèque', href: 'https://projects.test/?project=7' };
+    const onRemove = vi.fn();
+    const { rerender } = render(<ContextReferenceBar reference={reference} />);
+    expect(screen.getByLabelText('Message contextuel')).toHaveTextContent('Projet : Médiathèque');
+    expect(screen.getByRole('link', { name: 'Ouvrir' })).toHaveAttribute('href', 'https://projects.test/?project=7');
+    expect(screen.queryByRole('button', { name: 'Retirer le contexte' })).toBeNull();
+    rerender(<ContextReferenceBar reference={reference} onRemove={onRemove} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Retirer le contexte' }));
+    expect(onRemove).toHaveBeenCalledTimes(1);
+  });
 });
