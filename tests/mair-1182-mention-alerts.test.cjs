@@ -254,3 +254,8 @@ test('MAIR-1182 the bell names the colleague who wrote the mentioning message, w
   assert.equal(text, `${users.sophie.name} vous a mentionné(e).`);
   assert.equal(reads(), 1, 'the author is read once per mention');
 });
+
+test('MAIR-1182 the pinned BFF contract lists MENTIONED among the WebSocket events', () => {
+  const contract = require('../contracts/openapi.json');
+  assert.ok(contract.components.schemas.MessageRealtimeEventType.enum.includes('MENTIONED'));
+});
