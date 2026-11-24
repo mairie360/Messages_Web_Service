@@ -1196,4 +1196,31 @@ describe('Messaging reactions (MAIR-1170)', () => {
     expect(await screen.findByText('La réaction n’a pas pu être enregistrée.')).toBeVisible();
     expect(onToggleReaction).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'm1' }), '👍', false);
   });
+
+  it('MAIR-1181 arriving with a project opens « Nouveau message » about it and sends the project with the message', () => {
+    const context = { id: 'project-7', kind: 'project' as const, title: 'Médiathèque', href: 'https://projects.test/?project=7' };
+    const handleNewMessageSend = vi.fn();
+    const onContextRemove = vi.fn();
+    const { rerender } = render(<DemoMessaging contextReference={context} onContextRemove={onContextRemove} onNewMessageSend={handleNewMessageSend} />);
+    expect(screen.queryByRole('dialog', { name: 'Nouveau message' })).not.toBeInTheDocument();
+
+    rerender(<DemoMessaging contextReference={context} onContextRemove={onContextRemove} onNewMessageSend={handleNewMessageSend} newMessageRequest={1} />);
+    const dialog = screen.getByRole('dialog', { name: 'Nouveau message' });
+    expect(dialog).toHaveTextContent('Message lié au projet « Médiathèque »');
+    fireEvent.change(screen.getByLabelText('Destinataire'), { target: { value: 'pierre-martin' } });
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Bonjour Pierre' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Envoyer' }));
+    expect(handleNewMessageSend).toHaveBeenCalledWith({ recipientId: 'pierre-martin', message: 'Bonjour Pierre', context });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer le contexte' }));
+    expect(onContextRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('MAIR-1181 without a context « Nouveau message » keeps its subtitle and sends no context', () => {
+    const handleNewMessageSend = vi.fn();
+    render(<DemoMessaging onNewMessageSend={handleNewMessageSend} newMessageRequest={0} />);
+    expect(screen.queryByRole('dialog', { name: 'Nouveau message' })).not.toBeInTheDocument();
+    openFromNewConversationMenu('Nouveau message');
+    expect(screen.getByRole('dialog', { name: 'Nouveau message' })).toHaveTextContent('Envoyer un message direct à un contact');
+  });
 });

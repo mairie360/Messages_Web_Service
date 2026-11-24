@@ -148,6 +148,8 @@ export interface MessagingSendMessagePayload {
 export interface NewMessagePayload {
   recipientId: MessagingContactId;
   message: string;
+  /** The project, task or event the message is written about, sent as its business link. */
+  context?: MessagingBusinessReference;
 }
 
 export interface CreateGroupPayload {

@@ -2,10 +2,11 @@
 
 import { useEffect } from "react";
 import { useToast } from "@mairie360/lib-components/primitives";
+import type { MessagingFeedback } from "@/lib/messaging-context";
 
 type FeedbackToastProps = {
   /** Confirmation of the last action (« Message direct créé. »…). */
-  feedback: string | null;
+  feedback: MessagingFeedback | null;
   dismissFeedback: () => void;
 };
 
@@ -17,7 +18,8 @@ export function FeedbackToast({ feedback, dismissFeedback }: FeedbackToastProps)
   const toast = useToast();
   useEffect(() => {
     if (!feedback) return;
-    toast.success(feedback);
+    if (typeof feedback === "string") toast.success(feedback);
+    else toast[feedback.tone](feedback.message, { title: feedback.title });
     dismissFeedback();
   }, [feedback, dismissFeedback, toast]);
   return null;

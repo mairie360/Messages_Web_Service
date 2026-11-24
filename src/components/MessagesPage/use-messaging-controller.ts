@@ -28,6 +28,7 @@ import type { MessageStreamState } from '../../lib/message-stream';
 import { receiveMessageSocket, socketSupported } from '../../lib/message-socket';
 import { readPageUrlState } from '../../lib/page-url-state';
 import { messagingUrlSchema } from '../../lib/messaging-page-query';
+import { CONTEXT_REMOVED, CONTEXT_UNAVAILABLE, withContextLink, type MessagingFeedback } from '../../lib/messaging-context';
 import { readInitialMessagingPage, MESSAGES_INITIAL_UNAVAILABLE, type InitialMessagingPage } from '../../lib/messaging-bootstrap-receipt';
 import { usePageUrlState } from '../../lib/use-page-url-state';
 
@@ -91,7 +92,11 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   const [loading, setLoading] = useState(!initialReceipt);
   const [bootstrapError, setBootstrapError] = useState<string | null>(initial?.status === 'unavailable' ? initial.message : initial && !initialReceipt ? MESSAGES_INITIAL_UNAVAILABLE : null);
   const [error, setError] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<MessagingFeedback | null>(null);
+  // The project the page was opened about (`?context=project-<n>`): linked to the next message sent, then dropped.
+  const [contextReference, setContextReference] = useState<MessagingBusinessReference | null>(null);
+  const [newMessageRequest, setNewMessageRequest] = useState(0);
+  const handledContextRef = useRef('');
   const [syncError, setSyncError] = useState<string | null>(null);
   const [showConversationList, setShowConversationList] = useState(initialSelected === '');
   const [deletingConversation, setDeletingConversation] = useState(false);
@@ -560,6 +565,40 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     if (target !== '' && !idsMatch(target, activeConversationRef.current)) void loadConversationMessages(target, { fromHistory: true });
   }, [pageUrl.ready, pageUrl.state.conversation, loading, currentUser, conversations]);
 
+  // `?context=project-<n>`: the title comes from the BFF (`#` suggestions, what the agent may read), never from the URL.
+  // A project the agent may not read, or a failed read, opens the messaging without a context.
+  useEffect(() => {
+    const requested = pageUrl.state.context;
+    if (!pageUrl.ready || loading || !currentUser || !requested || handledContextRef.current === requested) return;
+    handledContextRef.current = requested;
+    const identity = senderIdentityRef.current;
+    const isCurrent = () => bootstrapLifecycleRef.current.mounted && senderIdentityRef.current === identity;
+    void messageClient.getLinkSuggestions('').then((answer) => {
+      const item = answer?.items?.find((candidate) => candidate.kind === 'project' && candidate.id === requested);
+      if (!item) throw new Error('Unreadable project context');
+      if (!isCurrent()) return;
+      setContextReference(toLinkReference(item));
+      setNewMessageRequest((request) => request + 1);
+    }).catch(() => {
+      if (!isCurrent()) return;
+      pageUrl.update({ context: '' }, 'replace');
+      setFeedback(CONTEXT_UNAVAILABLE);
+    });
+  }, [pageUrl.ready, pageUrl.state.context, pageUrl.update, loading, currentUser]);
+
+  /** Drops the context once a message carrying it is confirmed (a message sent without it keeps it). */
+  const clearContext = (sent?: MessagingBusinessReference) => {
+    if (!sent) return;
+    setContextReference((current) => (current && String(current.id) === String(sent.id) ? null : current));
+    pageUrl.update({ context: '' }, 'replace');
+  };
+
+  const removeContext = () => {
+    setContextReference(null);
+    pageUrl.update({ context: '' }, 'replace');
+    setFeedback(CONTEXT_REMOVED);
+  };
+
   const handleSendMessage = async (payload: SendMessagePayload) => {
     // A captured callback must not send to the previous or unconfirmed thread,
     // even before React renders the disabled composer. Known current histories
@@ -646,7 +685,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       const response = await messageClient.sendMessage(payload.conversationId, {
         content: payload.content,
         attachmentIds,
-        ...toTagPayload(payload.mentions, payload.businessLinks),
+        ...toTagPayload(payload.mentions, withContextLink(payload.businessLinks, payload.context)),
         ...(payload.replyTo !== undefined ? { replyTo: payload.replyTo } : {}),
       });
 
@@ -668,6 +707,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       setMessages((currentMessages) =>
         appendMessage(currentMessages, response.message),
       );
+      clearContext(payload.context);
       draftAttachments.forEach((attachment) => {
         if (attachment.url?.startsWith("blob:")) {
           try {
@@ -757,10 +797,12 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     // only a contact without one gets a new chat from POST /direct-messages.
     const existing = findDirectConversation(conversations, payload.recipientId);
 
+    // The context the message is written in is sent as its business link, on both paths.
+    const { links } = toTagPayload([], withContextLink([], payload.context));
     try {
       const response = existing
-        ? await messageClient.sendMessage(existing.id, { content: payload.message, attachmentIds: [], mentionIds: [] })
-        : await messageClient.createDirectMessage(payload);
+        ? await messageClient.sendMessage(existing.id, { content: payload.message, attachmentIds: [], mentionIds: [], ...(links ? { links } : {}) })
+        : await messageClient.createDirectMessage({ recipientId: payload.recipientId, message: payload.message, ...(links ? { links } : {}) });
       if (!hasServerId(response?.conversation?.id) || !hasServerId(response?.message?.id) || !idsMatch(response.message.conversationId, response.conversation.id) ||
           (existing && !idsMatch(response.conversation.id, existing.id))) {
         throw new Error(existing
@@ -780,6 +822,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       confirmThread(response.conversation.id);
       activeConversationRef.current = response.conversation.id;
       setShowConversationList(false);
+      clearContext(payload.context);
       if (senderIdentityRef.current === identity && bootstrapLifecycleRef.current.mounted) setFeedback(existing ? 'Message envoyé dans la conversation existante.' : 'Message direct créé.');
       return true;
     } catch (sendError) {
@@ -1042,6 +1085,9 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     displayedMessages,
     mentionOptions,
     businessReferences,
+    contextReference,
+    removeContext,
+    newMessageRequest,
     hasConfirmedThread,
     loadConversationMessages,
     loadContacts,

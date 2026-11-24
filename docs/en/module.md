@@ -100,6 +100,7 @@ to prevent duplicate creation. A refusal preserves the form for retry and displa
 an error; only the server-created conversation is added to the list.
 - Conversation and message timestamps displayed in French (day/month and hour:minute), using the browser timezone. Missing or unrecognized values are preserved without invented dates; message content is unchanged.
 - Load project, task and event references, refreshing suggestions when returning to the visible tab. Temporary failures retain the last successful list; an access refusal clears it.
+- Message about a project: the project page of the Projects front links to `/?context=project-<n>`. The page reads the project title from BFF_Message (`GET /link-suggestions`, the objects the agent may read; never from the URL), shows the « Message contextuel » bar (« Ouvrir », « Retirer ») and opens « Nouveau message » with « Message lié au projet « <titre> » ». Closing the modal lets the agent write in an existing conversation instead. The project is sent as the business link (`links`) of the first message, on `POST /direct-messages` or on the conversation, then the bar goes away; « Retirer » drops it before (toast « Contexte retiré »). A project the agent may not read, or a failed read, opens the page without a context with the toast « Le projet lié n’est pas accessible ».
 
 Attachments are not available yet (MAIR-512): the BFF answers 503 to the upload
 and refuses any attachment id. The shared composer still shows "Joindre un fichier",

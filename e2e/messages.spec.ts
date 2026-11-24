@@ -91,3 +91,19 @@ test('without a session, the messaging is not served', async ({ request }) => {
   const response = await request.get('/', { maxRedirects: 0 });
   expect(response.status()).toBe(307);
 });
+
+// The messaging opened from a project (`?context=project-<n>`). This stack has no Project API, so the
+// project cannot be read: the page must open without a context and say so, never trust the URL for a title.
+test('MAIR-1181 a project the agent cannot read opens the messaging without a context', async ({ page, context, baseURL }) => {
+  await signInAs(context, baseURL!, users.sender);
+  const suggestions = page.waitForResponse((r) => r.request().method() === 'GET' && new URL(r.url()).pathname === '/link-suggestions');
+  await page.goto('/?context=project-1');
+  await expect(page.getByRole('heading', { name: 'Messagerie', level: 1 })).toBeVisible();
+  expect((await suggestions).status()).toBe(200);
+
+  await expect(page.getByText('Le projet lié n’est pas accessible').first()).toBeVisible();
+  await expect(page.getByText('La messagerie s’ouvre sans contexte.').first()).toBeVisible();
+  await expect(page.getByLabel('Message contextuel')).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Nouveau message' })).toBeHidden();
+  expect(new URL(page.url()).searchParams.get('context')).toBeNull();
+});

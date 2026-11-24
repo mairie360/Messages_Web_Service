@@ -37,6 +37,11 @@ import type {
   NewMessagePayload,
 } from './messaging-types';
 
+const CONTEXT_OF: Record<string, string> = { project: 'au projet', task: 'à la tâche', event: 'à l’événement' };
+/** Subtitle of « Nouveau message » written in a context: « Message lié au projet « Voirie » ». */
+const contextSubtitle = (reference: MessagingBusinessReference) =>
+  `Message lié ${CONTEXT_OF[reference.kind] ?? 'à'} « ${reference.title} »`;
+
 export interface MessagingProps extends React.HTMLAttributes<HTMLElement> {
   conversations?: MessagingConversation[];
   contacts?: MessagingConversation[];
@@ -45,6 +50,10 @@ export interface MessagingProps extends React.HTMLAttributes<HTMLElement> {
   mentionOptions?: MessagingMention[];
   businessReferences?: MessagingBusinessReference[];
   contextReference?: MessagingBusinessReference;
+  /** « Retirer » of the context bar: the next message is no longer linked to the context. */
+  onContextRemove?: () => void;
+  /** Opens « Nouveau message » each time it changes to a positive value (arrival with a context). */
+  newMessageRequest?: number;
   activeConversationId?: MessagingContactId;
   defaultActiveConversationId?: MessagingContactId;
   currentUserId?: MessagingContactId;
@@ -115,6 +124,8 @@ export const Messaging = ({
   mentionOptions,
   businessReferences = emptyBusinessReferences,
   contextReference,
+  onContextRemove,
+  newMessageRequest = 0,
   activeConversationId,
   defaultActiveConversationId,
   currentUserId,
@@ -198,6 +209,12 @@ export const Messaging = ({
     setNewMessageOpen(true);
     onNewMessageClick?.();
   };
+
+  React.useEffect(() => {
+    if (newMessageRequest <= 0) return;
+    setNewMessageRecipient(undefined);
+    setNewMessageOpen(true);
+  }, [newMessageRequest]);
 
   // MAIR-1164: « Rechercher dans la conversation » opens the search panel of the open conversation.
   const [searchOpen, setSearchOpen] = React.useState(false);
@@ -339,7 +356,7 @@ export const Messaging = ({
     [displayedMessages, resolvedActiveId, currentUserId]);
 
   const handleSendNewMessage = (payload: NewMessagePayload) =>
-    closeWhenConfirmed(onNewMessageSend?.(payload), () => setNewMessageOpen(false));
+    closeWhenConfirmed(onNewMessageSend?.(contextReference ? { ...payload, context: contextReference } : payload), () => setNewMessageOpen(false));
 
   const handleCreateGroup = (payload: CreateGroupPayload) =>
     closeWhenConfirmed(onCreateGroup?.(payload), () => setCreateGroupOpen(false));
@@ -414,7 +431,7 @@ export const Messaging = ({
           suggestionSources={suggestionSources}
         />
 
-        {contextReference && <ContextReferenceBar reference={contextReference} onOpen={onBusinessReferenceClick} />}
+        {contextReference && <ContextReferenceBar reference={contextReference} onOpen={onBusinessReferenceClick} onRemove={onContextRemove} />}
 
         <ConversationComposers
           key={currentUserId === undefined ? 'anonymous' : `account:${String(currentUserId)}`}
@@ -480,6 +497,7 @@ export const Messaging = ({
           isOpen={newMessageOpen}
           contacts={displayedContacts}
           initialRecipientId={newMessageRecipient}
+          subtitle={contextReference ? contextSubtitle(contextReference) : undefined}
           onCancel={() => setNewMessageOpen(false)}
           onSendMessage={handleSendNewMessage}
         />
