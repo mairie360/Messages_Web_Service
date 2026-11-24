@@ -78,8 +78,9 @@ test('MAIR-553: every Docker stack gives BFF Message the upstream URLs it requir
     for (const required of ['MESSAGE_API_URL', 'CORE_API_URL', 'PROJECT_API_URL', 'CALENDAR_API_URL']) {
       assert.ok(variables.includes(required), `${file}: bff-message needs ${required}`);
     }
-    // MAIR-680: the ZAP and k6 stacks give Core's public key; the stacks not migrated yet still give JWT_SECRET.
-    assert.ok(variables.includes('JWT_PUBLIC_KEY') || variables.includes('JWT_SECRET'), `${file}: bff-message needs a session key`);
+    // MAIR-680: every stack gives Core's public key, none the HS256 secret.
+    assert.ok(variables.includes('JWT_PUBLIC_KEY'), `${file}: bff-message needs Core's public key`);
+    assert.ok(!variables.includes('JWT_SECRET'), `${file}: bff-message takes no JWT_SECRET`);
     assert.deepEqual(variables.filter((name) => /_BFF_URL$/.test(name)), [], `${file}: BFF Message calls no other BFF`);
   }
 });
