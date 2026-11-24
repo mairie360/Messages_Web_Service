@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 5003",
+    "dev": "node server.cjs",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production node server.cjs",
     "lint": "eslint src",
     "contracts:generate": "node scripts/contracts.mjs --generate",
     "contracts:check": "node scripts/contracts.mjs --check",
@@ -24,14 +24,15 @@
     "e2e": "npm --prefix e2e test"
   },
   "dependencies": {
-    "@mairie360/bff-message-openapi": "0.0.0-dev.963185a2919e3d0b71c6c519cbce3f6cae139c9a",
+    "@mairie360/bff-message-openapi": "0.0.0-dev.3aa73f40597a165c137e955f4fab16277e736e81",
     "@mairie360/lib-components": "2.3.2",
     "axios": "1.20.0",
     "daisyui": "^5.0.0",
     "lucide-react": "^1.0.0",
     "next": "16.4.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "ws": "8.23.0"
   },
   "overrides": {
     "braces": "$braces",

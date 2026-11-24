@@ -35,10 +35,16 @@ FROM runtime-base AS runner
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# Node server around Next: it relays the messaging WebSocket /ws, which a route handler cannot upgrade.
+# The standalone trace does not include it, so it comes with its only dependency (ws) and the contract it reads.
+COPY --from=builder --chown=nextjs:nodejs /app/server.cjs ./server.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/server ./server
+COPY --from=builder --chown=nextjs:nodejs /app/contracts/openapi.json ./contracts/openapi.json
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/ws ./node_modules/ws
 
 USER nextjs
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=5003
 
-CMD ["node", "server.js"]
+CMD ["node", "server.cjs"]

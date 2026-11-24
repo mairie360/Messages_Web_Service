@@ -25,6 +25,7 @@ import { presentConversationTimestamps, presentMessageTimestamps } from '../../l
 import { buildMessageMentionOptions, presentMessageAuthors } from '../../lib/message-authors';
 import { isSessionRecoveryPending, navigateToLogin } from '../../lib/logout';
 import { receiveMessageStream, type MessageStreamState, type StreamCursor } from '../../lib/message-stream';
+import { receiveMessageSocket, socketSupported } from '../../lib/message-socket';
 import { readPageUrlState } from '../../lib/page-url-state';
 import { messagingUrlSchema } from '../../lib/messaging-page-query';
 import { readInitialMessagingPage, MESSAGES_INITIAL_UNAVAILABLE, type InitialMessagingPage } from '../../lib/messaging-bootstrap-receipt';
@@ -40,6 +41,8 @@ type CreateGroupPayload = Parameters<NonNullable<MessagingProps["onCreateGroup"]
 // pending reads and mutations rather than queueing overlapping requests.
 const MESSAGE_REFRESH_INTERVAL_MS = 2_000;
 const pageIsVisible = () => typeof document === "undefined" || !document.hidden;
+/** A hidden tab keeps its WebSocket this long before closing it (contract: Message_API `docs/en/realtime-websocket.md`). */
+const HIDDEN_SOCKET_GRACE_MS = 60_000;
 const requiresPageNavigation = (error: unknown) => error instanceof BffNavigationRequiredError ||
   (error instanceof BffRequestError && error.status === 401);
 const hasServerId = (id: unknown): id is MessageId =>
@@ -69,6 +72,9 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   const selectionReadRef = useRef<AbortController | null>(null);
   const [streamState, setStreamState] = useState<MessageStreamState>('connecting');
   const [streamRetry, setStreamRetry] = useState(0);
+  // A socket evicted by a 6th connection (4008) stays closed until focus or an explicit retry, across effect restarts,
+  // so that it does not evict another tab of the same agent in turn.
+  const socketEvictedRef = useRef(false);
   const streamCursorRef = useRef<StreamCursor & { account: unknown }>({ account: null, lastEventId: '', seen: [] });
   const downloadRef = useRef<AbortController | null>(null);
   useEffect(() => () => downloadRef.current?.abort(), []);
@@ -111,7 +117,10 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     setFeedback(null);
     pendingSendsRef.current.clear();
     unconfirmedSendsRef.current.clear();
-    if (streamCursorRef.current.account !== currentUser?.id) streamCursorRef.current = { account: currentUser?.id, lastEventId: '', seen: [] };
+    if (streamCursorRef.current.account !== currentUser?.id) {
+      streamCursorRef.current = { account: currentUser?.id, lastEventId: '', seen: [] };
+      socketEvictedRef.current = false;
+    }
   }, [senderIdentity]);
 
   useEffect(() => { downloadRef.current?.abort(); }, [activeConversationId, currentUser?.id]);
@@ -303,9 +312,12 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     let eventPending = false;
     let eventTimer: number | undefined;
     let bootstrapWaitTimer: number | undefined;
+    let hiddenTimer: number | undefined;
     let streamController: AbortController | undefined;
     let readController: AbortController | undefined;
-    const streamingSupported = typeof window.ReadableStream === 'function';
+    // The WebSocket replaces the SSE stream; the stream only serves a browser without `WebSocket` until it is removed.
+    const socketMode = socketSupported(window);
+    const streamingSupported = socketMode || typeof window.ReadableStream === 'function';
 
     const refresh = async () => {
       if (disposed || navigationStartedRef.current || inFlight || !pageIsVisible() || isSessionRecoveryPending() || mutationCountRef.current > 0 ||
@@ -389,9 +401,27 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     const receiveEvent = () => { eventPending = true; if (eventTimer === undefined) eventTimer = window.setTimeout(flushEvents, 100); };
     const startStream = () => {
       if (disposed || navigationStartedRef.current || !streamingSupported || !pageIsVisible()) { if (!disposed) setStreamState('polling'); return; }
+      if (socketMode && socketEvictedRef.current) { setStreamState('offline'); return; }
       if (bootstrapLifecycleRef.current.pending) { bootstrapWaitTimer = window.setTimeout(startStream, 100); return; }
       streamController?.abort();
       streamController = new AbortController();
+      if (socketMode) {
+        const signal = streamController.signal;
+        void receiveMessageSocket({
+          signal,
+          onState: state => {
+            if (disposed || signal.aborted) return;
+            streamConnected = state === 'connected';
+            setStreamState(state);
+            if (streamConnected) receiveEvent(); // Catch up on what was missed while disconnected.
+          },
+          onEvent: receiveEvent,
+          checkSession: () => messageClient.getCurrentUser(),
+          onAuthenticationError: async error => { if (!disposed && pageIsVisible()) await recoverSessionNavigation(error); },
+        }).then(outcome => { if (outcome === 'evicted' && !signal.aborted) socketEvictedRef.current = true; })
+          .catch(() => { if (!disposed && !signal.aborted) { streamConnected = false; setStreamState('offline'); } });
+        return;
+      }
       void receiveMessageStream({
         signal: streamController.signal, cursor: streamCursorRef.current, account: currentUser.id,
         onAccountChange: () => {
@@ -410,6 +440,24 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       }).catch(() => { if (!disposed) setStreamState('offline'); });
     };
     const receiveVisibility = () => {
+      if (socketMode && !pageIsVisible()) {
+        // A short absence keeps the socket: its signals are read once the tab is visible again.
+        readController?.abort();
+        if (hiddenTimer === undefined) hiddenTimer = window.setTimeout(() => {
+          hiddenTimer = undefined; streamController?.abort(); streamConnected = false;
+        }, HIDDEN_SOCKET_GRACE_MS);
+        return;
+      }
+      if (hiddenTimer !== undefined) { window.clearTimeout(hiddenTimer); hiddenTimer = undefined; }
+      if (socketMode && streamConnected) {
+        // Another tab may have switched the account: re-read who is signed in before reading the conversations again.
+        if (mutationCountRef.current === 0 && selectionLoadingRef.current === null && !bootstrapLifecycleRef.current.pending) {
+          void loadBootstrap().finally(receiveEvent);
+        } else receiveEvent();
+        return;
+      }
+      // Coming back to the tab is the contract's "focus": an evicted socket may reconnect.
+      if (socketMode && pageIsVisible()) socketEvictedRef.current = false;
       if (!pageIsVisible()) { streamController?.abort(); readController?.abort(); streamConnected = false; return; }
       if (streamingSupported && mutationCountRef.current === 0 && selectionLoadingRef.current === null) {
         if (!bootstrapLifecycleRef.current.pending) void loadBootstrap().finally(startStream);
@@ -422,15 +470,20 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     startStream();
     const timer = window.setInterval(triggerRefresh, MESSAGE_REFRESH_INTERVAL_MS);
     const receiveFocus = () => { if (streamingSupported) receiveVisibility(); else triggerRefresh(); };
+    // A fallen-back socket keeps trying when the network comes back.
+    const receiveOnline = () => { if (socketMode && !streamConnected && !socketEvictedRef.current && pageIsVisible()) startStream(); };
     window.addEventListener("focus", receiveFocus);
+    window.addEventListener("online", receiveOnline);
     document.addEventListener("visibilitychange", receiveVisibility);
     return () => {
       disposed = true;
       streamController?.abort(); readController?.abort();
       if (eventTimer !== undefined) window.clearTimeout(eventTimer);
       if (bootstrapWaitTimer !== undefined) window.clearTimeout(bootstrapWaitTimer);
+      if (hiddenTimer !== undefined) window.clearTimeout(hiddenTimer);
       window.clearInterval(timer);
       window.removeEventListener("focus", receiveFocus);
+      window.removeEventListener("online", receiveOnline);
       document.removeEventListener("visibilitychange", receiveVisibility);
     };
   }, [currentUser, loading, recoverSessionNavigation, confirmThread, loadBootstrap, streamRetry]);
@@ -981,7 +1034,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
 
   return {
     streamState,
-    retryReception: () => setStreamRetry(retry => retry + 1),
+    retryReception: () => { socketEvictedRef.current = false; setStreamRetry(retry => retry + 1); },
     handleAttachmentDownload: attachmentPort.download ? handleAttachmentDownload : undefined,
     // The shared composer always offers "Joindre un fichier"; without an upload capability the files are not
     // registered and a draft carrying them is refused by handleSendMessage.

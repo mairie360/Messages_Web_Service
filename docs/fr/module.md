@@ -256,9 +256,10 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
 - **Réception retardée (MAIR-1161).** « Réception automatique active » et les autres pastilles de réception
   disparaissent : rien n'est affiché tant que la réception fonctionne. Quand la connexion temps réel est perdue,
   `MessagesReceptionDelayed` affiche au-dessus du module une petite `Alert` d'avertissement de la lib « Réception des
-  messages retardée », annoncée par sa région live polie sans prendre le focus, avec « Réessayer la réception ». À la
-  reconnexion, le flux reprend à son dernier événement (`Last-Event-ID`) et le module relit les messages manqués, puis
-  le bandeau disparaît.
+  messages retardée », annoncée par sa région live polie sans prendre le focus, avec « Réessayer la réception ». La
+  connexion est un WebSocket : le bandeau apparaît quand elle est abandonnée (5 tentatives échouées, ou
+  onglet évincé par une 6e connexion du même agent), les messages restant rechargés toutes les 2 s. À la reconnexion, le
+  module relit les messages manqués, puis le bandeau disparaît.
 - **Statut d'envoi (MAIR-1162).** `MessageSendStatus` sous mes bulles : « Envoyé » (check) sous mon dernier message
   confirmé, « Envoi… » (loader-circle qui ne tourne que sans `prefers-reduced-motion`, bulle atténuée) pendant la
   confirmation, « Non envoyé · Réessayer l'envoi » (circle-alert, `Button` lien de la lib avec refresh-cw, bord en

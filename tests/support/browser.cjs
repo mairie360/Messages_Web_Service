@@ -41,6 +41,8 @@ function installBrowser() {
     window: browser,
     document,
     focus() { emit(windowListeners, 'focus'); },
+    /** Fires a window event without payload (e.g. `online`). */
+    emitWindow(name) { emit(windowListeners, name); },
     tickIntervals(delay) {
       [...intervals.values()].filter((interval) => interval.delay === delay)
         .forEach((interval) => interval.callback());

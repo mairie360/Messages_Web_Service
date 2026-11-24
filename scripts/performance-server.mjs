@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync, openSync, closeSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { WebSocketServer } from 'ws';
 
 export const fixtureFile = fileURLToPath(new URL('../tests/fixtures/performance.json', import.meta.url));
 export const fixture = JSON.parse(readFileSync(fixtureFile, 'utf8'));
@@ -51,6 +52,12 @@ export async function startPerformancePreview(source, { port = 0, log = 'perform
     upstream.once('error', () => { if (!res.headersSent) res.writeHead(502); res.end(); });
     req.pipe(upstream);
   });
+  // The messaging page receives its signals over /ws; the laboratory accepts it and stays silent, like /stream.
+  const sockets = new WebSocketServer({ noServer: true });
+  server.on('upgrade', (req, socket, head) => {
+    if (fixture.module === 'Messages' && new URL(req.url, 'http://localhost').pathname === '/ws') sockets.handleUpgrade(req, socket, head, () => {});
+    else socket.destroy();
+  });
   await new Promise(resolve => server.listen(port, '127.0.0.1', resolve));
   const origin = `http://${process.env.PERFORMANCE_BROWSER_HOST ?? 'localhost'}:${server.address().port}`;
   const environment = { ...process.env, NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1', COOKIE_DOMAIN: '' };
@@ -63,6 +70,7 @@ export async function startPerformancePreview(source, { port = 0, log = 'perform
   child = spawn(process.execPath, [path.join(source, 'node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', String(nextPort)], { cwd: source, env: environment, stdio: ['ignore', fd, fd] });
   closeSync(fd);
   const close = async () => {
+    for (const socket of sockets.clients) socket.terminate();
     server.closeAllConnections();
     await new Promise(resolve => server.close(resolve));
     if (child.exitCode !== null) return;
