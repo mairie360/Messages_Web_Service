@@ -205,3 +205,13 @@ test('MAIR-1181 without a context the page reads no suggestion and opens no moda
   assert.equal(contextOf(), undefined);
   assert.equal(view.props('NewMessageModal')?.isOpen ?? false, false);
 });
+
+test('MAIR-1181 a project link absent from the text shows as a chip of the bubble, a `#` link stays in the text', () => {
+  const { presentMessageAuthors } = requireSrc('lib/message-authors.tsx');
+  const [context, inline] = presentMessageAuthors([
+    { id: 'm1', authorId: 'user-1', authorName: 'Agent', content: 'Le planning est prêt', links: [{ id: 'project-7', kind: 'project', title: PROJECT.title, url: PROJECT.url }] },
+    { id: 'm2', authorId: 'user-1', authorName: 'Agent', content: `Voir #${PROJECT.title}`, links: [{ id: 'project-7', kind: 'project', title: PROJECT.title, url: PROJECT.url }] },
+  ], 'user-1', [], []);
+  assert.deepEqual(context.businessLinks, [{ id: 'project-7', kind: 'project', title: PROJECT.title, href: PROJECT.url }]);
+  assert.equal(inline.businessLinks, undefined);
+});

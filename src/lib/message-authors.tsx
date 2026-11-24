@@ -97,11 +97,18 @@ export function presentMessageAuthors(
     const outgoing = currentUserId !== undefined && message.authorId !== undefined
       ? String(message.authorId) === String(currentUserId)
       : message.direction === "outgoing";
-    const references = [message.context, ...(message.businessLinks ?? [])]
+    // A link whose `#title` is not in the text (the project a message was written about) shows as a chip.
+    const linkChips: MessagingBusinessReference[] = (message.links ?? [])
+      .filter((link) => link.title && !(typeof message.content === "string" && message.content.includes(`#${link.title}`)) &&
+        !(message.businessLinks ?? []).some((reference) => String(reference.id) === String(link.id)))
+      .map((link) => ({ id: String(link.id), kind: link.kind, title: link.title!, ...(link.url ? { href: link.url } : {}) }));
+    const businessLinks = linkChips.length ? [...(message.businessLinks ?? []), ...linkChips] : message.businessLinks;
+    const references = [message.context, ...(businessLinks ?? [])]
       .filter((reference): reference is MessagingBusinessReference => !!reference);
 
     return {
       ...message,
+      ...(businessLinks ? { businessLinks } : {}),
       // MAIR-1167: the raw text stays available (reply excerpt, edit box) once `content` is rendered.
       ...(typeof message.content === "string" ? { text: message.content } : {}),
       content: (

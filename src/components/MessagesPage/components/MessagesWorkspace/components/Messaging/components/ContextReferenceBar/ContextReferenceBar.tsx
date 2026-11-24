@@ -1,3 +1,4 @@
+import { Icon } from '@mairie360/lib-components/primitives';
 import { X } from 'lucide-react';
 import { BusinessReferenceIcon, businessReferenceLabel } from '../BusinessReferenceIcon';
 import type { MessagingBusinessReference } from '../../messaging-types';
@@ -41,7 +42,7 @@ export const ContextReferenceBar = ({ reference, onOpen, onRemove }: ContextRefe
         className="shrink-0 rounded-md p-1.5 text-[var(--mairie-text-muted)] transition hover:bg-[var(--mairie-surface)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/30"
         onClick={onRemove}
       >
-        <X aria-hidden className="size-4" />
+        <Icon icon={X} size="s" />
       </button>
     )}
   </div>

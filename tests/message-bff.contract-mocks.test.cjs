@@ -309,7 +309,7 @@ describe('same-origin proxy only forwards operations declared by the BFF_Message
       const response = await fetch(url, init);
       assert.equal(response.status, 200, operation);
     }
-    assert.deepEqual(upstream().sort(), ['GET /me', ...contract.operations().map((operation) => {
+    assert.deepEqual(upstream().sort(), [...contract.operations().map((operation) => {
       const [method, template] = operation.split(' ');
       return `${method} ${concrete(template)}`;
     })].sort());
