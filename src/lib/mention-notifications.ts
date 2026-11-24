@@ -15,6 +15,8 @@ export interface MentionEntry {
   /** When the signal was received (ISO 8601): the bell groups and dates the entries by it. */
   receivedAt: string;
   read: boolean;
+  /** Who wrote the message, once the page has read it (absent until then, or when the read failed). */
+  authorName?: string;
 }
 
 /** Entries kept at most; the oldest are forgotten first. */
@@ -48,6 +50,13 @@ export function markConversationMentionsRead(entries: readonly MentionEntry[], c
   return markMentionsRead(entries, entries.filter(entry => idsMatch(entry.conversationId, conversationId)).map(entry => entry.messageId));
 }
 
+/** Records who wrote a mentioning message; returns the same list when nothing changes. */
+export function withMentionAuthor(entries: readonly MentionEntry[], messageId: string, authorName: string | undefined): readonly MentionEntry[] {
+  const name = authorName?.trim();
+  if (!name || !entries.some(entry => entry.messageId === messageId && entry.authorName !== name)) return entries;
+  return entries.map(entry => (entry.messageId === messageId ? { ...entry, authorName: name } : entry));
+}
+
 export const unreadMentionCount = (entries: readonly MentionEntry[]) => entries.filter(entry => !entry.read).length;
 
 /** Link of a conversation on this page (`?conversation=<id>`), keeping the other query parameters of `pageHref`. */
@@ -65,10 +74,11 @@ export function mentionNotificationItems(
     const conversation = conversations.find(item => idsMatch(item.id, entry.conversationId));
     const name = conversation?.name?.trim();
     const direct = conversation?.kind === 'direct';
+    const author = entry.authorName ?? (direct ? name : undefined);
     return {
       id: entry.messageId,
       title: name ? `Mention dans « ${name} »` : 'Mention dans une conversation',
-      message: direct && name ? `${name} vous a mentionné(e).` : 'Un message vous mentionne.',
+      message: author ? `${author} vous a mentionné(e).` : 'Un message vous mentionne.',
       category: 'messages',
       read: entry.read,
       href: hrefFor(entry.conversationId),

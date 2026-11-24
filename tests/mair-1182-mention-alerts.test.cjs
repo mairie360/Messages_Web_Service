@@ -18,7 +18,7 @@ const { OpenApiContract } = require('./support/openapi-contract.cjs');
 const Client = requireSrc('components/MessagesPage/MessagesPage.tsx').default;
 const {
   addMention, markMentionsRead, markConversationMentionsRead, mentionNotificationItems, mentionNotificationSource,
-  unreadMentionCount, conversationHref, MAX_MENTION_ENTRIES,
+  unreadMentionCount, conversationHref, withMentionAuthor, MAX_MENTION_ENTRIES,
 } = requireSrc('lib/mention-notifications.ts');
 const { isMessageRealtimeEvent } = requireSrc('lib/message-socket.ts');
 const { messagingUrlSchema } = requireSrc('lib/messaging-page-query.ts');
@@ -159,6 +159,18 @@ test('MAIR-1182 the bell names the conversation and links to it, keeping the oth
   assert.deepEqual(marked, ['message-9']);
 });
 
+test('MAIR-1182 the alert names the author once the page read the message', () => {
+  const entries = addMention([], mentionOf('conversation-7', 'message-9'), { now });
+  assert.equal(withMentionAuthor(entries, 'message-9', ' '), entries);
+  assert.equal(withMentionAuthor(entries, 'message-unknown', 'Sophie Martin'), entries);
+  const named = withMentionAuthor(entries, 'message-9', 'Sophie Martin');
+  assert.equal(named[0].authorName, 'Sophie Martin');
+  assert.equal(withMentionAuthor(named, 'message-9', 'Sophie Martin'), named);
+  const [item] = mentionNotificationItems(named, [{ id: 'conversation-7', name: 'Urbanisme', kind: 'group' }], id => `/?conversation=${id}`);
+  assert.equal(item.title, 'Mention dans « Urbanisme »');
+  assert.equal(item.message, 'Sophie Martin vous a mentionné(e).');
+});
+
 // ----- The page on the socket (TI technical) -----
 
 const shell = () => view.props('AppShell', 0);
@@ -219,4 +231,26 @@ test('MAIR-1182 following the alert opens the mentioned conversation in the page
   const [item] = await bell().source.list(new AbortController().signal);
   assert.equal(item.read, true);
   assert.equal(window.location.assigned.length, 0, 'no page reload');
+});
+
+test('MAIR-1182 the bell names the colleague who wrote the mentioning message, with a single read', async () => {
+  const socket = await start();
+  socket.accept();
+  await view.waitFor(() => threadReads() >= 1);
+  await view.settle();
+  messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({
+    body: { conversation: conversation(7, 'Urbanisme'), messages: [message(9, 7, 'Avis sur le PLU @Agent', users.sophie)] },
+  }));
+  const reads = () => messageBff.calls('/conversations/{conversationId}/messages').filter(call => call.url.pathname.includes('conversation-7')).length;
+  socket.signal(mentionOf('conversation-7', 'message-9'));
+  socket.signal(mentionOf('conversation-7', 'message-9'));
+  const named = async () => (await bell().source.list(new AbortController().signal))[0]?.message;
+  let text;
+  for (let attempt = 0; attempt < 40 && text !== `${users.sophie.name} vous a mentionné(e).`; attempt += 1) {
+    await view.settle();
+    await new Promise(resolve => setTimeout(resolve, 25));
+    text = await named();
+  }
+  assert.equal(text, `${users.sophie.name} vous a mentionné(e).`);
+  assert.equal(reads(), 1, 'the author is read once per mention');
 });

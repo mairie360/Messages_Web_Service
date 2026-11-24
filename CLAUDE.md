@@ -167,7 +167,7 @@ and agree the mockup first, then code it: the sync direction is Figma → code.
   `emptyStateLabel === undefined`.
   **Mention alerts:** `lib/message-socket.ts` keeps `MENTIONED` (with `messageId`); the controller feeds
   `MessagesPage/use-mention-notifications.ts` (model `lib/mention-notifications.ts`: one entry per `messageId`, none for
-  the conversation visible in the page, memory only). `AppShell` takes `notifications` (`count`, lib `NotificationSource`,
+  the confirmed thread visible in the page, memory only, per `currentUser.id`; one thread read names the author). `AppShell` takes `notifications` (`count`, lib `NotificationSource`,
   `conversationOf(href)`) and `onOpenConversation`: it passes `headerProps.notificationCount` / `onNotificationsClick`
   and renders the lib `NotificationCenter` itself (the shell's panel keeps the count of its last opening); a plain click
   on an alert link opens the conversation in the page. Tests: `tests/mair-1182-mention-alerts.test.cjs`, `AppShell.test.tsx`,

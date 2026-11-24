@@ -86,8 +86,8 @@ describe('AppShell', () => {
     render(<AppShell activeItem="messages" notifications={mentionBell()} onOpenConversation={onOpenConversation}><p>Contenu</p></AppShell>);
     fireEvent.click(screen.getByRole('button', { name: 'Notifications, 1 non lues' }));
     const link = await screen.findByRole('link', { name: 'Ouvrir' });
-    link.addEventListener('click', event => event.preventDefault()); // jsdom cannot navigate
-    fireEvent.click(link, { ctrlKey: true });
+    const followed = fireEvent.click(link, { ctrlKey: true });
+    expect(followed).toBe(true); // default kept: the browser opens the link (jsdom may log that it cannot navigate)
     expect(onOpenConversation).not.toHaveBeenCalled();
   });
 

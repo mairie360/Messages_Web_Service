@@ -84,7 +84,6 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   const [activeConversationId, setActiveConversationId] =
     useState<MessagingContactId>(initialSelected);
   const [conversations, setConversations] = useState<MessagingConversation[]>(initialConversations);
-  const { mentionNotifications, receiveMention, markConversationRead } = useMentionNotifications(conversations);
   const [contacts, setContacts] = useState<MessagingConversation[]>(toMessagingContacts(initialReceipt?.data.contacts));
   const [messages, setMessages] = useState<MessagingMessage[]>(initialMessages);
   const [confirmedConversationIds, setConfirmedConversationIds] = useState(() => new Set<string>(initialReceipt ? [...(initialSelected === '' ? [] : [String(initialSelected)]), ...initialMessages.map(message => String(message.conversationId))] : []));
@@ -111,6 +110,10 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   const bootstrapLifecycleRef = useRef({ mounted: false, generation: 0, pending: false });
   const readPendingRef = useRef<symbol | null>(null);
   const confirmedMessagesRef = useRef(messages);
+  const { mentionNotifications, receiveMention, markConversationRead } =
+    useMentionNotifications(conversations, String(currentUser?.id ?? ''));
+  const confirmedIdsRef = useRef(confirmedConversationIds);
+  useLayoutEffect(() => { confirmedIdsRef.current = confirmedConversationIds; }, [confirmedConversationIds]);
   useLayoutEffect(() => { confirmedMessagesRef.current = messages; }, [messages]);
   // Draft descriptors contain local object URLs, never BFF attachment IDs.
   // Weak keys allow removed files to be released without an explicit removal callback.
@@ -423,8 +426,13 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
             if (streamConnected) receiveEvent(); // Catch up on what was missed while disconnected.
           },
           onEvent: event => {
-            // The agent reading the mentioned conversation sees the message there: no alert for it.
-            if (event.type === 'MENTIONED') receiveMention(event, pageIsVisible() ? activeConversationRef.current : undefined);
+            // The agent reading the mentioned conversation sees the message there: no alert for it. A thread still
+            // being opened, or not confirmed, is not read yet.
+            if (event.type === 'MENTIONED') {
+              const reading = pageIsVisible() && selectionLoadingRef.current === null &&
+                confirmedIdsRef.current.has(String(activeConversationRef.current));
+              receiveMention(event, reading ? activeConversationRef.current : undefined);
+            }
             receiveEvent();
           },
           checkSession: () => messageClient.getCurrentUser(),
