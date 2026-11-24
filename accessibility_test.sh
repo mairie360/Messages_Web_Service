@@ -46,6 +46,11 @@ export RGAA_UID RGAA_GID
 rm -rf rgaa-report
 mkdir -p rgaa-report .rgaa-ai-cache
 
+# Fresh Ed25519 key pair for this run (MAIR-680): Core signs the session JWTs with it, the other
+# services only get the public key and the RGAA engine signs its sessions with the private one. Nothing is committed.
+# shellcheck source=stack_secrets.sh
+source ./stack_secrets.sh || exit 1
+
 echo "==> [1/4] Starting the stack and the RGAA run..."
 docker compose -f "$COMPOSE_FILE" up -d
 UP_EXIT_CODE=$?

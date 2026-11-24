@@ -4,11 +4,11 @@
 version: 1
 target: http://message-front:5003
 
-# Same JWT_SECRET as the services of docker-compose-accessibility.yml: the engine signs an
-# accessToken for the user of the state (as:), the front relays it to bff-message, then to
-# message-api and core-api. Without a session the middleware redirects to Login: no such state.
+# Sessions (MAIR-680): the engine signs an EdDSA accessToken for the user of a state (as:), like Core
+# API, with the run's JWT_PRIVATE_KEY that docker-compose-accessibility.yml hands to the runner
+# (accessibility_test.sh generates the key pair). No secret is committed here.
 session:
-  jwt_secret: b"secret"
+  jwt_timeout: 3600
 
 # Seed users (init-test.sql, init-accessibility.sql), all with the role User: bff-message 0.4.0
 # gives every user the same role, so no other role changes the page.

@@ -1,10 +1,11 @@
-import { createHmac } from 'node:crypto';
+import { createHash, createPrivateKey, createPublicKey, sign } from 'node:crypto';
 import type { BrowserContext } from '@playwright/test';
 
-// The stack shares one JWT_SECRET from the front's BFF down to the APIs (docker-compose-e2e.yml):
-// a token signed with it for a seeded user is a valid session, exactly like the k6 load test
-// does. The front only checks the `exp` claim before relaying the cookie as a Bearer token, and
-// the BFF reads the user's role from the token's `role` claim, as Login issues it.
+// Only Core API signs session tokens (MAIR-680): EdDSA JWTs under the `kid` of its Ed25519 key.
+// The run's key pair comes from stack_secrets.sh (e2e_test.sh): Core gets it, the other services
+// only the public key, and the journeys sign the session of a seeded user with the private one,
+// exactly like Core would. The front only checks the `exp` claim before relaying the cookie as a
+// Bearer token, and the BFF reads the user's role from the token's `role` claim, as Login issues it.
 export const ACCESS_TOKEN_COOKIE = 'accessToken';
 
 export interface SeededUser {
@@ -14,7 +15,19 @@ export interface SeededUser {
   role: 'Admin' | 'Maire' | 'Responsable' | 'User' | 'Guest';
 }
 
-const JWT_SECRET = process.env.E2E_JWT_SECRET ?? 'b"secret"';
+/** Private key of the run (PEM, `\n`-escaped line breaks accepted) and the `kid` Core gives its tokens. */
+function signingKey() {
+  const pem = process.env.E2E_JWT_PRIVATE_KEY ?? process.env.JWT_PRIVATE_KEY;
+  if (!pem) {
+    throw new Error('E2E_JWT_PRIVATE_KEY is not set: run ./e2e_test.sh, or source ./stack_secrets.sh first.');
+  }
+  const key = createPrivateKey(pem.replace(/\\n/g, '\n'));
+  if (key.asymmetricKeyType !== 'ed25519') throw new Error('E2E_JWT_PRIVATE_KEY is not an Ed25519 key.');
+  // RFC 7638 thumbprint of the public key, computed like mairie360_api_lib does.
+  const { x } = createPublicKey(key).export({ format: 'jwk' });
+  const kid = createHash('sha256').update(`{"crv":"Ed25519","kty":"OKP","x":"${x}"}`).digest('base64url');
+  return { key, kid };
+}
 
 /** Seeded users of init-test.sql, by what they may do in this front. */
 export const users: Record<'sender' | 'recipient' | 'outsider', SeededUser> = {
@@ -30,12 +43,15 @@ function base64url(value: string | Buffer) {
   return Buffer.from(value).toString('base64url');
 }
 
-/** HS256 JWT accepted by Core API / BFF User (claims sub + role + exp). */
+/** EdDSA JWT signed like Core API signs it (claims sub + role + exp + iss + aud). */
 export function mintAccessToken(user: SeededUser, ttlSeconds = 3600) {
-  const header = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const { key, kid } = signingKey();
+  const header = base64url(JSON.stringify({ alg: 'EdDSA', typ: 'JWT', kid }));
   const now = Math.floor(Date.now() / 1000);
-  const payload = base64url(JSON.stringify({ sub: user.id, role: user.role, exp: now + ttlSeconds }));
-  const signature = createHmac('sha256', JWT_SECRET).update(`${header}.${payload}`).digest('base64url');
+  const payload = base64url(
+    JSON.stringify({ sub: user.id, role: user.role, exp: now + ttlSeconds, iss: 'mairie360-core', aud: 'mairie360' }),
+  );
+  const signature = sign(null, Buffer.from(`${header}.${payload}`), key).toString('base64url');
   return `${header}.${payload}.${signature}`;
 }
 
