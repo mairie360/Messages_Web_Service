@@ -55,6 +55,7 @@ function renderMentionedContent(
   mentions: TextMention[],
   references: Array<{ title?: string; href?: string }>,
   everyone = false,
+  tagged: TextMention[] = [],
 ): React.ReactNode {
   if (typeof content !== "string") return content;
 
@@ -65,6 +66,12 @@ function renderMentionedContent(
     // A person mention wins over a group of the same name, so the tag opens the person's card.
     if (isPerson(mention)) kinds.set(label, { kind: "user", person: { id: mention.id!, name: mention.name } });
     else if (!kinds.get(label)?.person) kinds.set(label, { kind: "user" });
+  }
+  // The tags the message itself carries (BFF `mentions`, `groupMentions`) win over a suggestion of the same name.
+  for (const mention of tagged) {
+    const label = `@${mention.name ?? ""}`;
+    if (!mention.name?.trim() || !content.includes(label)) continue;
+    kinds.set(label, isPerson(mention) ? { kind: "user", person: { id: mention.id!, name: mention.name } } : { kind: "user" });
   }
   if (everyone && content.includes(EVERYONE_TAG)) kinds.set(EVERYONE_TAG, { kind: "user" });
   for (const reference of references) {
@@ -142,9 +149,10 @@ export function presentMessageAuthors(
           <span className="whitespace-pre-wrap break-words">
             {renderMentionedContent(
               message.content,
-              [...mentionOptions, ...(message.mentions ?? []), ...(message.groupMentions ?? []).map((group) => ({ ...group, kind: "group" }))],
+              mentionOptions,
               [...businessReferences, ...references, ...(message.links ?? []).map((link) => ({ title: link.title, href: link.url }))],
               message.mentionsEveryone === true,
+              [...(message.mentions ?? []), ...(message.groupMentions ?? []).map((group) => ({ ...group, kind: "group" }))],
             )}
           </span>
         </>

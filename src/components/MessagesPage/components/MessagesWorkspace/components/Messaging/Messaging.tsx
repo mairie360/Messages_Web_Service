@@ -511,7 +511,12 @@ export const Messaging = ({
         <MentionedPersonCard
           person={{ ...mentionedContact, id: mentionedPerson.id, name: mentionedContact?.name ?? mentionedPerson.name }}
           isCurrentUser={mentionedIsMe}
-          onWrite={canWriteToMentioned ? () => { const person = mentionedPerson; setMentionedPerson(null); writeTo(person); } : undefined}
+          onWrite={canWriteToMentioned ? () => {
+            // The contact's own id, so that « Nouveau message » preselects them whatever form the tag carried.
+            const person = { id: mentionedContact?.id ?? mentionedPerson.id, name: mentionedPerson.name };
+            setMentionedPerson(null);
+            writeTo(person);
+          } : undefined}
           onClose={() => setMentionedPerson(null)}
         />
       )}
