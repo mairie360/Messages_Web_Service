@@ -300,9 +300,7 @@ describe('same-origin proxy only forwards operations declared by the BFF_Message
     for (const operation of contract.operations()) {
       const [method, template] = operation.split(' ');
       const { schema } = contract.responseSchema(contract.match(method, concrete(template)), 200);
-      messageBff.on(method, template, template === '/stream'
-        ? { status: 200, raw: ': keep-alive\n\n', contentType: 'text/event-stream' }
-        : template === '/me' ? { status: 200, body: currentUser() }
+      messageBff.on(method, template, template === '/me' ? { status: 200, body: currentUser() }
         : { status: 200, body: schema ? contract.sample(schema, 'reply') : undefined });
     }
     for (const operation of contract.operations()) {

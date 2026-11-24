@@ -5373,27 +5373,10 @@
           "NEW_MSG",
           "MSG_EDITED",
           "MSG_DELETED",
-          "CHAT_READ"
+          "CHAT_READ",
+          "MENTIONED"
         ],
         "type": "string"
-      },
-      "MessageStreamEvent": {
-        "properties": {
-          "conversationId": {
-            "type": "string"
-          },
-          "messageId": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "type",
-          "conversationId"
-        ],
-        "type": "object"
       },
       "MessagesQuery": {
         "properties": {
@@ -6336,6 +6319,12 @@
       },
       "NewDirectMessageBody": {
         "properties": {
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/NewDirectMessageBodyLinksItem"
+            },
+            "type": "array"
+          },
           "message": {
             "maxLength": 5000,
             "minLength": 1,
@@ -6352,6 +6341,18 @@
         "required": [
           "recipientId",
           "message"
+        ],
+        "type": "object"
+      },
+      "NewDirectMessageBodyLinksItem": {
+        "properties": {
+          "id": {
+            "pattern": "^(?:project|task|event)-\\d{1,9}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ],
         "type": "object"
       },
@@ -8500,6 +8501,12 @@
       },
       "PostDirectMessagesBody": {
         "properties": {
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/PostDirectMessagesBodyLinksItem"
+            },
+            "type": "array"
+          },
           "message": {
             "maxLength": 5000,
             "minLength": 1,
@@ -8516,6 +8523,18 @@
         "required": [
           "recipientId",
           "message"
+        ],
+        "type": "object"
+      },
+      "PostDirectMessagesBodyLinksItem": {
+        "properties": {
+          "id": {
+            "pattern": "^(?:project|task|event)-\\d{1,9}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ],
         "type": "object"
       },
@@ -9347,7 +9366,7 @@
   "info": {
     "title": "bff_message",
     "version": "1.0.0",
-    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-dev.3aa73f40597a165c137e955f4fab16277e736e81"
+    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-dev.d876ebfb17ba061435f5e3c81dc4b4677305dc5d"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -10258,24 +10277,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetMessagingBootstrap200"
-                }
-              }
-            },
-            "description": "Succès (seul statut typé par orval)"
-          }
-        }
-      }
-    },
-    "/stream": {
-      "get": {
-        "operationId": "getStream",
-        "parameters": [],
-        "responses": {
-          "2XX": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MessageStreamEvent"
                 }
               }
             },

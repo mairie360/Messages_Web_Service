@@ -24,7 +24,7 @@ import {
 import { presentConversationTimestamps, presentMessageTimestamps } from '../../lib/message-timestamps';
 import { buildMessageMentionOptions, presentMessageAuthors } from '../../lib/message-authors';
 import { isSessionRecoveryPending, navigateToLogin } from '../../lib/logout';
-import { receiveMessageStream, type MessageStreamState, type StreamCursor } from '../../lib/message-stream';
+import type { MessageStreamState } from '../../lib/message-stream';
 import { receiveMessageSocket, socketSupported } from '../../lib/message-socket';
 import { readPageUrlState } from '../../lib/page-url-state';
 import { messagingUrlSchema } from '../../lib/messaging-page-query';
@@ -75,7 +75,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   // A socket evicted by a 6th connection (4008) stays closed until focus or an explicit retry, across effect restarts,
   // so that it does not evict another tab of the same agent in turn.
   const socketEvictedRef = useRef(false);
-  const streamCursorRef = useRef<StreamCursor & { account: unknown }>({ account: null, lastEventId: '', seen: [] });
+  const socketAccountRef = useRef<unknown>(null);
   const downloadRef = useRef<AbortController | null>(null);
   useEffect(() => () => downloadRef.current?.abort(), []);
   const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(initialReceipt?.data.currentUser ?? null);
@@ -117,8 +117,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     setFeedback(null);
     pendingSendsRef.current.clear();
     unconfirmedSendsRef.current.clear();
-    if (streamCursorRef.current.account !== currentUser?.id) {
-      streamCursorRef.current = { account: currentUser?.id, lastEventId: '', seen: [] };
+    if (socketAccountRef.current !== currentUser?.id) {
+      socketAccountRef.current = currentUser?.id;
       socketEvictedRef.current = false;
     }
   }, [senderIdentity]);
@@ -315,9 +315,9 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     let hiddenTimer: number | undefined;
     let streamController: AbortController | undefined;
     let readController: AbortController | undefined;
-    // The WebSocket replaces the SSE stream; the stream only serves a browser without `WebSocket` until it is removed.
+    // Signals come over the WebSocket; a browser without `WebSocket` falls back to the 2 s reload.
     const socketMode = socketSupported(window);
-    const streamingSupported = socketMode || typeof window.ReadableStream === 'function';
+    const streamingSupported = socketMode;
 
     const refresh = async () => {
       if (disposed || navigationStartedRef.current || inFlight || !pageIsVisible() || isSessionRecoveryPending() || mutationCountRef.current > 0 ||
@@ -422,22 +422,6 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
           .catch(() => { if (!disposed && !signal.aborted) { streamConnected = false; setStreamState('offline'); } });
         return;
       }
-      void receiveMessageStream({
-        signal: streamController.signal, cursor: streamCursorRef.current, account: currentUser.id,
-        onAccountChange: () => {
-          if (disposed) return;
-          setCurrentUser(null); setConversations([]); setMessages([]); setLoading(true);
-          void loadBootstrap();
-        },
-        onState: state => {
-          if (disposed) return;
-          streamConnected = state === 'connected';
-          setStreamState(state);
-          if (streamConnected) receiveEvent(); // Catch up after a disconnected interval.
-        },
-        onEvent: receiveEvent,
-        onAuthenticationError: async error => { if (!disposed && pageIsVisible()) await recoverSessionNavigation(error); },
-      }).catch(() => { if (!disposed) setStreamState('offline'); });
     };
     const receiveVisibility = () => {
       if (socketMode && !pageIsVisible()) {

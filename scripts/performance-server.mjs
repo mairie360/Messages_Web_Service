@@ -37,12 +37,6 @@ export async function startPerformancePreview(source, { port = 0, log = 'perform
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify(routes[url.pathname])); return;
     }
-    if (fixture.module === 'Messages' && url.pathname === '/stream') {
-      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', 'X-Mairie360-Stream-Account': encodeURIComponent(String(fixture.routes['/messaging/bootstrap'].currentUser.id)) });
-      res.write(': keep-alive\n\n');
-      const timer = setInterval(() => res.write(': keep-alive\n\n'), 10000);
-      req.once('close', () => clearInterval(timer)); return;
-    }
     const labCookie = (req.headers.cookie ?? '').split(';').map(value => value.trim()).find(value => value.startsWith('mairie360_lab_session='));
     const proxyHeaders = { ...req.headers, cookie: labCookie ? `accessToken=${labCookie.slice('mairie360_lab_session='.length)}` : '' };
     if (url.pathname !== '/' && !url.pathname.startsWith('/_next/') && !/\.[a-z0-9]+$/i.test(url.pathname)) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: { message: 'No laboratory fixture for this route' } })); return; }
@@ -52,7 +46,7 @@ export async function startPerformancePreview(source, { port = 0, log = 'perform
     upstream.once('error', () => { if (!res.headersSent) res.writeHead(502); res.end(); });
     req.pipe(upstream);
   });
-  // The messaging page receives its signals over /ws; the laboratory accepts it and stays silent, like /stream.
+  // The messaging page receives its signals over /ws; the laboratory accepts it and stays silent.
   const sockets = new WebSocketServer({ noServer: true });
   server.on('upgrade', (req, socket, head) => {
     if (fixture.module === 'Messages' && new URL(req.url, 'http://localhost').pathname === '/ws') sockets.handleUpgrade(req, socket, head, () => {});

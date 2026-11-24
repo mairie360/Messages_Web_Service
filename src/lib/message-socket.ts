@@ -21,7 +21,7 @@ export type SocketOutcome = 'aborted' | 'evicted' | 'unavailable' | 'authenticat
 /** The part of a browser `WebSocket` the client uses, so tests can drive it. */
 export type RealtimeSocket = Pick<WebSocket, 'onopen' | 'onmessage' | 'onclose' | 'onerror' | 'close'>;
 
-/** Whether this browser can open the socket (otherwise the SSE stream stays in use until it is removed). */
+/** Whether this browser can open the socket (otherwise the page falls back to the 2 s reload). */
 export function socketSupported(scope: { WebSocket?: unknown } = globalThis) {
   return typeof scope.WebSocket === 'function';
 }
