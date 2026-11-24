@@ -26,6 +26,7 @@ import { buildMessageMentionOptions, presentMessageAuthors } from '../../lib/mes
 import { isSessionRecoveryPending, navigateToLogin } from '../../lib/logout';
 import type { MessageStreamState } from '../../lib/message-stream';
 import { receiveMessageSocket, socketSupported } from '../../lib/message-socket';
+import { useMentionNotifications } from './use-mention-notifications';
 import { readPageUrlState } from '../../lib/page-url-state';
 import { messagingUrlSchema } from '../../lib/messaging-page-query';
 import { CONTEXT_REMOVED, CONTEXT_UNAVAILABLE, withContextLink, type MessagingFeedback } from '../../lib/messaging-context';
@@ -83,6 +84,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   const [activeConversationId, setActiveConversationId] =
     useState<MessagingContactId>(initialSelected);
   const [conversations, setConversations] = useState<MessagingConversation[]>(initialConversations);
+  const { mentionNotifications, receiveMention, markConversationRead } = useMentionNotifications(conversations);
   const [contacts, setContacts] = useState<MessagingConversation[]>(toMessagingContacts(initialReceipt?.data.contacts));
   const [messages, setMessages] = useState<MessagingMessage[]>(initialMessages);
   const [confirmedConversationIds, setConfirmedConversationIds] = useState(() => new Set<string>(initialReceipt ? [...(initialSelected === '' ? [] : [String(initialSelected)]), ...initialMessages.map(message => String(message.conversationId))] : []));
@@ -420,7 +422,11 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
             setStreamState(state);
             if (streamConnected) receiveEvent(); // Catch up on what was missed while disconnected.
           },
-          onEvent: receiveEvent,
+          onEvent: event => {
+            // The agent reading the mentioned conversation sees the message there: no alert for it.
+            if (event.type === 'MENTIONED') receiveMention(event, pageIsVisible() ? activeConversationRef.current : undefined);
+            receiveEvent();
+          },
           checkSession: () => messageClient.getCurrentUser(),
           onAuthenticationError: async error => { if (!disposed && pageIsVisible()) await recoverSessionNavigation(error); },
         }).then(outcome => { if (outcome === 'evicted' && !signal.aborted) socketEvictedRef.current = true; })
@@ -475,7 +481,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       window.removeEventListener("online", receiveOnline);
       document.removeEventListener("visibilitychange", receiveVisibility);
     };
-  }, [currentUser, loading, recoverSessionNavigation, confirmThread, loadBootstrap, streamRetry]);
+  }, [currentUser, loading, recoverSessionNavigation, confirmThread, loadBootstrap, streamRetry, receiveMention]);
 
   const beginMutation = () => {
     setFeedback(null);
@@ -1090,6 +1096,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     newMessageRequest,
     hasConfirmedThread,
     loadConversationMessages,
+    mentionNotifications,
+    markConversationRead,
     loadContacts,
     handleSendMessage,
     hasConfirmedMessages,

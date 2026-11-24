@@ -293,6 +293,13 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   The send carries `mentionIds`, `mentionEveryone`, `groupMentionIds` and `links`. In the bubbles the tags are
   emphasised in the accent colour, and a linked element with a page (`url` from the BFF) is a lib `Link` that opens
   it. A mentioned person has no page to open yet: their tag stays emphasised.
+- **Mention alerts.** When a colleague mentions the agent (by name, `@everyone` or a group), the header bell counts
+  it (« Notifications, 1 non lues ») and its panel (lib `NotificationCenter`) lists « Mention dans « <conversation> » »
+  with « <personne> vous a mentionné(e). » for a direct conversation, « Un message vous mentionne. » otherwise.
+  « Ouvrir » opens that conversation in the page (`?conversation=<id>`, no reload) and marks the alert read, like
+  opening the conversation from the list or « Marquer comme lu ». A mention gives one alert, even though it arrives
+  with the message signal; none is made for the conversation the agent is reading. The alerts live in the page's
+  memory: a reload forgets them.
 - **Message actions and reply (MAIR-1167).** Hovering a bubble, giving it the keyboard focus (each bubble with actions
   is focusable) or a long press on a touch screen shows `MessageActionsToolbar` (lib `IconButton`s with their
   `ToolTip`): « Réagir », « Répondre », and on my messages « Modifier » and « Supprimer ». « Répondre » shows

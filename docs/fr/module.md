@@ -305,6 +305,13 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   espace, la suite est du texte). L'envoi porte `mentionIds`, `mentionEveryone`, `groupMentionIds` et `links`. Dans
   les bulles, les tags sont soulignés en couleur d'accent, et un élément lié qui a une page (`url` du BFF) est un
   `Link` de la lib qui l'ouvre. Une personne mentionnée n'a pas encore de page à ouvrir : son tag reste souligné.
+- **Alertes de mention.** Quand un collègue mentionne l'agent (par son nom, `@everyone` ou un groupe), la cloche du
+  bandeau la compte (« Notifications, 1 non lues ») et son panneau (`NotificationCenter` de la lib) affiche
+  « Mention dans « <conversation> » » avec « <personne> vous a mentionné(e). » pour une conversation directe,
+  « Un message vous mentionne. » sinon. « Ouvrir » ouvre la conversation dans la page (`?conversation=<id>`, sans
+  rechargement) et marque l'alerte lue, comme ouvrir la conversation depuis la liste ou « Marquer comme lu ». Une
+  mention donne une seule alerte, bien qu'elle arrive avec le signal du message ; aucune n'est créée pour la
+  conversation que l'agent lit. Les alertes vivent en mémoire de la page : un rechargement les oublie.
 - **Actions d'un message et réponse (MAIR-1167).** Survoler une bulle, lui donner le focus clavier (chaque bulle qui a
   des actions est focalisable) ou un appui long sur écran tactile affiche `MessageActionsToolbar` (`IconButton` de la
   lib avec leur `ToolTip`) : « Réagir », « Répondre », et sur mes messages « Modifier » et « Supprimer ». « Répondre »

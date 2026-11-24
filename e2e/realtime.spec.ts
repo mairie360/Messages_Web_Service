@@ -92,3 +92,48 @@ test('MAIR-818 a colleague’s message appears in the open conversation without 
   await expect(page.locator('[data-messaging-message-id]', { hasText: realtimeMessage })).toBeVisible({ timeout: 5_000 });
   await expect(page.getByText('Réception des messages retardée')).toHaveCount(0);
 });
+
+test('MAIR-1182 a colleague mentions the agent: one bell alert, which opens the conversation', async ({ page, context, baseURL, request }) => {
+  const runId = process.env.E2E_RUN_ID ?? String(Date.now());
+  const directId = await directConversation(request, baseURL!);
+  const groupName = `Mentions ${runId}`;
+  const created = await request.post('/groups', {
+    headers: asBrowser(baseURL!, users.sender),
+    data: { name: groupName, description: 'Alerte de mention', memberIds: [`user-${users.recipient.id}`] },
+  });
+  expect([200, 201]).toContain(created.status());
+  const groupId = String((await created.json() as { conversation: { id: string | number } }).conversation.id);
+
+  // The agent reads the direct conversation, not the group.
+  await signInAs(context, baseURL!, users.recipient);
+  const socketOpened = page.waitForEvent('websocket', socket => new URL(socket.url()).pathname === '/ws');
+  await page.goto(`/?conversation=${encodeURIComponent(directId)}`);
+  await expect(page.getByRole('heading', { name: 'Messagerie', level: 1 })).toBeVisible();
+  const socket = await socketOpened;
+  await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
+
+  const mention = socket.waitForEvent('framereceived', { predicate: frame => String(frame.payload).includes('"MENTIONED"'), timeout: 10_000 });
+  const mentionText = `Avis demandé ${runId}`;
+  const posted = await request.post(`/conversations/${groupId}/messages`, {
+    headers: asBrowser(baseURL!, users.sender), data: { content: mentionText, mentionIds: [`user-${users.recipient.id}`] },
+  });
+  expect(posted.ok(), `POST answered ${posted.status()}`).toBe(true);
+  expect(JSON.parse(String((await mention).payload))).toMatchObject({ type: 'MENTIONED', conversationId: groupId });
+
+  // One alert for the mention, although NEW_MSG and MENTIONED both arrived.
+  const bell = page.getByRole('button', { name: 'Notifications, 1 non lues' });
+  await expect(bell).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(1_000);
+  await expect(bell).toBeVisible();
+
+  await bell.click();
+  const panel = page.getByRole('dialog', { name: 'Notifications' });
+  await expect(panel.getByText(`Mention dans « ${groupName} »`)).toBeVisible();
+  await panel.getByRole('link', { name: 'Ouvrir' }).click();
+  await expect(panel).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`[?&]conversation=${encodeURIComponent(groupId)}`));
+  await expect(page.locator('[data-messaging-message-id]', { hasText: mentionText })).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
+
+  await request.delete(`/conversations/${groupId}`, { headers: asBrowser(baseURL!, users.sender) });
+});

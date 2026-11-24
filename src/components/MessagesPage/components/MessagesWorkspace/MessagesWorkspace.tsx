@@ -41,6 +41,8 @@ export function MessagesWorkspace({
   newMessageRequest,
   hasConfirmedThread,
   loadConversationMessages,
+  mentionNotifications,
+  markConversationRead,
   loadContacts,
   handleSendMessage,
   hasConfirmedMessages,
@@ -64,7 +66,15 @@ export function MessagesWorkspace({
 }: MessagesWorkspaceProps) {
   return (
     <ToastProvider regionLabel="Notifications de la messagerie" placement="bottom-end">
-    <AppShell activeItem="messages" unreadCount={currentUser ? totalUnread(displayedConversations) : 0}>
+    <AppShell
+      activeItem="messages"
+      unreadCount={currentUser ? totalUnread(displayedConversations) : 0}
+      notifications={currentUser ? mentionNotifications : undefined}
+      onOpenConversation={(conversationId) => {
+        markConversationRead(conversationId);
+        void loadConversationMessages(conversationId);
+      }}
+    >
       <div className="messages-module-stack">
         {loading || !currentUser ? (
           <MessagesBootstrapState loading={loading} error={bootstrapError} onRetry={retryBootstrap} />
@@ -105,9 +115,10 @@ export function MessagesWorkspace({
                 // loading text of a thread being opened is passed.
                 emptyStateLabel={activeConversationId === "" || hasConfirmedThread ? undefined : threadPlaceholder}
                 aria-busy={selectionPending}
-                onConversationSelect={(conversation) =>
-                  void loadConversationMessages(conversation.id)
-                }
+                onConversationSelect={(conversation) => {
+                  markConversationRead(conversation.id);
+                  void loadConversationMessages(conversation.id);
+                }}
                 onNewMessageClick={() => void loadContacts()}
                 onCreateGroupClick={() => void loadContacts()}
                 onSendMessage={hasConfirmedThread ? handleSendMessage : undefined}

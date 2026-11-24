@@ -5,7 +5,8 @@ import type { MessageStreamState } from './message-stream';
 /**
  * Real-time reception over the messaging WebSocket (contract: Message_API `docs/en/realtime-websocket.md`, "Client
  * behaviour"). The socket only signals that a conversation changed: the caller reads it again, so a lost signal is
- * caught up by the read that follows every `open`, and a duplicate only costs one read.
+ * caught up by the read that follows every `open`, and a duplicate only costs one read. `MENTIONED` also tells the
+ * agent that a message mentions them: the page turns it into one alert per message.
  */
 
 /** Close codes the client acts on (any other one is retried with backoff). */
@@ -13,7 +14,7 @@ export const SOCKET_CLOSE = { SESSION_ENDED: 4001, EVICTED: 4008, ABNORMAL: 1006
 /** Consecutive failures without an `open` before falling back to the 2 s reload. */
 export const SOCKET_MAX_FAILURES = 5;
 const MAX_FRAME_LENGTH = 4096;
-const EVENT_TYPES: ReadonlySet<string> = new Set(['NEW_MSG', 'MSG_EDITED', 'MSG_DELETED', 'CHAT_READ']);
+const EVENT_TYPES: ReadonlySet<string> = new Set(['NEW_MSG', 'MSG_EDITED', 'MSG_DELETED', 'CHAT_READ', 'MENTIONED']);
 
 /** Why `receiveMessageSocket` stopped: the controller polls every 2 s until focus, `online` or retry restarts it. */
 export type SocketOutcome = 'aborted' | 'evicted' | 'unavailable' | 'authentication';
@@ -39,12 +40,17 @@ export function reconnectDelay(attempt: number, random: () => number = Math.rand
   return Math.round(base * (0.8 + 0.4 * Math.min(1, Math.max(0, random()))));
 }
 
-/** A frame the client acts on; an unknown `type` or a malformed frame is ignored (new types may be added). */
+/**
+ * A frame the client acts on; an unknown `type` or a malformed frame is ignored (new types may be added), and so is a
+ * `MENTIONED` without the message that mentions the agent.
+ */
 export function isMessageRealtimeEvent(value: unknown): value is MessageRealtimeEvent {
   if (!value || typeof value !== 'object') return false;
   const event = value as Partial<MessageRealtimeEvent>;
   return typeof event.type === 'string' && EVENT_TYPES.has(event.type)
-    && typeof event.conversationId === 'string' && event.conversationId.trim().length > 0 && event.conversationId.length <= 200;
+    && typeof event.conversationId === 'string' && event.conversationId.trim().length > 0 && event.conversationId.length <= 200
+    && (event.type !== 'MENTIONED'
+      || (typeof event.messageId === 'string' && event.messageId.trim().length > 0 && event.messageId.length <= 200));
 }
 
 const isAuthenticationFailure = (error: unknown): error is BffRequestError | BffNavigationRequiredError =>
