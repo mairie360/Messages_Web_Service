@@ -14,6 +14,8 @@ s = s.replace(anchor, anchor + r"""  await page.addInitScript(() => {
       const under = document.elementFromPoint(e.clientX, e.clientY);
       note(`${t} at ${e.clientX},${e.clientY} target=${desc(e.target?.closest?.('button') ?? e.target)} under=${desc(under?.closest?.('button') ?? under)} btn=${r ? [r.x, r.y, r.width, r.height].map(Math.round).join(',') : '-'} win=${scrollX},${scrollY} scrolls=[${scrolls()}]`);
     }, true);
+    for (const t of ['focusin', 'mouseover']) document.addEventListener(t, (e) => { const a = document.querySelector('aside.app-desktop-navigation'); if (t === 'focusin' || e.target?.closest?.('aside')) note(`${t} ${desc(e.target)} inAside=${!!e.target?.closest?.('aside')} expanded=${a?.dataset.expanded} stack=${t === 'focusin' ? new Error().stack.split('\n').slice(2, 6).join(' | ').slice(0, 300) : ''}`); }, true);
+    let lastExp = null; new MutationObserver(() => { const v = document.querySelector('aside.app-desktop-navigation')?.dataset.expanded; if (v !== lastExp) { lastExp = v; note(`aside expanded=${v} active=${desc(document.activeElement)}`); } }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-expanded'], childList: true });
     window.addEventListener('focus', () => note('window focus')); window.addEventListener('blur', () => note('window blur'));
     let n = 0; let last = '';
     new MutationObserver(() => {
