@@ -1,0 +1,38 @@
+# Temporary debug workflow (never merged): replays the RGAA states on the GitHub runner with browser tracing.
+name: RGAA debug
+on:
+  pull_request:
+permissions:
+  contents: read
+  packages: read
+jobs:
+  rgaa-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: [1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: mairie360/CICD
+          ref: v5.15.0
+          path: cicd-repo
+      - run: python3 .debug/patch_engine.py
+      - env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - run: ./accessibility_test.sh > rgaa-debug.log 2>&1 || true
+        env:
+          IMAGE_REF: ghcr.io/mairie360/message-front:staging-00cf334
+          UPSTREAM_TAG: latest
+      - run: grep -E "FAILED|CI rate" rgaa-debug.log || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: rgaa-debug-${{ matrix.attempt }}
+          path: |
+            rgaa-debug.log
+            rgaa-report/
