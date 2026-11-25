@@ -986,7 +986,7 @@ describe('Messaging conversation search (MAIR-1164)', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Écrire à Sophie Leroy' }));
     };
     await search();
-    expect(onConversationSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'd7' }));
+    expect(onConversationSelect).toHaveBeenCalledWith(direct);
     rerender(<Messaging conversations={[group]} contacts={[{ id: 'user-7', name: 'Sophie Leroy' }]} messages={thread} activeConversationId="g1" onSearch={onSearch} onNewMessageSend={vi.fn()} />);
     await search();
     expect(screen.getByRole('dialog', { name: 'Nouveau message' })).toBeInTheDocument();
