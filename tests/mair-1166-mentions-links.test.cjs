@@ -87,4 +87,16 @@ test('MAIR-1166 a linked element is a link to its page, everyone and groups are 
   assert.match(html, /<a[^>]*href="https:\/\/projets\.mairie360\.fr\/projects\/12"[^>]*>#Médiathèque<\/a>/);
   assert.match(html, /<strong[^>]*data-mention-kind="user"[^>]*>@tout le monde<\/strong>/);
   assert.match(html, /<strong[^>]*data-mention-kind="user"[^>]*>@Urbanisme<\/strong>/);
+  // Only a person tag opens a card; everyone and a group are not buttons and not underlined like a link.
+  assert.doesNotMatch(html, /<button|data-mention-person|<strong[^>]*underline/);
+});
+
+test('MAIR-1182 a group the message tags wins over a contact of the same name: it opens no card', () => {
+  const [message] = presentMessageAuthors([{
+    id: 'message-2', conversationId: 'conversation-4', authorId: 'user-3', authorName: 'Sophie Leroy',
+    content: 'Pour @Urbanisme', groupMentions: [{ id: 'group-4', name: 'Urbanisme' }],
+  }], 'user-2', [{ id: 'user-9', name: 'Urbanisme', kind: 'direct' }], []);
+  const html = renderToStaticMarkup(React.createElement('div', null, message.content));
+  assert.match(html, /<strong[^>]*data-mention-kind="user"[^>]*>@Urbanisme<\/strong>/);
+  assert.doesNotMatch(html, /data-mention-person/);
 });

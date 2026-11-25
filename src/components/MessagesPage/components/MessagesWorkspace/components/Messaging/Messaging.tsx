@@ -13,6 +13,7 @@ import { GroupMembersPanel } from './components/GroupMembersPanel';
 import { revealMessage } from './reveal-message';
 import { ConversationComposers } from './components/ConversationComposers';
 import { MessageThread } from './components/MessageThread';
+import { MentionedPersonCard } from './components/MentionedPersonCard';
 import { ReadFailureAlert } from './components/ReadFailureAlert';
 import { useVisibleMessagesRead } from './use-visible-messages-read';
 import { attemptMessage, useSendAttempts } from './use-send-attempts';
@@ -266,6 +267,19 @@ export const Messaging = ({
     else if (onNewMessageSend) handleNewMessageClick(person.id);
   };
 
+  // A `@person` tag of a message opens that person's card (department and presence from the contacts); « Écrire »
+  // opens the direct conversation with them, or « Nouveau message » to them when there is none yet.
+  const [mentionedPerson, setMentionedPerson] = React.useState<{ id: string; name: string } | null>(null);
+  const sameUser = (left: MessagingContactId | undefined, right: MessagingContactId | undefined) =>
+    left !== undefined && right !== undefined && String(left).replace(/^user-/, '') === String(right).replace(/^user-/, '');
+  const mentionedContact = mentionedPerson
+    ? displayedContacts.find((contact) => sameUser(contact.id, mentionedPerson.id))
+    : undefined;
+  const mentionedIsMe = mentionedPerson !== null && sameUser(mentionedPerson.id, currentUserId);
+  const canWriteToMentioned = mentionedPerson !== null && !mentionedIsMe && (
+    displayedConversations.some((conversation) => conversation.kind !== 'group' && sameUser(conversation.contactId, mentionedPerson.id)) ||
+    (onNewMessageSend !== undefined && mentionedContact !== undefined));
+
   const groupWithIds = React.useMemo(
     () => (groupWith ? directContactIds(groupWith, displayedContacts) : []),
     [groupWith, displayedContacts],
@@ -422,6 +436,7 @@ export const Messaging = ({
           currentUserId={currentUserId}
           onReply={onSendMessage && activeConversation ? (message) => setReply(activeConversation.id, message) : undefined}
           onOpenQuote={openQuote}
+          onMentionPersonClick={setMentionedPerson}
           onEdit={onEditMessage ? (message) => { if (!message.deleted) setEditingId(message.id); } : undefined}
           onDelete={onDeleteMessage ? (message) => { if (!message.deleted) setDeleting(message); } : undefined}
           onToggleReaction={onToggleReaction ? toggleReaction : undefined}
@@ -490,6 +505,19 @@ export const Messaging = ({
             if (left) setMembersOpen(false);
             return left;
           } : undefined}
+        />
+      )}
+      {mentionedPerson && (
+        <MentionedPersonCard
+          person={{ ...mentionedContact, id: mentionedPerson.id, name: mentionedContact?.name ?? mentionedPerson.name }}
+          isCurrentUser={mentionedIsMe}
+          onWrite={canWriteToMentioned ? () => {
+            // The contact's own id, so that « Nouveau message » preselects them whatever form the tag carried.
+            const person = { id: mentionedContact?.id ?? mentionedPerson.id, name: mentionedPerson.name };
+            setMentionedPerson(null);
+            writeTo(person);
+          } : undefined}
+          onClose={() => setMentionedPerson(null)}
         />
       )}
       {onNewMessageSend && (

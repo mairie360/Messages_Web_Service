@@ -10,6 +10,7 @@ import { MessagingComposer } from './components/ConversationComposers/components
 import { MessagingConversationItem } from './components/MessagingSidebar/components/ConversationList/components/MessagingConversationItem';
 import { MessagingSidebar } from './components/MessagingSidebar';
 import { NewMessageModal } from './components/NewMessageModal';
+import { presentMessageAuthors } from '@/lib/message-authors';
 import {
   defaultMessagingBusinessReferences,
   defaultMessagingConversations,
@@ -1222,5 +1223,47 @@ describe('Messaging reactions (MAIR-1170)', () => {
     expect(screen.queryByRole('dialog', { name: 'Nouveau message' })).not.toBeInTheDocument();
     openFromNewConversationMenu('Nouveau message');
     expect(screen.getByRole('dialog', { name: 'Nouveau message' })).toHaveTextContent('Envoyer un message direct à un contact');
+  });
+
+  describe('MAIR-1182 a @person tag of a message opens the card of that person', () => {
+    const group = { id: 'g1', name: 'Urbanisme', kind: 'group' as const };
+    const sophie = { id: 'user-7', name: 'Sophie Leroy', kind: 'direct' as const, department: 'Finances', presence: 'away' as const };
+    const marc = { id: 'user-8', name: 'Marc Petit', kind: 'direct' as const };
+    const direct = { id: 'd7', name: 'Sophie Leroy', kind: 'direct' as const, contactId: 'user-7' };
+    const thread = presentMessageAuthors([{
+      id: 'm1', conversationId: 'g1', authorId: 'user-8', authorName: 'Marc Petit', direction: 'incoming',
+      content: 'Voir avec @Sophie Leroy et @Marc Petit, ou @Claire Martin',
+      mentions: [{ id: 'user-2', name: 'Claire Martin' }],
+    }], 'user-2', [{ id: 'user-7', name: 'Sophie Leroy', kind: 'direct' }, { id: 'user-8', name: 'Marc Petit', kind: 'direct' }], []);
+
+    it('« Écrire » of the card opens the direct conversation with the person', () => {
+      const onConversationSelect = vi.fn();
+      render(<Messaging conversations={[group, direct]} contacts={[sophie, marc]} messages={thread} activeConversationId="g1" currentUserId="user-2" onConversationSelect={onConversationSelect} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Ouvrir la fiche de Sophie Leroy' }));
+      const card = screen.getByRole('dialog');
+      expect(card).toHaveTextContent('Sophie Leroy');
+      expect(card).toHaveTextContent('Finances · Absent');
+      fireEvent.click(within(card).getByRole('button', { name: 'Écrire à Sophie Leroy' }));
+      expect(onConversationSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'd7' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('without a direct conversation, « Écrire » opens « Nouveau message » to the person', () => {
+      render(<Messaging conversations={[group, direct]} contacts={[sophie, marc]} messages={thread} activeConversationId="g1" currentUserId="user-2" onNewMessageSend={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Ouvrir la fiche de Marc Petit' }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Écrire à Marc Petit' }));
+      expect(screen.getByRole('dialog', { name: 'Nouveau message' })).toBeInTheDocument();
+    });
+
+    it('the card of the agent themself has no « Écrire », and « Fermer » closes it', () => {
+      render(<Messaging conversations={[group, direct]} contacts={[sophie, marc]} messages={thread} activeConversationId="g1" currentUserId="user-2" onNewMessageSend={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Ouvrir la fiche de Claire Martin' }));
+      const card = screen.getByRole('dialog');
+      expect(card).toHaveTextContent('Claire Martin (vous)');
+      expect(within(card).queryByRole('button', { name: /Écrire/ })).not.toBeInTheDocument();
+      fireEvent.click(within(card).getByRole('button', { name: 'Fermer' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Ouvrir la fiche de Sophie Leroy' })).toBeInTheDocument();
+    });
   });
 });

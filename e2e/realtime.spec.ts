@@ -137,3 +137,39 @@ test('MAIR-1182 a colleague mentions the agent: one bell alert, which opens the 
 
   await request.delete(`/conversations/${groupId}`, { headers: asBrowser(baseURL!, users.sender) });
 });
+
+test('MAIR-1182 a @mention in a message opens the card of the colleague, whose « Écrire » opens the direct conversation', async ({ page, context, baseURL, request }) => {
+  const runId = process.env.E2E_RUN_ID ?? String(Date.now());
+  const directId = await directConversation(request, baseURL!);
+  // The sender's name as the BFF knows it: the tag in the text is `@<name>`.
+  const contacts = await request.get('/contacts', { headers: asBrowser(baseURL!, users.recipient) });
+  expect(contacts.status()).toBe(200);
+  const sender = ((await contacts.json()) as { contacts: { id: string | number; name: string }[] }).contacts
+    .find(contact => String(contact.id).replace(/^user-/, '') === users.sender.id);
+  expect(sender, 'the sender is a contact of the recipient').toBeTruthy();
+
+  const created = await request.post('/groups', {
+    headers: asBrowser(baseURL!, users.sender),
+    data: { name: `Fiche ${runId}`, description: 'Fiche d’un agent mentionné', memberIds: [`user-${users.recipient.id}`] },
+  });
+  expect([200, 201]).toContain(created.status());
+  const groupId = String((await created.json() as { conversation: { id: string | number } }).conversation.id);
+  const posted = await request.post(`/conversations/${groupId}/messages`, {
+    headers: asBrowser(baseURL!, users.recipient),
+    data: { content: `Voir avec @${sender!.name} ${runId}`, mentionIds: [`user-${users.sender.id}`] },
+  });
+  expect(posted.ok(), `POST answered ${posted.status()}`).toBe(true);
+
+  await signInAs(context, baseURL!, users.recipient);
+  await page.goto(`/?conversation=${encodeURIComponent(groupId)}`);
+  const tag = page.getByRole('button', { name: `Ouvrir la fiche de ${sender!.name}` });
+  await expect(tag).toBeVisible({ timeout: 10_000 });
+  await tag.click();
+  const card = page.getByRole('dialog', { name: new RegExp(sender!.name) });
+  await expect(card).toBeVisible();
+  await card.getByRole('button', { name: `Écrire à ${sender!.name}` }).click();
+  await expect(card).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`[?&]conversation=${encodeURIComponent(directId)}`));
+
+  await request.delete(`/conversations/${groupId}`, { headers: asBrowser(baseURL!, users.sender) });
+});

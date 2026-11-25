@@ -13,6 +13,7 @@ const { ComposerAttachmentChips } = requireSrc('components/MessagesPage/componen
 const { GroupDetailsFields } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/CreateGroupModal/components/GroupDetailsFields/GroupDetailsFields.tsx');
 const { GroupMemberPicker } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/CreateGroupModal/components/GroupMemberPicker/GroupMemberPicker.tsx');
 const { ContextReferenceBar } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/ContextReferenceBar/ContextReferenceBar.tsx');
+const { MentionedPersonCard } = requireSrc('components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/MentionedPersonCard/MentionedPersonCard.tsx');
 
 let view;
 afterEach(() => {
@@ -79,4 +80,23 @@ test('MAIR-608 the context bar labels each kind and opens the reference', async 
   view = mount(h(ContextReferenceBar, { reference: { id: 'x', kind: 'task', title: 'Lecture seule' } }));
   assert.doesNotMatch(view.text(), /Ouvrir/);
   assert.deepEqual(opened, ['event', 'task', 'project']);
+});
+
+test('MAIR-1182 the card of a mentioned agent: service and presence, « Écrire », none on the agent\'s own card', () => {
+  const written = [];
+  const closed = [];
+  view = mount(h(MentionedPersonCard, {
+    person: { id: 'user-3', name: 'Manon Petit', department: 'Urbanisme', presence: 'online' },
+    onWrite: () => written.push('user-3'), onClose: () => closed.push(true),
+  }));
+  const card = view.props('Modal');
+  assert.equal(card.description, 'Urbanisme · En ligne');
+  assert.equal(card.footer.props['aria-label'], 'Écrire à Manon Petit');
+  card.footer.props.onClick();
+  card.onClose();
+  assert.deepEqual([written, closed], [['user-3'], [true]]);
+  view.unmount();
+  view = mount(h(MentionedPersonCard, { person: { id: 'user-2', name: 'Claire Martin' }, isCurrentUser: true, onWrite() {}, onClose() {} }));
+  assert.equal(view.props('Modal').footer, undefined);
+  assert.equal(view.props('Modal').description, undefined);
 });

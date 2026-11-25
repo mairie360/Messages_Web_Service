@@ -303,8 +303,10 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   et la liste une listbox : ↑ ↓ pour se déplacer, Entrée / Tab pour choisir, Échap pour fermer, et la liste disparaît
   quand plus rien ne correspond ; Entrée envoie quand aucune liste n'est ouverte. Un tag choisi est figé (suivi d'une
   espace, la suite est du texte). L'envoi porte `mentionIds`, `mentionEveryone`, `groupMentionIds` et `links`. Dans
-  les bulles, les tags sont soulignés en couleur d'accent, et un élément lié qui a une page (`url` du BFF) est un
-  `Link` de la lib qui l'ouvre. Une personne mentionnée n'a pas encore de page à ouvrir : son tag reste souligné.
+  les bulles, les tags sont en couleur d'accent, et un élément lié qui a une page (`url` du BFF) est un `Link` de la
+  lib qui l'ouvre. Le tag d'une personne est un bouton souligné qui ouvre sa fiche (nom, service, présence, « (vous) »
+  pour l'agent lui-même) ; « Écrire » y ouvre la conversation directe avec elle, ou « Nouveau message » à son nom s'il
+  n'y en a pas encore. `@tout le monde` et les groupes ne sont pas cliquables, donc pas soulignés.
 - **Alertes de mention.** Quand un collègue mentionne l'agent (par son nom, `@everyone` ou un groupe), la cloche du
   bandeau la compte (« Notifications, 1 non lues ») et son panneau (`NotificationCenter` de la lib) affiche
   « Mention dans « <conversation> » » avec « <personne> vous a mentionné(e). » (l'auteur, lu une fois dans la

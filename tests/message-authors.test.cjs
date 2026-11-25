@@ -26,7 +26,8 @@ test('renders the contract author and preserves mention highlighting and source 
   const html = render(displayed);
 
   assert.match(html, /data-message-author="user-7"[^>]*>Sophie Leroy<\/span>/);
-  assert.match(html, /data-mention-kind="user">@Sophie Leroy<\/strong>/);
+  // A person mention opens their card: a button carrying their id.
+  assert.match(html, /<button type="button"[^>]*data-mention-kind="user" data-mention-person="user-7" data-mention-name="Sophie Leroy" aria-label="Ouvrir la fiche de Sophie Leroy">@Sophie Leroy<\/button>/);
   assert.match(html, /data-mention-kind="business">#Budget participatif<\/strong>/);
   assert.equal(source.content, 'Bonjour @Sophie Leroy, voir #Budget participatif.');
   assert.notEqual(displayed, source);
@@ -52,7 +53,7 @@ test('preserves mention boundaries, React content, references and attachments', 
   const [displayed] = presentMessageAuthors([source], 'user-2', options, []);
   const html = render(displayed);
 
-  assert.match(html, /@Sophie Leroyx et <strong[^>]*data-mention-kind="user">@Sophie Leroy<\/strong>/);
+  assert.match(html, /@Sophie Leroyx et <button[^>]*data-mention-person="user-7"[^>]*>@Sophie Leroy<\/button>/);
   assert.match(html, /notice\.txt/);
   assert.match(html, /Budget participatif/);
   assert.equal(displayed.attachments, source.attachments);
