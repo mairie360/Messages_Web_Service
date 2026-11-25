@@ -11,6 +11,7 @@ import { MessagesNotices } from './components/MessagesNotices';
 import { MessagesReceptionDelayed } from './components/MessagesReceptionDelayed';
 import { FeedbackToast } from './components/FeedbackToast';
 import type { useMessagingController } from '../../use-messaging-controller';
+import { useHydrated } from './use-hydrated';
 
 type MessagesWorkspaceProps = ReturnType<typeof useMessagingController>;
 
@@ -64,6 +65,7 @@ export function MessagesWorkspace({
   handleLeaveConversation,
   toggleConversationList,
 }: MessagesWorkspaceProps) {
+  const hydrated = useHydrated();
   return (
     <ToastProvider regionLabel="Notifications de la messagerie" placement="bottom-end">
     <AppShell
@@ -75,7 +77,9 @@ export function MessagesWorkspace({
         void loadConversationMessages(conversationId);
       }}
     >
-      <div className="messages-module-stack">
+      {/* The page is server-rendered: its controls only answer once React has hydrated it, which
+          `data-hydrated` marks for the automated journeys (RGAA states, e2e) that click right away. */}
+      <div className="messages-module-stack" data-hydrated={hydrated ? "true" : undefined}>
         {loading || !currentUser ? (
           <MessagesBootstrapState loading={loading} error={bootstrapError} onRetry={retryBootstrap} />
         ) : (
