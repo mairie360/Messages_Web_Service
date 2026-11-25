@@ -6,7 +6,14 @@ assert s.count(anchor) == 1
 s = s.replace(anchor, anchor + r"""  await page.addInitScript(() => {
     const t0 = performance.now(); const log = (window.__dbgLog = []);
     const note = (m) => log.push(`${Math.round(performance.now() - t0)} ${m}`);
-    for (const t of ['pointerdown', 'click']) document.addEventListener(t, (e) => note(`${t} ${e.target?.closest?.('button')?.getAttribute('aria-label') ?? e.target?.tagName}`), true);
+    const desc = (el) => el ? `${el.tagName}${el.id ? '#' + el.id : ''}.${String(el.className).slice(0, 60)}[${el.getAttribute?.('aria-label') ?? ''}]` : 'null';
+    const scrolls = () => [...document.querySelectorAll('*')].filter((n) => n.scrollTop || n.scrollLeft).map((n) => `${desc(n)}=${n.scrollTop},${n.scrollLeft}`).join(' ');
+    for (const t of ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click']) document.addEventListener(t, (e) => {
+      const b = document.querySelector('[aria-label="Mentionner une personne"]') || document.querySelector('[aria-label="Insérer un emoji"]');
+      const r = b?.getBoundingClientRect();
+      const under = document.elementFromPoint(e.clientX, e.clientY);
+      note(`${t} at ${e.clientX},${e.clientY} target=${desc(e.target?.closest?.('button') ?? e.target)} under=${desc(under?.closest?.('button') ?? under)} btn=${r ? [r.x, r.y, r.width, r.height].map(Math.round).join(',') : '-'} win=${scrollX},${scrollY} scrolls=[${scrolls()}]`);
+    }, true);
     window.addEventListener('focus', () => note('window focus')); window.addEventListener('blur', () => note('window blur'));
     let n = 0; let last = '';
     new MutationObserver(() => {
