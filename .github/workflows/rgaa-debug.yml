@@ -13,6 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         attempt: [1, 2]
+        load: [burn, concurrency8]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -24,15 +25,18 @@ jobs:
       - env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - if: matrix.load == 'burn'
+        run: for i in 1 2 3; do docker run -d --rm --name burn$i alpine:3.20 sh -c 'while :; do :; done'; done
       - run: ./accessibility_test.sh > rgaa-debug.log 2>&1 || true
         env:
           IMAGE_REF: ghcr.io/mairie360/message-front:staging-00cf334
           UPSTREAM_TAG: latest
+          RGAA_CONCURRENCY: ${{ matrix.load == 'concurrency8' && '8' || '' }}
       - run: grep -E "FAILED|CI rate" rgaa-debug.log || true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
-          name: rgaa-debug-${{ matrix.attempt }}
+          name: rgaa-debug-${{ matrix.load }}-${{ matrix.attempt }}
           path: |
             rgaa-debug.log
             rgaa-report/
