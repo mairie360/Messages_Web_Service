@@ -103,6 +103,11 @@ states:
       - wait_for: { role: heading, name: Équipe accueil }
       # The page is server-rendered: a click before hydration does nothing (data-hydrated, set by React).
       - wait_for: { selector: '.messages-module-stack[data-hydrated]' }
+      # A new page has the pointer at (0, 0), over the desktop navigation: hovered, the band opens to
+      # 248 px and pushes the module aside, then closes as the next click moves the pointer, which
+      # shifts the target between press and release. Move the pointer onto the module first.
+      - hover: { selector: '.messages-module-stack' }
+      - wait_for: { selector: 'aside.app-desktop-navigation[data-expanded="false"]' }
       # Not the last message: the list item of the active conversation may repeat that one.
       - wait_for: { text: "Bonjour à tous, la réunion d'équipe est avancée à 14 h." }
   - id: conversation-direct
@@ -113,6 +118,11 @@ states:
       - wait_for: { role: heading, name: Équipe accueil }
       # The page is server-rendered: a click before hydration does nothing (data-hydrated, set by React).
       - wait_for: { selector: '.messages-module-stack[data-hydrated]' }
+      # A new page has the pointer at (0, 0), over the desktop navigation: hovered, the band opens to
+      # 248 px and pushes the module aside, then closes as the next click moves the pointer, which
+      # shifts the target between press and release. Move the pointer onto the module first.
+      - hover: { selector: '.messages-module-stack' }
+      - wait_for: { selector: 'aside.app-desktop-navigation[data-expanded="false"]' }
       # A direct conversation is listed and titled after the other member (user 3, "Contact
       # Sample"), not after its stored title; the BFF ids are not the database ids, so
       # ?conversation=<id> cannot be used.
@@ -127,6 +137,11 @@ states:
       - wait_for: { role: heading, name: Équipe accueil }
       # The page is server-rendered: a click before hydration does nothing (data-hydrated, set by React).
       - wait_for: { selector: '.messages-module-stack[data-hydrated]' }
+      # A new page has the pointer at (0, 0), over the desktop navigation: hovered, the band opens to
+      # 248 px and pushes the module aside, then closes as the next click moves the pointer, which
+      # shifts the target between press and release. Move the pointer onto the module first.
+      - hover: { selector: '.messages-module-stack' }
+      - wait_for: { selector: 'aside.app-desktop-navigation[data-expanded="false"]' }
       - fill: { role: searchbox, name: Rechercher une conversation, value: zzz }
       - wait_for: { text: Aucune conversation trouvée. }
   - id: new-message-dialog
@@ -137,6 +152,11 @@ states:
       - wait_for: { role: heading, name: Équipe accueil }
       # The page is server-rendered: a click before hydration does nothing (data-hydrated, set by React).
       - wait_for: { selector: '.messages-module-stack[data-hydrated]' }
+      # A new page has the pointer at (0, 0), over the desktop navigation: hovered, the band opens to
+      # 248 px and pushes the module aside, then closes as the next click moves the pointer, which
+      # shifts the target between press and release. Move the pointer onto the module first.
+      - hover: { selector: '.messages-module-stack' }
+      - wait_for: { selector: 'aside.app-desktop-navigation[data-expanded="false"]' }
       # MAIR-1157: « Nouveau message » is an entry of the « + » menu of the list.
       - click: { role: button, name: Nouvelle conversation }
       - click: { role: menuitem, name: Nouveau message }
@@ -150,6 +170,11 @@ states:
       - wait_for: { role: heading, name: Équipe accueil }
       # The page is server-rendered: a click before hydration does nothing (data-hydrated, set by React).
       - wait_for: { selector: '.messages-module-stack[data-hydrated]' }
+      # A new page has the pointer at (0, 0), over the desktop navigation: hovered, the band opens to
+      # 248 px and pushes the module aside, then closes as the next click moves the pointer, which
+      # shifts the target between press and release. Move the pointer onto the module first.
+      - hover: { selector: '.messages-module-stack' }
+      - wait_for: { selector: 'aside.app-desktop-navigation[data-expanded="false"]' }
       - click: { role: button, name: Nouvelle conversation }
       - click: { role: menuitem, name: Créer un groupe }
       - wait_for: { role: dialog }
@@ -162,6 +187,11 @@ states:
       - wait_for: { role: heading, name: Équipe accueil }
       # The page is server-rendered: a click before hydration does nothing (data-hydrated, set by React).
       - wait_for: { selector: '.messages-module-stack[data-hydrated]' }
+      # A new page has the pointer at (0, 0), over the desktop navigation: hovered, the band opens to
+      # 248 px and pushes the module aside, then closes as the next click moves the pointer, which
+      # shifts the target between press and release. Move the pointer onto the module first.
+      - hover: { selector: '.messages-module-stack' }
+      - wait_for: { selector: 'aside.app-desktop-navigation[data-expanded="false"]' }
       - click: { role: button, name: Plus d'actions }
       - wait_for: { role: menuitem, name: Supprimer la conversation }
   - id: emoji-menu
@@ -172,6 +202,11 @@ states:
       - wait_for: { role: heading, name: Équipe accueil }
       # The page is server-rendered: a click before hydration does nothing (data-hydrated, set by React).
       - wait_for: { selector: '.messages-module-stack[data-hydrated]' }
+      # A new page has the pointer at (0, 0), over the desktop navigation: hovered, the band opens to
+      # 248 px and pushes the module aside, then closes as the next click moves the pointer, which
+      # shifts the target between press and release. Move the pointer onto the module first.
+      - hover: { selector: '.messages-module-stack' }
+      - wait_for: { selector: 'aside.app-desktop-navigation[data-expanded="false"]' }
       - click: { role: button, name: Insérer un emoji }
       - wait_for: { role: button, name: Ajouter 👍 }
   - id: mention-suggestions
@@ -182,6 +217,11 @@ states:
       - wait_for: { role: heading, name: Équipe accueil }
       # The page is server-rendered: a click before hydration does nothing (data-hydrated, set by React).
       - wait_for: { selector: '.messages-module-stack[data-hydrated]' }
+      # A new page has the pointer at (0, 0), over the desktop navigation: hovered, the band opens to
+      # 248 px and pushes the module aside, then closes as the next click moves the pointer, which
+      # shifts the target between press and release. Move the pointer onto the module first.
+      - hover: { selector: '.messages-module-stack' }
+      - wait_for: { selector: 'aside.app-desktop-navigation[data-expanded="false"]' }
       - click: { role: button, name: Mentionner une personne }
       - wait_for: { role: option, name: "@Camille Martin" }
   - id: conversation-not-found
@@ -206,6 +246,11 @@ states:
       # The writer's only conversation, a direct one with user 3: titled after that member.
       - wait_for: { role: heading, name: Contact Sample }
       - wait_for: { selector: '.messages-module-stack[data-hydrated]' }
+      # A new page has the pointer at (0, 0), over the desktop navigation: hovered, the band opens to
+      # 248 px and pushes the module aside, then closes as the next click moves the pointer, which
+      # shifts the target between press and release. Move the pointer onto the module first.
+      - hover: { selector: '.messages-module-stack' }
+      - wait_for: { selector: 'aside.app-desktop-navigation[data-expanded="false"]' }
       - fill: { role: combobox, name: Écrire un message, value: "Merci, je m'en occupe." }
       - click: { role: button, name: Envoyer, exact: true }
       # The text is in the thread and in the preview of the list: wait for the thread's status.
