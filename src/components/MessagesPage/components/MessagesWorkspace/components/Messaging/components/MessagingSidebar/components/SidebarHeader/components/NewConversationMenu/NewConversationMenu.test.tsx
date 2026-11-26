@@ -31,6 +31,14 @@ describe('NewConversationMenu', () => {
     expect((await axe(container)).violations).toEqual([]);
   });
 
+  it('MAIR-1225 opens its tooltip below the « + », aligned on its right edge, so the page header never cuts it', () => {
+    const { trigger } = setup();
+    trigger.focus();
+    const bubble = screen.getByRole('tooltip', { hidden: true }).closest('[data-placement]');
+    expect(bubble).toHaveAttribute('data-placement', 'bottom');
+    expect(bubble).toHaveAttribute('data-align', 'end');
+  });
+
   it('MAIR-1157 opens from the keyboard, moves with the arrows and chooses with Entrée', async () => {
     const user = userEvent.setup();
     const { trigger, onCreateGroupClick } = setup();

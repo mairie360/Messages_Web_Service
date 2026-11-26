@@ -1089,6 +1089,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -1101,7 +1104,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -1421,6 +1424,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -1433,7 +1439,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -1806,6 +1812,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -1818,7 +1827,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -2191,6 +2200,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -2203,7 +2215,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -2827,6 +2839,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -2839,7 +2854,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -3393,6 +3408,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -3405,7 +3423,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -4245,6 +4263,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -4257,7 +4278,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -4770,6 +4791,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -4782,7 +4806,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -5226,6 +5250,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -5238,7 +5265,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -5717,6 +5744,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -5729,7 +5759,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -6229,6 +6259,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -6241,7 +6274,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -6670,6 +6703,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -6682,7 +6718,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -7002,6 +7038,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -7014,7 +7053,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -7440,6 +7479,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -7452,7 +7494,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -7858,6 +7900,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -7870,7 +7915,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -8411,6 +8456,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -8423,7 +8471,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -9175,6 +9223,9 @@
           "authorName": {
             "type": "string"
           },
+          "deleted": {
+            "type": "boolean"
+          },
           "excerpt": {
             "type": "string"
           },
@@ -9187,7 +9238,7 @@
         },
         "required": [
           "id",
-          "excerpt"
+          "deleted"
         ],
         "type": "object"
       },
@@ -9366,7 +9417,7 @@
   "info": {
     "title": "bff_message",
     "version": "1.0.0",
-    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-dev.d876ebfb17ba061435f5e3c81dc4b4677305dc5d"
+    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-dev.a32c2d3decad4b8eba8489f8228484e7244559e3"
   },
   "openapi": "3.1.0",
   "paths": {

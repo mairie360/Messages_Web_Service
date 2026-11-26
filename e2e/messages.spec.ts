@@ -63,8 +63,46 @@ test('the recipient reads it in the conversation', async ({ page, context, baseU
   await signInAs(context, baseURL!, users.recipient);
   await openMessaging(page);
 
-  await page.getByRole('complementary').getByText('Perf Tester').first().click();
+  await page.locator('[data-messaging-sidebar]').getByText('Perf Tester').first().click();
   await expect(page.getByText(message).first()).toBeVisible();
+});
+
+// MAIR-1225: a reply shows its quote at once; once the quoted message is deleted, the reply reads « Message
+// supprimé » after a reload (the BFF flags the quote `deleted`). Runs after the two journeys above.
+test('MAIR-1225 a reply quotes its message at once, then « Message supprimé » once the quoted message is deleted', async ({ page, context, baseURL }) => {
+  const reply = `Bien reçu ${process.env.E2E_RUN_ID}`;
+  await signInAs(context, baseURL!, users.recipient);
+  await openMessaging(page);
+  await page.locator('[data-messaging-sidebar]').getByText('Perf Tester').first().click();
+  const original = page.locator('[data-messaging-message-id]').filter({ hasText: message }).first();
+  await original.hover();
+  await original.getByRole('button', { name: 'Répondre' }).click();
+  await page.getByRole('combobox', { name: 'Écrire un message' }).fill(reply);
+  const sent = page.waitForResponse((r) => r.request().method() === 'POST' && /\/messages$/.test(new URL(r.url()).pathname));
+  await page.getByRole('button', { name: 'Envoyer', exact: true }).click();
+  expect((await sent).status()).toBe(201);
+  const answer = page.locator('[data-messaging-message-id]').filter({ hasText: reply }).first();
+  await expect(answer.locator('[data-message-quote]')).toContainText(message.slice(0, 20));
+  await expect(answer.locator('[data-message-quote]')).not.toContainText('Message supprimé');
+
+  // The sender deletes the quoted message.
+  await context.clearCookies();
+  await signInAs(context, baseURL!, users.sender);
+  await openMessaging(page);
+  await page.locator('[data-messaging-sidebar]').getByText('Contact Sample').first().click();
+  const own = page.locator('[data-messaging-message-id]').filter({ hasText: message }).first();
+  await own.hover();
+  await own.getByRole('button', { name: 'Supprimer' }).click();
+  const deleted = page.waitForResponse((r) => r.request().method() === 'DELETE');
+  await page.getByRole('alertdialog', { name: 'Supprimer le message ?' }).getByRole('button', { name: 'Supprimer' }).click();
+  expect((await deleted).ok()).toBeTruthy();
+
+  // The recipient reloads: the reply keeps its quote, now « Message supprimé ».
+  await context.clearCookies();
+  await signInAs(context, baseURL!, users.recipient);
+  await openMessaging(page);
+  await page.locator('[data-messaging-sidebar]').getByText('Perf Tester').first().click();
+  await expect(page.locator('[data-messaging-message-id]').filter({ hasText: reply }).first().locator('[data-message-quote]')).toContainText('Message supprimé');
 });
 
 test('an agent outside the conversation does not see it', async ({ page, context, baseURL }) => {

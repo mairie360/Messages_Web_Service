@@ -67,7 +67,8 @@ export function AppShell({ activeItem, unreadCount = 0, children, notifications,
       onLogout={() => void logout()}
       hrefs={{ ...frontHrefs, messages: frontHrefs.messages ?? "/" }}
       mainLayout="fill"
-      sidebarProps={{ brandLabel: communeName, items: navigationItems(unreadCount) }}
+      commune={communeName}
+      sidebarProps={{ items: navigationItems(unreadCount) }}
       footerProps={{ version, legalLinks: legalLinksFor(frontUrl("LOGIN_FRONT_URL")) }}
       showFooter={false}
       headerProps={notifications

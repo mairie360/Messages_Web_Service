@@ -49,8 +49,8 @@ test('parsed messaging breakpoint policies retain reference desktop tracks and s
   assert.equal(compact(last(module, 'grid-template-columns', '(min-width: 1024px)')), '300pxminmax(0,1fr)');
   const narrow = '(max-width: 1023px)';
   assert.equal(last('.messages-pane-switch', 'display', narrow), 'inline-flex');
-  assert.equal(last('.messages-module > aside', 'display', narrow), 'none');
-  assert.equal(last('.messages-list-open .messages-module > aside', 'display', narrow), 'flex');
+  assert.equal(last('.messages-module > [data-messaging-sidebar]', 'display', narrow), 'none');
+  assert.equal(last('.messages-list-open .messages-module > [data-messaging-sidebar]', 'display', narrow), 'flex');
   assert.equal(last('.messages-list-open .messages-module > div:nth-child(2)', 'display', narrow), 'none');
   // Configuration association only: JSDOM does not compile Tailwind or evaluate media queries.
 });

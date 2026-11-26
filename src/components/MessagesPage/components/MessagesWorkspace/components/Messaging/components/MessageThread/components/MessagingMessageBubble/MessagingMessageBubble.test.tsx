@@ -25,3 +25,23 @@ it('MAIR-1159 draws my messages on the lib message-own tokens with the time abov
   expect(received.className).toContain('bg-[var(--mairie-surface)]'); expect(received.className).toContain('border-[var(--mairie-border)]');
   expect(screen.getByText('10:43')).not.toHaveClass('self-end');
 });
+
+it('MAIR-1225 shows « Message supprimé » only when the quote is flagged deleted, never because the quote is missing', () => {
+  const { rerender } = render(<MessagingMessageBubble message={{ id: 2, content: 'Merci', direction: 'outgoing', citation: 1, quoted: { id: 1, authorName: 'Sophie', excerpt: 'Bonjour' } }} />);
+  expect(screen.getByText('Bonjour')).toBeVisible();
+  expect(screen.queryByText('Message supprimé')).toBeNull();
+  rerender(<MessagingMessageBubble message={{ id: 2, content: 'Merci', direction: 'outgoing', citation: 1 }} />);
+  expect(screen.queryByText('Message supprimé')).toBeNull();
+  expect(screen.getByText('Message cité')).toBeVisible();
+  rerender(<MessagingMessageBubble message={{ id: 2, content: 'Merci', direction: 'outgoing', citation: 1, quoted: { id: 1, deleted: true } }} />);
+  expect(screen.getByText('Message supprimé')).toBeVisible();
+});
+
+it('MAIR-1225 overlays the actions on the message: the toolbar is out of the flow, so the thread keeps its height', async () => {
+  const { container } = render(<MessagingMessageBubble message={{ id: 3, content: 'Bonjour', direction: 'incoming', sentAt: '10:00' }} onReply={vi.fn()} />);
+  await userEvent.hover(screen.getByText('Bonjour'));
+  const toolbar = screen.getByRole('toolbar', { name: 'Actions du message' });
+  expect(toolbar).toHaveClass('absolute', 'top-0', '-translate-y-1/2', 'z-10');
+  expect(toolbar.parentElement).toHaveClass('relative');
+  expect(container.firstElementChild).toBe(toolbar.parentElement);
+});

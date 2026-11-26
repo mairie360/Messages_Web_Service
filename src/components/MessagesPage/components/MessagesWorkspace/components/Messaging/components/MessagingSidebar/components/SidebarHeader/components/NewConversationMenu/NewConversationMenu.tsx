@@ -32,7 +32,8 @@ export const NewConversationMenu = ({
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <ToolTip text={label}>
+      {/* Below the button, aligned on its right edge: above, the tooltip was cut by the page header. */}
+      <ToolTip text={label} placement="bottom" align="end">
         <IconButton icon={Plus} label={label} title="" {...triggerProps} />
       </ToolTip>
       <DropdownMenuContent align="end" className="w-56" {...menuProps(label)}>

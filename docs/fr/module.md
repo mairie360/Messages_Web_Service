@@ -321,7 +321,10 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   affiche `ReplyBar` au-dessus du champ (auteur, extrait, « Annuler la réponse ») et y place le focus ; l'envoi porte
   `replyTo` et la barre disparaît une fois le message confirmé. Une réponse affiche `MessageQuote` au-dessus de sa
   bulle (auteur et extrait de `quoted`) ; un clic fait défiler en douceur jusqu'au message d'origine et le met en
-  évidence. La citation d'un message supprimé indique « Message supprimé ».
+  évidence. La citation d'un message supprimé indique « Message supprimé », et seulement dans ce cas : quand `quoted.deleted`
+  est vrai ou que la suppression a été vue dans le fil. Une réponse sans `quoted` cite le message chargé auquel elle
+  répond (« Message cité » s'il n'est pas chargé). La barre d'actions est posée sur le coin haut de la bulle : elle ne
+  décale jamais les messages suivants et ses infobulles s'ouvrent au-dessus d'elle, pas sur le texte.
 - **Modifier un message (MAIR-1168).** « Modifier » (barre d'actions, mes messages seulement) remplace la bulle par
   `MessageEditBox` : un `TextArea` de la lib avec les mêmes boutons et suggestions `@` / `#` que la saisie (les tags du
   message restent des tags), l'aide « Échap pour annuler · Entrée pour enregistrer », Annuler et Enregistrer

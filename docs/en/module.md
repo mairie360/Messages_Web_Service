@@ -309,7 +309,10 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   `ReplyBar` above the text field (author, excerpt, « Annuler la réponse ») and moves the focus there; the send
   carries `replyTo` and the bar goes once the message is confirmed. A reply shows `MessageQuote` above its bubble
   (author and excerpt from `quoted`); a click scrolls smoothly to the original and highlights it. The quote of a
-  deleted message reads « Message supprimé ».
+  deleted message reads « Message supprimé », and only then: when `quoted.deleted` is true or the deletion was seen
+  in the thread. A reply without `quoted` quotes the loaded message it answers (« Message cité » when it is not
+  loaded). The toolbar is overlaid on the top corner of the bubble: it never pushes the next messages and its
+  tooltips open above it, not over the text.
 - **Edit a message (MAIR-1168).** « Modifier » (toolbar, my messages only) replaces the bubble with
   `MessageEditBox`: a lib `TextArea` with the same `@` / `#` buttons and suggestions as the composer (the tags of the
   message stay tags), the help « Échap pour annuler · Entrée pour enregistrer », Annuler and Enregistrer (disabled

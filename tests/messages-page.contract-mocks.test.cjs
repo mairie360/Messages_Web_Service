@@ -1524,7 +1524,8 @@ test('a deletion refusal permits one guarded retry and preserves data while pend
     assert.equal(view.props('Messaging').onConversationDelete, undefined);
     assert.match(view.html, /role="status"[^]*?Suppression de la conversation en cours/);
     // MAIR-854: the pending deletion is a lib info Alert.
-    assert.match(view.html, /<div[^>]*role="status"[^>]*data-m360-component="Alert"[^>]*>[^]*?Suppression de la conversation en cours…/);
+    // RGAA 7.5 (MAIR-1225): the status is written into a live region mounted before it.
+    assert.match(view.html, /<div role="status" aria-live="polite" data-messages-status=""[^>]*>[^]*?Suppression de la conversation en cours…/);
     assert.match(view.text(), /Bonjour à tous/);
     const reads = messageBff.calls('/conversations').length;
     browser.focus();

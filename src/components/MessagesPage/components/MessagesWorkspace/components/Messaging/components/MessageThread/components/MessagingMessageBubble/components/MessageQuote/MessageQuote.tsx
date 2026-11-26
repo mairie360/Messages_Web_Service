@@ -18,7 +18,7 @@ export const MessageQuote = ({ authorName, excerpt, deleted = false, outgoing, o
       <Icon icon={icons['corner-up-left']} size="xs" className="mt-0.5 shrink-0 text-[var(--mairie-muted)]" />
       <span className="min-w-0">
         {!deleted && authorName && <Text as="span" size="xs" weight="semibold" className="block truncate">{authorName}</Text>}
-        <Text as="span" size="xs" tone="muted" className={`block truncate ${deleted ? 'italic' : ''}`}>{deleted ? 'Message supprimé' : excerpt}</Text>
+        <Text as="span" size="xs" tone="muted" className={`block truncate ${deleted ? 'italic' : ''}`}>{deleted ? 'Message supprimé' : excerpt || 'Message cité'}</Text>
       </span>
     </>
   );

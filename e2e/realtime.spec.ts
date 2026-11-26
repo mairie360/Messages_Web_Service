@@ -66,7 +66,7 @@ test('MAIR-818 a colleague’s message appears in the open conversation without 
   const catchUp = page.waitForResponse(r => isListRead(r.request().method(), r.url()), { timeout: 10_000 });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Messagerie', level: 1 })).toBeVisible();
-  await page.getByRole('complementary').getByText('Perf Tester').first().click();
+  await page.locator('[data-messaging-sidebar]').getByText('Perf Tester').first().click();
   const socket = await socketOpened;
   expect(new URL(socket.url()).origin.replace(/^ws/, 'http')).toBe(new URL(baseURL!).origin);
 

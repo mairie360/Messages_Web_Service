@@ -8,17 +8,23 @@ import { MessagesNotices } from './MessagesNotices';
 const base = { deletingConversation: false, error: null, syncError: null, pendingText: null };
 
 describe('MessagesNotices', () => {
-  it('MAIR-854 renders nothing without a status or an error', () => {
+  it('MAIR-1225 RGAA 7.5 keeps only the empty live region without a status or an error', () => {
     const { container } = render(<MessagesNotices {...base} />);
-    expect(container).toBeEmptyDOMElement();
+    const region = screen.getByRole('status');
+    expect(region).toHaveAttribute('aria-live', 'polite');
+    expect(region).toBeEmptyDOMElement();
+    expect(container.children).toHaveLength(1);
   });
 
-  it('MAIR-854 renders the pending operations as info Alerts announced politely', () => {
-    const { container } = render(<MessagesNotices {...base} deletingConversation pendingText="Ouverture de la conversation…" />);
-    const statuses = screen.getAllByRole('status');
-    expect(statuses.map((node) => node.textContent)).toEqual(['Suppression de la conversation en cours…', 'Ouverture de la conversation…']);
-    for (const status of statuses) expect(status).toHaveAttribute('data-m360-component', expect.stringContaining('Alert'));
-    expect(container.querySelector('.messages-operation-status')).toBeNull();
+  it('MAIR-1225 RGAA 7.5 writes the pending operations as info Alerts into the live region mounted before them', () => {
+    const { rerender } = render(<MessagesNotices {...base} />);
+    const region = screen.getByRole('status');
+    rerender(<MessagesNotices {...base} deletingConversation pendingText="Ouverture de la conversation…" />);
+    // Same region node: it existed before its text, so the text is announced.
+    expect(screen.getByRole('status')).toBe(region);
+    const alerts = [...region.querySelectorAll('[data-m360-component~="Alert"]')];
+    expect(alerts.map((node) => node.textContent)).toEqual(['Suppression de la conversation en cours…', 'Ouverture de la conversation…']);
+    expect(screen.getAllByRole('status')).toHaveLength(1);
   });
 
   it('MAIR-854 renders the action error as a closable ErrorAlert and the sync error as a lasting one', async () => {

@@ -52,8 +52,10 @@ export const MessagingSidebar = ({
     onSearchValueChange?.(nextValue);
   };
 
+  // RGAA 9.2: the list is part of the page main area, not a complementary landmark nested in it.
   return (
-    <aside
+    <div
+      data-messaging-sidebar=""
       className={joinClasses(
         'flex min-h-0 flex-col border-b border-[var(--mairie-border)] bg-[var(--mairie-background)] p-4 text-[var(--mairie-text)] lg:border-b-0 lg:border-r',
         className
@@ -74,6 +76,6 @@ export const MessagingSidebar = ({
         emptyLabel={conversations.length === 0 ? noConversationsLabel : emptyLabel}
         onSelect={onConversationSelect}
       />
-    </aside>
+    </div>
   );
 };

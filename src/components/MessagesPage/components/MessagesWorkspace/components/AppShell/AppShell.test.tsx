@@ -39,10 +39,10 @@ describe('AppShell', () => {
 
   it('MAIR-1156 keeps « Messagerie » active with its lib Counter (« 9+ » above nine), and none at zero', () => {
     const { rerender } = render(<AppShell activeItem="messages" unreadCount={3}><p>Contenu</p></AppShell>);
-    const active = within(navigation()).getByRole('button', { name: 'Messagerie, 3 à traiter', hidden: true });
+    const active = within(navigation()).getByRole('button', { name: 'Messagerie 3 à traiter', hidden: true });
     expect(active).toHaveAttribute('aria-current', 'page');
     rerender(<AppShell activeItem="messages" unreadCount={14}><p>Contenu</p></AppShell>);
-    const capped = within(navigation()).getByRole('button', { name: 'Messagerie, plus de 9 à traiter', hidden: true });
+    const capped = within(navigation()).getByRole('button', { name: 'Messagerie 9+ à traiter', hidden: true });
     expect(capped).toHaveAttribute('aria-current', 'page'); expect(capped).toHaveTextContent('9+');
     rerender(<AppShell activeItem="messages" unreadCount={0}><p>Contenu</p></AppShell>);
     expect(within(navigation()).getByRole('button', { name: 'Messagerie', hidden: true })).toHaveAttribute('aria-current', 'page');

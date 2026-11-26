@@ -127,10 +127,10 @@ and agree the mockup first, then code it: the sync direction is Figma → code.
   disabled « Annuler » while sending and a `sendFailed` `ErrorAlert` (reject or `false`), like `CreateGroupModal`'s
   `creationFailed`; inputs are kept. `GroupMemberPicker`'s legend « Membres » is a lib `Text`.
   **Page base (MAIR-1156):** lib 2.3.0: `AppShell` passes `showFooter={false}` (no footer on the page base), the
-  navigation total is the lib item `count` (its `Counter`, « 9+ » above 9, named « Messagerie, N à traiter »), the
+  navigation total is the lib item `count` (its `Counter`, « 9+ » above 9, named « Messagerie N à traiter » since lib 2.6.0), the
   sr-only `h1` is gone and `SidebarHeader` renders the page `h1` (lib `PageTitle`); the module card has the
   `--mairie-radius-l` radius.
-  **List (MAIR-1157):** `SidebarHeader/components/NewConversationMenu/` = lib `ToolTip` + `IconButton` « + » + lib
+  **List (MAIR-1157):** `SidebarHeader/components/NewConversationMenu/` = lib `ToolTip` (`placement="bottom" align="end"` since lib 2.6.0, so the header never cuts it) + `IconButton` « + » + lib
   `DropdownMenu`; lib 2.3 `DropdownMenu` has no roles nor arrow keys, so `Messaging/use-menu-keyboard.ts` adds them
   (`role="menu"`/`menuitem`, ↑ ↓ Début Fin, Entrée / Espace, Échap / Tab close, focus back to the trigger before a
   dialog reads its opener). `ConversationSearch` = lib `SearchField`; `MessagingConversationItem` = truncated name /

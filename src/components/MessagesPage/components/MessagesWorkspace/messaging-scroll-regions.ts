@@ -4,7 +4,7 @@ export function prepareMessagingScrollRegions(container: HTMLDivElement | null) 
   if (!container) return;
 
   const regions = [
-    ['.messages-module > aside > div:last-child', 'Conversations'],
+    ['.messages-module > [data-messaging-sidebar] > div:last-child', 'Conversations'],
     ['.messages-module > div:nth-child(2) > .flex-1', 'Messages de la conversation'],
   ] as const;
 
