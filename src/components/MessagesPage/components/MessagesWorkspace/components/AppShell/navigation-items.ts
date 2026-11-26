@@ -8,7 +8,7 @@ export function totalUnread(conversations: ReadonlyArray<{ unreadCount?: number 
 
 /**
  * The lib navigation with the unread total on « Messagerie » (MAIR-844, MAIR-1156): the lib 2.3 `count`, shown
- * with its `Counter` (« 9+ » above nine) and named « Messagerie, N à traiter ». Administration stays `adminOnly`
+ * with its `Counter` (« 9+ » above nine) and named « Messagerie N à traiter » (visible text included, RGAA 11.9). Administration stays `adminOnly`
  * (shown by role), there is no Workflows item.
  */
 export function navigationItems(unreadCount: number): SidebarItem[] {

@@ -52,7 +52,7 @@ test('actual messaging desktop navigation lists the active modules without local
   assert.deepEqual(buttons.map((button) => button.querySelector('.app-navigation-label').textContent), ['Tableau de bord', 'Projets', 'Messagerie', 'Formation', 'Calendrier', 'Administration', 'Paramètres']);
   // MAIR-844 / MAIR-1156: « Messagerie » is the active entry and carries the unread total of the fixtures in the lib Counter.
   const active = navigation.querySelector('nav button[aria-current="page"]');
-  assert.match(active.getAttribute('aria-label'), /^Messagerie, (\d|plus de 9) à traiter$/);
+  assert.match(active.getAttribute('aria-label'), /^Messagerie (\d|9\+) à traiter$/);
   assert.ok(active.querySelector('.app-navigation-badge'), 'the lib Counter is rendered');
 });
 
