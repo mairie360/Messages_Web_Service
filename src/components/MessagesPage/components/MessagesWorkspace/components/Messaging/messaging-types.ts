@@ -87,7 +87,7 @@ export interface MessagingMessage {
   text?: string;
   /** MAIR-1167: the message this one answers (`citation`) and its author and excerpt (`quoted`). */
   citation?: MessagingContactId;
-  quoted?: { id: MessagingContactId; authorId?: MessagingContactId; authorName?: string; excerpt: string };
+  quoted?: { id: MessagingContactId; authorId?: MessagingContactId; authorName?: string; excerpt?: string; deleted?: boolean };
   /** MAIR-1168: last edit of the content. */
   editedAt?: string;
   /** MAIR-1169: a deleted message (tombstone): no content, no tag, no reaction, no action. */

@@ -123,7 +123,7 @@ export const MessagingMessageBubble = ({
       onPointerUp={hasActions ? stopPress : undefined}
       onPointerLeave={hasActions ? stopPress : undefined}
       onBlur={hasActions ? event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setActionsOpen(false); } : undefined}
-      className={joinClasses('group/bubble flex w-full flex-col rounded-md data-[revealed]:bg-[var(--mairie-accent-surface)] motion-safe:transition-colors', outgoing ? 'items-end' : 'items-start', className)}
+      className={joinClasses('group/bubble relative flex w-full flex-col rounded-md data-[revealed]:bg-[var(--mairie-accent-surface)] motion-safe:transition-colors', outgoing ? 'items-end' : 'items-start', className)}
       {...props}
     >
       {/* MAIR-1159: the time sits above the bubble, right-aligned for my messages. */}
@@ -141,7 +141,8 @@ export const MessagingMessageBubble = ({
         <MessageQuote
           authorName={message.quoted?.authorName}
           excerpt={message.quoted?.excerpt}
-          deleted={quoteDeleted || !message.quoted}
+          // « Message supprimé » only when the quoted message is known to be deleted (BFF flag or deletion seen here).
+          deleted={quoteDeleted || message.quoted?.deleted === true}
           outgoing={outgoing}
           onOpen={onOpenQuote ? () => onOpenQuote(message.citation!) : undefined}
         />

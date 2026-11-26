@@ -54,7 +54,8 @@ export const MessagingChatHeader = ({
         className={joinClasses('flex min-h-[78px] items-center border-b border-[var(--mairie-border)] bg-[var(--mairie-surface)] px-4', className)}
         {...props}
       >
-        <Text as="p" size="l" weight="semibold">Sélectionnez une conversation</Text>
+        {/* RGAA 9.1: the thread title is the h2 under the page h1, so the empty states (h3) follow it in order. */}
+        <Text as="h2" size="l" weight="semibold">Sélectionnez une conversation</Text>
       </div>
     );
   }

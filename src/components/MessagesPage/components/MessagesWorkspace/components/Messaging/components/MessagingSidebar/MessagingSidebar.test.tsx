@@ -24,3 +24,10 @@ it('MAIR-1157 filters people, groups and services as the agent types and says wh
   await user.clear(search); await user.type(search, 'zzz');
   expect(screen.getByText('Aucune conversation trouvée.')).toBeVisible();
 });
+
+it('MAIR-1225 RGAA 9.2: the list is no complementary landmark nested in the main area', () => {
+  const { container } = render(<main><MessagingSidebar conversations={[{ id: 1, name: 'Élodie' }]} /></main>);
+  expect(screen.queryByRole('complementary')).toBeNull();
+  expect(container.querySelector('aside')).toBeNull();
+  expect(container.querySelector('[data-messaging-sidebar]')).not.toBeNull();
+});

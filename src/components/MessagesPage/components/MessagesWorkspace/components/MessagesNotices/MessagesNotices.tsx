@@ -18,12 +18,14 @@ type MessagesNoticesProps = {
 export function MessagesNotices({ deletingConversation, error, onDismissError, syncError, pendingText }: MessagesNoticesProps) {
   return (
     <>
-      {deletingConversation && (
-        <Alert tone="info" size="s" role="status" title="Suppression de la conversation en cours…" className="shrink-0" />
-      )}
+      {/* RGAA 7.5: the statuses go into a live region mounted before them, so their text is announced (a region
+          inserted together with its message is not). `empty:-mb-3` cancels the stack gap while it is empty. */}
+      <div role="status" aria-live="polite" data-messages-status="" className="flex shrink-0 flex-col gap-3 empty:-mb-3">
+        {deletingConversation && <Alert tone="info" size="s" role="none" title="Suppression de la conversation en cours…" />}
+        {pendingText && <Alert tone="info" size="s" role="none" title={pendingText} />}
+      </div>
       {error && <ErrorAlert size="s" title={error} onDismiss={onDismissError} className="shrink-0" />}
       {syncError && <ErrorAlert size="s" title={syncError} className="shrink-0" />}
-      {pendingText && <Alert tone="info" size="s" role="status" title={pendingText} className="shrink-0" />}
     </>
   );
 }

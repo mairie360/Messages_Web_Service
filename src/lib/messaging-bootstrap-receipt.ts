@@ -11,7 +11,7 @@ const dto8 = record({ "id": union(text, number), "name": text, "size": optional(
 const dto9 = choice(["incoming", "outgoing"]);
 const dto11 = choice(["direct", "group"]);
 const dto10 = record({ "description": optional(text), "id": union(text, number), "kind": optional(dto11), "name": text });
-const dto12 = record({ "authorId": optional(union(text, number)), "authorName": optional(text), "excerpt": text, "id": union(text, number) });
+const dto12 = record({ "authorId": optional(union(text, number)), "authorName": optional(text), "deleted": boolean, "excerpt": optional(text), "id": union(text, number) });
 // MAIR-1154: messaging V2 fields (system notes, edits, tombstones, tags, reactions).
 const dto13 = record({ "action": choice(["members_added", "member_removed", "member_left"]), "actorId": union(text, number), "actorName": optional(text), "userIds": list(union(text, number)), "userNames": list(text) });
 const dto14 = record({ "id": union(text, number), "name": optional(text) });

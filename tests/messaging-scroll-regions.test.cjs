@@ -18,7 +18,7 @@ test('both published messaging scroll panes are keyboard reachable and named', (
   prepareMessagingScrollRegions(container);
 
   assert.deepEqual([...regions.entries()].map(([selector, region]) => [selector, region.tabIndex, region.attributes]), [
-    ['.messages-module > aside > div:last-child', 0, { role: 'region', 'aria-label': 'Conversations' }],
+    ['.messages-module > [data-messaging-sidebar] > div:last-child', 0, { role: 'region', 'aria-label': 'Conversations' }],
     ['.messages-module > div:nth-child(2) > .flex-1', 0, { role: 'region', 'aria-label': 'Messages de la conversation' }],
   ]);
 });

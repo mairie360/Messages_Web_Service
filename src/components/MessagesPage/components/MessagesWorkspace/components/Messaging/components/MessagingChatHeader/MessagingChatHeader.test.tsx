@@ -33,3 +33,11 @@ describe('MessagingChatHeader empty state', () => {
     expect(title.className).not.toContain('text-sm');
   });
 });
+
+it('MAIR-1225 RGAA 9.1: the thread title is an h2 under the page h1, with or without a conversation', () => {
+  const { rerender } = render(<MessagingChatHeader conversation={{ id: 1, name: 'Équipe accueil' }} />);
+  expect(screen.getByRole('heading', { level: 2, name: 'Équipe accueil' })).toBeVisible();
+  rerender(<MessagingChatHeader conversation={null} />);
+  expect(screen.getByRole('heading', { level: 2, name: 'Sélectionnez une conversation' })).toBeVisible();
+  expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
+});

@@ -31,7 +31,9 @@ export const MessageActionsToolbar = ({ open = false, outgoing, onReact, onReply
       role="toolbar"
       aria-label="Actions du message"
       data-open={open || undefined}
-      className={`flex gap-0.5 rounded-md border border-[var(--mairie-border)] bg-[var(--mairie-surface)] p-0.5 shadow-[var(--mairie-shadow)] opacity-0 transition-opacity group-hover/bubble:opacity-100 group-focus-within/bubble:opacity-100 data-[open]:opacity-100 ${outgoing ? 'mr-1 self-end' : 'ml-1'}`}
+      // Overlaid on the top corner of the message: it never pushes the next messages, and its tooltips open above it,
+      // over the time line, not over the text.
+      className={`absolute top-0 z-10 flex -translate-y-1/2 gap-0.5 rounded-md border border-[var(--mairie-border)] bg-[var(--mairie-surface)] p-0.5 shadow-[var(--mairie-shadow)] opacity-0 transition-opacity group-hover/bubble:opacity-100 group-focus-within/bubble:opacity-100 data-[open]:opacity-100 ${outgoing ? 'right-1' : 'left-1'}`}
     >
       {onReact && <ToolbarButton label="Réagir" icon={icons['smile-plus']} onClick={onReact} />}
       {onReply && <ToolbarButton label="Répondre" icon={icons['corner-up-left']} onClick={onReply} />}

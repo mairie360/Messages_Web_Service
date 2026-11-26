@@ -1,7 +1,7 @@
 /*
- * Module geometry only (MAIR-838). The frame, its typography and the main area
- * (full height, no overflow, 20px / 24px padding) come from lib-components 2:
- * AppShell renders with mainLayout="fill" and no rule here targets its DOM.
+ * Module geometry only. The frame, its typography and the main area (full height, no overflow) come from
+ * lib-components 2: AppShell renders with mainLayout="fill" and no rule here targets its DOM. The collapsible
+ * shell of lib 2.5 gives the main area no padding, so the module keeps its 20px / 24px inset here.
  */
 .messages-main-inner {
   display: flex;
@@ -11,6 +11,7 @@
   min-height: 0;
   max-width: none;
   margin: 0 auto;
+  padding: 20px 24px;
 }
 
 .messages-module-frame > .messages-module {
@@ -51,11 +52,11 @@
   display: none;
 }
 
-.messages-module > aside {
+.messages-module > [data-messaging-sidebar] {
   min-width: 0;
 }
 
-.messages-module > aside > div:last-child,
+.messages-module > [data-messaging-sidebar] > div:last-child,
 .messages-module > div:nth-child(2) > .flex-1 {
   min-height: 0;
   overscroll-behavior: contain;
@@ -110,11 +111,11 @@
     outline-offset: 2px;
   }
 
-  .messages-module > aside {
+  .messages-module > [data-messaging-sidebar] {
     display: none;
   }
 
-  .messages-list-open .messages-module > aside {
+  .messages-list-open .messages-module > [data-messaging-sidebar] {
     display: flex;
   }
 
@@ -124,11 +125,11 @@
 }
 
 @media (max-width: 767px) {
-  .messages-module > aside {
+  .messages-module > [data-messaging-sidebar] {
     padding: 12px;
   }
 
-  .messages-module > aside > label {
+  .messages-module > [data-messaging-sidebar] > label {
     margin-top: 8px;
   }
 }

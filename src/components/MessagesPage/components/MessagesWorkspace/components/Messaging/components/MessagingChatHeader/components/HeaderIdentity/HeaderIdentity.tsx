@@ -25,7 +25,7 @@ export const HeaderIdentity = ({ conversation }: { conversation: MessagingConver
         size="lg"
       />
       <div className="min-w-0">
-        <h3 className="truncate text-base font-semibold leading-6">{conversation.name}</h3>
+        <h2 className="truncate text-base font-semibold leading-6">{conversation.name}</h2>
         {meta && <p className="truncate text-sm leading-5 text-[var(--mairie-muted)]">{meta}</p>}
       </div>
     </div>

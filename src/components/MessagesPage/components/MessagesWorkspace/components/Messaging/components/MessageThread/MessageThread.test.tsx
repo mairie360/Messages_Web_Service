@@ -171,3 +171,18 @@ describe('MessageThread unread reading (MAIR-1160)', () => {
     expect(onRead).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('MAIR-1225 quotes', () => {
+  it('quotes the loaded message a reply answers when the BFF sent no quote, and « Message supprimé » once it is deleted', () => {
+    const original = { id: 'm1', content: 'Bonjour à tous', text: 'Bonjour à tous', authorName: 'Sophie', direction: 'incoming' as const };
+    const reply = { id: 'm2', content: 'Merci', direction: 'outgoing' as const, citation: 'm1' };
+    const { rerender } = render(<MessageThread hasConversation messages={[original, reply]} {...threadProps} />);
+    const quote = document.querySelector('[data-messaging-message-id="m2"] [data-message-quote]');
+    expect(quote).toHaveTextContent('Sophie');
+    expect(quote).toHaveTextContent('Bonjour à tous');
+    expect(quote).not.toHaveTextContent('Message supprimé');
+    rerender(<MessageThread hasConversation messages={[{ ...original, deleted: true }, reply]} {...threadProps} />);
+    expect(document.querySelector('[data-messaging-message-id="m2"] [data-message-quote]')).toHaveTextContent('Message supprimé');
+  });
+});
+

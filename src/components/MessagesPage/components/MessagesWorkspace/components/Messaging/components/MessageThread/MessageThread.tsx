@@ -6,6 +6,7 @@ import { NewMessagesSeparator } from './components/NewMessagesSeparator';
 import { SystemNote } from './components/SystemNote';
 import { UnreadMessagesPill } from './components/UnreadMessagesPill';
 import { useUnreadTracking } from './use-unread-tracking';
+import { messageExcerpt } from '../../messaging-model';
 import type { MessagingAttachment, MessagingBusinessReference, MessagingContactId, MessagingEditPayload, MessagingMention, MessagingMessage, MessagingTagSuggestionSources } from '../../messaging-types';
 
 export interface MessageThreadProps {
@@ -82,6 +83,16 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
 }, ref) => {
   // MAIR-1167: a quote of a loaded message that was deleted reads « Message supprimé ».
   const deletedIds = React.useMemo(() => new Set(messages.filter((message) => message.deleted).map((message) => String(message.id))), [messages]);
+  const byId = React.useMemo(() => new Map(messages.map((message) => [String(message.id), message])), [messages]);
+  // A reply the BFF sent without its quote (a reply just sent through an older BFF) quotes the loaded message it
+  // answers, never « Message supprimé ».
+  const withQuote = (message: MessagingMessage): MessagingMessage => {
+    if (message.citation === undefined || message.quoted) return message;
+    const cited = byId.get(String(message.citation));
+    return cited && !cited.deleted
+      ? { ...message, quoted: { id: cited.id, authorId: cited.authorId, authorName: cited.authorName, excerpt: messageExcerpt(cited) } }
+      : message;
+  };
   const region = React.useRef<HTMLDivElement | null>(null);
   const setRegion = React.useCallback((node: HTMLDivElement | null) => {
     region.current = node;
@@ -113,7 +124,7 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
                 <SystemNote message={message} currentUserId={currentUserId} data-messaging-message-id={String(message.id)} />
               ) : <MessagingMessageBubble
                 onAttachmentDownload={onAttachmentDownload}
-                message={message}
+                message={withQuote(message)}
                 data-messaging-message-id={String(message.id)}
                 mentionOptions={mentionOptions}
                 businessReferenceOptions={businessReferenceOptions}
