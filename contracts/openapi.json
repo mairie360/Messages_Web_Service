@@ -4354,6 +4354,132 @@
         ],
         "type": "string"
       },
+      "GetSearchParams": {
+        "properties": {
+          "limit": {
+            "maximum": 20,
+            "minimum": 1,
+            "type": "number"
+          },
+          "q": {
+            "maxLength": 100,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "q"
+        ],
+        "type": "object"
+      },
+      "GlobalSearchResponse": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/GlobalSearchResponseGroupsItem"
+            },
+            "type": "array"
+          },
+          "unavailable": {
+            "items": {
+              "$ref": "#/components/schemas/GlobalSearchResponseUnavailableItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "groups",
+          "unavailable"
+        ],
+        "type": "object"
+      },
+      "GlobalSearchResponseGroupsItem": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GlobalSearchResponseGroupsItemItemsItem"
+            },
+            "type": "array"
+          },
+          "module": {
+            "$ref": "#/components/schemas/GlobalSearchResponseGroupsItemModule"
+          }
+        },
+        "required": [
+          "module",
+          "items"
+        ],
+        "type": "object"
+      },
+      "GlobalSearchResponseGroupsItemItemsItem": {
+        "properties": {
+          "excerpt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GlobalSearchResponseGroupsItemItemsItemKind"
+          },
+          "parent_id": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "title",
+          "excerpt",
+          "parent_id",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "GlobalSearchResponseGroupsItemItemsItemKind": {
+        "enum": [
+          "agent",
+          "project",
+          "task",
+          "event",
+          "conversation",
+          "message",
+          "course"
+        ],
+        "type": "string"
+      },
+      "GlobalSearchResponseGroupsItemModule": {
+        "enum": [
+          "agents",
+          "projects",
+          "calendar",
+          "messages",
+          "elearning"
+        ],
+        "type": "string"
+      },
+      "GlobalSearchResponseUnavailableItem": {
+        "enum": [
+          "agents",
+          "projects",
+          "calendar",
+          "messages",
+          "elearning"
+        ],
+        "type": "string"
+      },
       "GroupMentionDtoSchema": {
         "properties": {
           "id": {
@@ -9417,7 +9543,7 @@
   "info": {
     "title": "bff_message",
     "version": "1.0.0",
-    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-dev.a32c2d3decad4b8eba8489f8228484e7244559e3"
+    "x-source-package": "@mairie360/bff-message-openapi@0.0.0-dev.c60ef953e6186ed1a7a0945afd94f5b99eca22ae"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -10328,6 +10454,45 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetMessagingBootstrap200"
+                }
+              }
+            },
+            "description": "Succès (seul statut typé par orval)"
+          }
+        }
+      }
+    },
+    "/search": {
+      "get": {
+        "operationId": "getSearch",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 2,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 20,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalSearchResponse"
                 }
               }
             },

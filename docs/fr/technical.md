@@ -41,6 +41,21 @@ les URL runtime des modules actifs sont transmises ; les destinations invalides
 sont omises. Aucun changement d’appel ni de contrat BFF. Un paquet publié de
 `@mairie360/lib-components` exportant `AppShell` est nécessaire avant déploiement.
 
+## Recherche globale de l'en-tête partagé
+
+`AppShell` passe `searchSource={createBffSearchSource()}` (lib `@mairie360/lib-components/shell`, créé une fois au
+niveau du module) à l'`AccessibleShell` de la lib : le champ de l'en-tête appelle `GET /search?q=<terme>` sur la même
+origine, que le proxy du contrat relaie à BFF_Message avec la session (la route est dans `contracts/openapi.json`
+depuis le paquet dev `@mairie360/bff-message-openapi` de la recherche globale). La lib construit le lien de chaque
+résultat à partir des destinations du shell (`hrefs`, `messages` = cette page) et le suit par une navigation complète.
+Sur cette page, `messagingUrlSchema` lit `conversation` et `message` ; `messagingUrlTarget`
+(`src/lib/messaging-page-query.ts`) transforme les numéros d'un lien de recherche en identifiants publics
+(`5` → `conversation-5`, `7` → `message-7`), pour la première lecture serveur (`serverMessagingSelection`), le
+bootstrap client et l'effet d'URL du contrôleur. Une fois le fil confirmé de cette conversation affiché, le contrôleur
+passe `revealMessageId` à `Messaging`, qui appelle `revealMessage` (défilement, surlignage `data-revealed`, focus)
+après le placement du fil, puis `onMessageRevealed` retire `message` de l'URL (`replace`), trouvé ou non. Choisir une
+autre conversation le retire aussi.
+
 ## Profil centralisé dans Settings — lot MAIR-180
 
 Les requêtes authentifiées vers `/profile` et ses sous-chemins redirigent (307)

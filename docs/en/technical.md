@@ -39,6 +39,20 @@ of active modules are supplied; invalid frontend destinations are omitted.
 No BFF call or contract changes. This frontend requires a published
 `@mairie360/lib-components` release exporting `AppShell` before deployment.
 
+## Global search of the shared header
+
+`AppShell` passes `searchSource={createBffSearchSource()}` (lib `@mairie360/lib-components/shell`, created once at
+module level) to the lib `AccessibleShell`: the header field calls the same-origin `GET /search?q=<term>`, which the
+contract proxy relays to BFF_Message with the session (the route is in `contracts/openapi.json` since the
+`@mairie360/bff-message-openapi` dev package of the global search). The lib builds each result's link from the shell
+destinations (`hrefs`, `messages` = this page) and follows it with a full navigation. On this page,
+`messagingUrlSchema` reads `conversation` and `message`; `messagingUrlTarget` (`src/lib/messaging-page-query.ts`)
+turns the bare numbers of a search link into public ids (`5` → `conversation-5`, `7` → `message-7`), for the server
+first read (`serverMessagingSelection`), the client bootstrap and the URL effect of the controller. Once the
+confirmed thread of that conversation is shown, the controller passes `revealMessageId` to `Messaging`, which calls
+`revealMessage` (scroll, `data-revealed` highlight, focus) after the thread placed itself, then `onMessageRevealed`
+drops `message` from the URL (`replace`), found or not. Choosing another conversation clears it too.
+
 ## Settings account destination — MAIR-180 slice
 
 Authenticated requests to `/profile` and its subpaths redirect (307) in

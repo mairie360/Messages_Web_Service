@@ -1917,7 +1917,7 @@ test('MAIR-370: an unrelated successful receipt must not erase the active compos
       message: message(99, 5, 'Retour étranger'),
     },
   }));
-  await view.fire((_props, _text, tag) => tag === 'form', 'onSubmit', { preventDefault() {} });
+  await view.fire((props, _text, tag) => tag === 'form' && props.role !== 'search', 'onSubmit', { preventDefault() {} });
   await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages', 'POST').length === 1 &&
     view.hostElements(props => props.placeholder === 'Tapez votre message...')[0]?.props.disabled === false);
   assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, draft,
@@ -1927,7 +1927,8 @@ test('MAIR-370: an unrelated successful receipt must not erase the active compos
 
 const sendPath = '/conversations/{conversationId}/messages';
 const draftInput = () => view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props;
-const submitComposer = () => view.fire((_props, _text, tag) => tag === 'form', 'onSubmit', { preventDefault() {} });
+// MAIR-1230: the header has its own search form (`role="search"`); the composer form is the other one.
+const submitComposer = () => view.fire((props, _text, tag) => tag === 'form' && props.role !== 'search', 'onSubmit', { preventDefault() {} });
 const unrelatedReceipt = () => swappedModel({ status: 201, body: {
   conversation: conversation(5, 'Fil étranger'), message: message(99, 5, 'Retour étranger'),
 } });

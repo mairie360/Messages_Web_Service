@@ -1,7 +1,7 @@
 'use client';
 
 import { AccessibleShell as SharedAppShell } from "@mairie360/lib-components/shell";
-import { NotificationCenter, type NotificationSource } from "@mairie360/lib-components/shell";
+import { NotificationCenter, createBffSearchSource, type NotificationSource } from "@mairie360/lib-components/shell";
 
 import { Button, ErrorAlert, RetryButton } from "@mairie360/lib-components/primitives";
 import { useState, type MouseEvent, type ReactNode } from "react";
@@ -30,6 +30,9 @@ export type ShellNotifications = {
   source: NotificationSource;
   conversationOf: (href: string) => string | null;
 };
+
+/** Global search of the header: the same-origin `GET /search`, forwarded to BFF_Message by the contract proxy. */
+const searchSource = createBffSearchSource();
 
 /**
  * Bind the BFF-backed session and bounded messaging viewport to the shared shell: lib logo,
@@ -71,6 +74,7 @@ export function AppShell({ activeItem, unreadCount = 0, children, notifications,
       sidebarProps={{ items: navigationItems(unreadCount) }}
       footerProps={{ version, legalLinks: legalLinksFor(frontUrl("LOGIN_FRONT_URL")) }}
       showFooter={false}
+      searchSource={searchSource}
       headerProps={notifications
         ? { notificationCount: notifications.count, onNotificationsClick: () => setNotificationsOpen(true) }
         : undefined}
