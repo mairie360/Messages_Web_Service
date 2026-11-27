@@ -1267,3 +1267,37 @@ describe('Messaging reactions (MAIR-1170)', () => {
     });
   });
 });
+
+describe('Messaging global search target (MAIR-1230)', () => {
+  const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+  const thread = [
+    { id: 'm1', conversationId: 'g1', content: 'Le permis est signé', authorId: 'u3', authorName: 'Sophie Leroy' },
+    { id: 'm2', conversationId: 'g1', content: 'Bravo', authorId: 'me' },
+  ];
+
+  it('MAIR-1230 scrolls to and highlights the message a search link points at, then reports it found', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const onMessageRevealed = vi.fn();
+    render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" revealMessageId="m1" onMessageRevealed={onMessageRevealed} />);
+    await waitFor(() => expect(onMessageRevealed).toHaveBeenCalledWith(true));
+    expect(onMessageRevealed).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect(document.querySelector('[data-messaging-message-id="m1"]')).toHaveAttribute('data-revealed');
+    expect(document.querySelector('[data-messaging-message-id="m2"]')).not.toHaveAttribute('data-revealed');
+  });
+
+  it('MAIR-1230 a message outside the loaded page leaves the conversation open and reports it not found, once', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const onMessageRevealed = vi.fn();
+    const { rerender } = render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" revealMessageId="m-unknown" onMessageRevealed={onMessageRevealed} />);
+    await waitFor(() => expect(onMessageRevealed).toHaveBeenCalledWith(false));
+    rerender(<Messaging conversations={[group]} messages={[...thread]} activeConversationId="g1" revealMessageId="m-unknown" onMessageRevealed={onMessageRevealed} />);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(onMessageRevealed).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(screen.getByText('Le permis est signé')).toBeVisible();
+    expect(document.querySelector('[data-revealed]')).toBeNull();
+  });
+});

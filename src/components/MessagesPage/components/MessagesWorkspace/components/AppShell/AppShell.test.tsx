@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { mairie360LogoSrc } from '@mairie360/lib-components/shell';
 vi.mock('@/lib/auth-session', () => ({ useAuthSession: () => ({ user: { name: 'Agent' }, isAdmin: false }), logoutAndReload: vi.fn() }));
 vi.mock('@/lib/navigation', () => ({ getActiveFrontHrefs: () => ({ messages: '/', calendar: 'https://calendar.example/' }) }));
@@ -89,6 +89,33 @@ describe('AppShell', () => {
     const followed = fireEvent.click(link, { ctrlKey: true });
     expect(followed).toBe(true); // default kept: the browser opens the link (jsdom may log that it cannot navigate)
     expect(onOpenConversation).not.toHaveBeenCalled();
+  });
+
+  it('MAIR-1230 the header search asks GET /search on this origin and links a message to its conversation', async () => {
+    const answer = { groups: [{ module: 'messages', items: [{ kind: 'message', id: 7, title: 'Sophie Leroy', excerpt: 'Le permis est signé', parent_id: 5, updated_at: '2026-11-20T09:30:00.000Z' }] }], unavailable: [] };
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(answer), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      render(<AppShell activeItem="messages"><p>Contenu</p></AppShell>);
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'permis' } });
+      const option = await screen.findByRole('option', { name: /Sophie Leroy/ }, { timeout: 2000 });
+      expect(String(fetchMock.mock.calls[0][0])).toBe('/search?q=permis');
+      expect(option).toHaveAttribute('data-href', '/?conversation=5&message=7');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('MAIR-1230 a failed search says so in the header without breaking the page', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 502 })));
+    try {
+      render(<AppShell activeItem="messages"><p>Contenu</p></AppShell>);
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'permis' } });
+      await waitFor(() => expect(screen.getByText('La recherche est indisponible pour le moment.')).toBeInTheDocument(), { timeout: 2000 });
+      expect(screen.getByText('Contenu')).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('MAIR-844 adds no local class to the lib frame', () => {

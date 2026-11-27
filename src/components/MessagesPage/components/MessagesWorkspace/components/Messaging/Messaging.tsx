@@ -87,6 +87,12 @@ export interface MessagingProps extends React.HTMLAttributes<HTMLElement> {
    */
   onMessageNotLoaded?: (conversation: MessagingConversation, messageId: MessagingContactId) => void;
   /**
+   * A message of the open conversation to reveal (a global search result): the thread moves to it and highlights it
+   * when it is in the loaded page, then `onMessageRevealed` tells whether it was found.
+   */
+  revealMessageId?: MessagingContactId;
+  onMessageRevealed?: (found: boolean) => void;
+  /**
    * MAIR-1165: the members of a group. With it, the header shows the avatar pile of the open group and « Gérer les
    * membres » opens the members panel instead of calling `onManageMembers`.
    */
@@ -148,6 +154,8 @@ export const Messaging = ({
   onMoreActions,
   onSearch,
   onMessageNotLoaded,
+  revealMessageId,
+  onMessageRevealed,
   onLoadMembers,
   onAddMembers,
   onRemoveMember,
@@ -235,6 +243,17 @@ export const Messaging = ({
       if (!revealMessage(messageRegionRef.current, messageId) && conversation) onMessageNotLoaded?.(conversation, messageId);
     }, 0);
   };
+  // A message asked for by the page (global search link): revealed after the thread has placed itself at opening.
+  // A message that is not in the loaded page leaves the conversation open as it is.
+  const revealedRef = React.useRef(onMessageRevealed);
+  React.useEffect(() => { revealedRef.current = onMessageRevealed; });
+  const revealKey = revealMessageId === undefined || revealMessageId === '' || !activeKey ? null : `${activeKey}:${revealMessageId}`;
+  React.useEffect(() => {
+    if (revealKey === null || revealMessageId === undefined) return undefined;
+    const timer = setTimeout(() => { revealedRef.current?.(revealMessage(messageRegionRef.current, revealMessageId)); }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one reveal per conversation and message
+  }, [revealKey]);
   // MAIR-1165: members of the open group, read when the panel opens and again when the size of the group changes
   // while it is open (a change made here or by someone else); the header keeps the last ones read.
   const [membersOpen, setMembersOpen] = React.useState(false);

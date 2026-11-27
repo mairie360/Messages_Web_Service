@@ -28,7 +28,7 @@ import type { MessageStreamState } from '../../lib/message-stream';
 import { receiveMessageSocket, socketSupported } from '../../lib/message-socket';
 import { useMentionNotifications } from './use-mention-notifications';
 import { readPageUrlState } from '../../lib/page-url-state';
-import { messagingUrlSchema } from '../../lib/messaging-page-query';
+import { messagingUrlSchema, messagingUrlTarget } from '../../lib/messaging-page-query';
 import { CONTEXT_REMOVED, CONTEXT_UNAVAILABLE, withContextLink, type MessagingFeedback } from '../../lib/messaging-context';
 import { readInitialMessagingPage, MESSAGES_INITIAL_UNAVAILABLE, type InitialMessagingPage } from '../../lib/messaging-bootstrap-receipt';
 import { usePageUrlState } from '../../lib/use-page-url-state';
@@ -140,6 +140,13 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   const hasConfirmedMessages = messages.some(message => idsMatch(message.conversationId, activeConversationId));
   const selectionPending = pendingSelection !== null && idsMatch(pendingSelection, activeConversationId);
   const selectedName = selectedConversation?.name ?? "la conversation";
+  // `?conversation=<c>&message=<m>` (global search): the message is revealed once that conversation is shown, then
+  // dropped from the URL whether it was in the loaded page or not.
+  const urlTarget = messagingUrlTarget(pageUrl.state);
+  const revealMessageId = hasConfirmedThread && !selectionPending && urlTarget.message !== '' &&
+    urlTarget.conversation !== '' && idsMatch(urlTarget.conversation, activeConversationId) ? urlTarget.message : '';
+  const { update: updatePageUrl } = pageUrl;
+  const messageRevealed = useCallback(() => updatePageUrl({ message: '' }, 'replace'), [updatePageUrl]);
   const threadPlaceholder = selectionPending
     ? `Chargement des messages de ${selectedName}…`
     : `Les messages de ${selectedName} sont indisponibles. Sélectionnez ce fil pour réessayer.`;
@@ -186,7 +193,7 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
       if (!isCurrent()) return;
 
       const firstConversationId = bootstrap.conversations[0]?.id ?? "";
-      const requestedConversationId = readPageUrlState(window.location.search, messagingUrlSchema).conversation;
+      const requestedConversationId = messagingUrlTarget(readPageUrlState(window.location.search, messagingUrlSchema)).conversation;
       let selectedId = bootstrap.activeConversationId ?? firstConversationId;
       defaultConversationRef.current = selectedId;
       lastUrlConversation.current = requestedConversationId;
@@ -521,7 +528,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   const loadConversationMessages = async (conversationId: MessagingContactId, { fromHistory = false } = {}) => {
     if (navigationStartedRef.current || !bootstrapLifecycleRef.current.mounted) return;
     lastUrlConversation.current = String(conversationId);
-    if (!fromHistory) pageUrl.update({ conversation: String(conversationId) });
+    // A conversation chosen in the page drops the message a search link pointed at.
+    if (!fromHistory) pageUrl.update({ conversation: String(conversationId), message: '' });
     selectionReadRef.current?.abort();
     const controller = new AbortController();
     selectionReadRef.current = controller;
@@ -573,11 +581,11 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
   };
 
   useEffect(() => {
-    if (!pageUrl.ready || loading || !currentUser || pageUrl.state.conversation === lastUrlConversation.current) return;
-    lastUrlConversation.current = pageUrl.state.conversation;
-    const target = pageUrl.state.conversation || (conversations.some(conversation => idsMatch(conversation.id, defaultConversationRef.current)) ? defaultConversationRef.current : conversations[0]?.id ?? '');
+    if (!pageUrl.ready || loading || !currentUser || urlTarget.conversation === lastUrlConversation.current) return;
+    lastUrlConversation.current = urlTarget.conversation;
+    const target = urlTarget.conversation || (conversations.some(conversation => idsMatch(conversation.id, defaultConversationRef.current)) ? defaultConversationRef.current : conversations[0]?.id ?? '');
     if (target !== '' && !idsMatch(target, activeConversationRef.current)) void loadConversationMessages(target, { fromHistory: true });
-  }, [pageUrl.ready, pageUrl.state.conversation, loading, currentUser, conversations]);
+  }, [pageUrl.ready, urlTarget.conversation, loading, currentUser, conversations]);
 
   // `?context=project-<n>`: the title comes from the BFF (`#` suggestions, what the agent may read), never from the URL.
   // A project the agent may not read, or a failed read, opens the messaging without a context.
@@ -1103,6 +1111,8 @@ export function useMessagingController({ attachmentPort = pendingAttachmentPort,
     removeContext,
     newMessageRequest,
     hasConfirmedThread,
+    revealMessageId,
+    messageRevealed,
     loadConversationMessages,
     mentionNotifications,
     markConversationRead,

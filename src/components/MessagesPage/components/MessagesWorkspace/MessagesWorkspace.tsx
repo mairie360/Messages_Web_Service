@@ -41,6 +41,8 @@ export function MessagesWorkspace({
   removeContext,
   newMessageRequest,
   hasConfirmedThread,
+  revealMessageId,
+  messageRevealed,
   loadConversationMessages,
   mentionNotifications,
   markConversationRead,
@@ -133,6 +135,8 @@ export function MessagesWorkspace({
                 onCreateGroup={handleCreateGroup}
                 onConversationDelete={deletingConversation || !hasConfirmedThread ? undefined : handleConversationDelete}
                 onSearch={hasConfirmedThread ? handleSearch : undefined}
+                revealMessageId={revealMessageId}
+                onMessageRevealed={messageRevealed}
                 onSuggestMentions={handleSuggestMentions}
                 onSuggestLinks={handleSuggestLinks}
                 onEditMessage={hasConfirmedThread ? handleEditMessage : undefined}
