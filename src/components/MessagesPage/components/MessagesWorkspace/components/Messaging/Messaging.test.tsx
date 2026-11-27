@@ -1287,6 +1287,14 @@ describe('Messaging global search target (MAIR-1230)', () => {
     expect(document.querySelector('[data-messaging-message-id="m2"]')).not.toHaveAttribute('data-revealed');
   });
 
+  it('MAIR-1230 reveals the message even without onMessageRevealed', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="me" revealMessageId="m1" />);
+    await waitFor(() => expect(document.querySelector('[data-messaging-message-id="m1"]')).toHaveAttribute('data-revealed'));
+    expect(scrollIntoView).toHaveBeenCalled();
+  });
+
   it('MAIR-1230 a message outside the loaded page leaves the conversation open and reports it not found, once', async () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;

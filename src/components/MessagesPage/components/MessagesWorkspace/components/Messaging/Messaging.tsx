@@ -250,7 +250,10 @@ export const Messaging = ({
   const revealKey = revealMessageId === undefined || revealMessageId === '' || !activeKey ? null : `${activeKey}:${revealMessageId}`;
   React.useEffect(() => {
     if (revealKey === null || revealMessageId === undefined) return undefined;
-    const timer = setTimeout(() => { revealedRef.current?.(revealMessage(messageRegionRef.current, revealMessageId)); }, 0);
+    const timer = setTimeout(() => {
+      const found = revealMessage(messageRegionRef.current, revealMessageId);
+      revealedRef.current?.(found);
+    }, 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one reveal per conversation and message
   }, [revealKey]);
