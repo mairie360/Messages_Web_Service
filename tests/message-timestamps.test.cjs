@@ -2,7 +2,10 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { execFileSync } = require('node:child_process');
 const { requireSrc, ROOT } = require('./support/load-ts.cjs');
-const { formatMessageTimestamp, presentConversationTimestamps, presentMessageTimestamps } = requireSrc('lib/message-timestamps.ts');
+const {
+  formatMessageTimestamp, formatMessageTime, formatMessageDay, formatConversationTimestamp,
+  presentConversationTimestamps, presentMessageTimestamps,
+} = requireSrc('lib/message-timestamps.ts');
 
 const expected = (value) => new Intl.DateTimeFormat('fr-FR', {
   day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
@@ -58,11 +61,34 @@ test('presentation adapters preserve BFF objects, ordering and non-timestamp fie
     Object.freeze({ id: 'conversation-2', name: 'Accueil', lastMessage: 'À 9 h 05', lastMessageAt: '2026-09-26T12:00:00Z', unreadCount: 3 }),
     Object.freeze({ id: 'conversation-1', name: 'Voirie', lastMessageAt: undefined }),
   ]);
-  assert.deepEqual(presentMessageTimestamps(messages), messages.map(m => ({ ...m, sentAt: formatMessageTimestamp(m.sentAt) })));
-  assert.deepEqual(presentConversationTimestamps(conversations), conversations.map(c => ({ ...c, lastMessageAt: formatMessageTimestamp(c.lastMessageAt) })));
+  // MAIR-1253: the bubble shows the time only, the day goes to the separators and the list shows the day or the time.
+  const now = new Date('2026-09-26T18:00:00Z');
+  assert.deepEqual(presentMessageTimestamps(messages, now), messages.map(m => ({
+    ...m, sentAt: formatMessageTime(m.sentAt), ...(m.sentAt ? { dayLabel: formatMessageDay(m.sentAt, now) } : {}),
+  })));
+  assert.deepEqual(presentConversationTimestamps(conversations, now), conversations.map(c => ({ ...c, lastMessageAt: formatConversationTimestamp(c.lastMessageAt, now) })));
   assert.equal(presentMessageTimestamps(messages)[0].attachments, attachments);
   assert.equal(messages[0].sentAt, '2026-09-26T12:00:00Z');
   assert.equal(conversations[0].lastMessageAt, '2026-09-26T12:00:00Z');
   assert.deepEqual(presentMessageTimestamps([]), []);
   assert.deepEqual(presentConversationTimestamps([]), []);
+});
+
+test('MAIR-1253 a message shows its time, the thread names its day « Aujourd’hui », « Hier » or « 28 oct. »', () => {
+  const now = new Date('2026-11-27T15:00:00Z');
+  const time = (value) => new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }).format(new Date(value));
+  assert.equal(formatMessageTime('2026-11-27T09:05:00Z'), time('2026-11-27T09:05:00Z'));
+  assert.equal(formatMessageDay('2026-11-27T09:05:00Z', now), 'Aujourd’hui');
+  assert.equal(formatMessageDay('2026-11-26T09:05:00Z', now), 'Hier');
+  assert.equal(formatMessageDay('2026-10-28T09:05:00Z', now), new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date('2026-10-28T09:05:00Z')));
+  assert.match(formatMessageDay('2025-10-28T09:05:00Z', now), /2025/);
+  // An unknown label keeps its text and opens no separator.
+  assert.equal(formatMessageDay('Hier', now), undefined);
+  assert.equal(formatMessageTime('9 h 05'), '9:05');
+  // The list: the time of today's last message, the day of an older one.
+  assert.equal(formatConversationTimestamp('2026-11-27T09:05:00Z', now), time('2026-11-27T09:05:00Z'));
+  assert.equal(formatConversationTimestamp('2026-11-26T09:05:00Z', now), 'Hier');
+  assert.equal(formatConversationTimestamp('Lundi', now), 'Lundi');
+  const [shown] = presentMessageTimestamps([{ id: 1, content: 'Bonjour', sentAt: '2026-11-27T09:05:00Z' }], now);
+  assert.equal(shown.dayLabel, 'Aujourd’hui'); assert.equal(shown.sentAt, time('2026-11-27T09:05:00Z'));
 });

@@ -28,10 +28,10 @@ test('MAIR-872 the composer renders lucide glyphs only through the lib Icon, wit
   }
 });
 
-test('MAIR-1158 the composer actions use the explicit lib glyphs (file-up, at-sign, hash, smile-plus, send) on lib icon buttons', () => {
+test('MAIR-1158 MAIR-1253 the composer actions use the artifact lib glyphs (file-up, user-round, link, smile-plus) on lib icon buttons and the lib « Envoyer » button', () => {
   const toolbar = fs.readFileSync(path.join(COMPOSER, 'components/ComposerToolbar/ComposerToolbar.tsx'), 'utf8');
-  for (const glyph of ["icons['file-up']", "icons['at-sign']", 'icons.hash', "icons['smile-plus']"]) assert.ok(toolbar.includes(`icon={${glyph}}`), glyph);
+  for (const glyph of ["icons['file-up']", "icons['user-round']", 'icons.link', "icons['smile-plus']"]) assert.ok(toolbar.includes(`icon={${glyph}}`), glyph);
   assert.doesNotMatch(toolbar, /<button\b/);
   const composer = fs.readFileSync(path.join(COMPOSER, 'MessagingComposer.tsx'), 'utf8');
-  assert.match(composer, /<IconButton type="submit" icon=\{Send\}/);
+  assert.match(composer, /<SendButton type="submit" label=\{sendLabel\}/);
 });

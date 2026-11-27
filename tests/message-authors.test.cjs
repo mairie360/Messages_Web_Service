@@ -33,12 +33,13 @@ test('renders the contract author and preserves mention highlighting and source 
   assert.notEqual(displayed, source);
 });
 
-test('marks only the current user as self and does not infer missing identities', () => {
+test('shows no author on my messages and does not infer missing identities', () => {
   const outgoing = Object.freeze({ id: 'message-2', content: 'Bonjour', authorId: 'user-2', authorName: 'Agent Mairie' });
   const unnamed = Object.freeze({ id: 'message-3', content: 'Sans nom', authorId: 'user-9', authorName: '  ' });
   const [displayedOutgoing, displayedUnnamed] = presentMessageAuthors([outgoing, unnamed], 'user-2', [], []);
 
-  assert.match(render(displayedOutgoing), /Agent Mairie \(vous\)/);
+  // MAIR-1253: my messages show their time only, no author line (the artifact writes no « (vous) »).
+  assert.doesNotMatch(render({ ...displayedOutgoing, direction: 'outgoing' }), /Agent Mairie|data-message-author/);
   assert.equal(displayedUnnamed, unnamed);
   assert.doesNotMatch(render(displayedUnnamed), /data-message-author|Expéditeur inconnu/);
 });

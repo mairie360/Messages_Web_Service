@@ -1,20 +1,21 @@
 /*
- * Module geometry only. The frame, its typography and the main area (full height, no overflow) come from
- * lib-components 2: AppShell renders with mainLayout="fill" and no rule here targets its DOM. The collapsible
- * shell of lib 2.5 gives the main area no padding, so the module keeps its 20px / 24px inset here.
+ * Module geometry only. The frame, its typography and the main area (full height, no overflow, 20px / 24px
+ * inset) come from lib-components 2: AppShell renders with mainLayout="fill" and no rule here targets its DOM.
+ * The card fills the height the main area leaves: each level below it grows, none has a fixed height.
  */
 .messages-main-inner {
   display: flex;
+  flex: 1;
   flex-direction: column;
   width: 100%;
   min-width: 0;
   min-height: 0;
   max-width: none;
   margin: 0 auto;
-  padding: 20px 24px;
 }
 
 .messages-module-frame > .messages-module {
+  flex: 1;
   width: 100%;
   min-width: 0;
   min-height: 0;
@@ -24,6 +25,8 @@
 }
 
 .messages-module-frame {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   flex: 1;
@@ -44,7 +47,7 @@
 
 @media (min-width: 1024px) {
   .messages-module-frame > .messages-module {
-    grid-template-columns: 300px minmax(0, 1fr);
+    grid-template-columns: 320px minmax(0, 1fr);
   }
 }
 

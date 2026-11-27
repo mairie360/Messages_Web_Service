@@ -6,7 +6,7 @@ import { NotificationCenter, createBffSearchSource, type NotificationSource } fr
 import { Button, ErrorAlert, RetryButton } from "@mairie360/lib-components/primitives";
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { navigateToLogin } from '@/lib/logout';
-import { logoutAndReload, useAuthSession, type AuthSession } from '@/lib/auth-session';
+import { logoutAndReload, normalizeAppRole, useAuthSession, type AuthSession, type AuthSessionUser } from '@/lib/auth-session';
 import { getActiveFrontHrefs } from '@/lib/navigation';
 import { frontUrl } from '@/lib/front-urls';
 import { legalLinksFor } from '@/lib/shell-info';
@@ -22,7 +22,29 @@ type AppShellProps = {
   notifications?: ShellNotifications;
   /** Opens a conversation of the page; a bell link to it is followed without reloading the page. */
   onOpenConversation?: (conversationId: string) => void;
+  /**
+   * The signed-in agent read with the messaging bootstrap (server-rendered): the header shows their name and role
+   * from the first paint instead of waiting for the client `GET /me`, which stays the fallback.
+   */
+  currentUser?: ShellUser | null;
 };
+
+/** The fields of the bootstrap's current user the header displays. */
+export type ShellUser = { name?: string; email?: string; role?: string; service?: string; avatarUrl?: string };
+
+/** The header user: the bootstrap's agent when it has a name, otherwise the session read from `GET /me`. */
+export function shellUser(currentUser: ShellUser | null | undefined, session: AuthSession): AuthSessionUser {
+  const name = currentUser?.name?.trim() || currentUser?.email?.trim();
+  if (!currentUser || !name) return session.user;
+  return {
+    ...session.user,
+    name,
+    email: currentUser.email?.trim() || session.user.email,
+    role: currentUser.role?.trim() ? normalizeAppRole(currentUser.role) : session.user.role,
+    service: currentUser.service?.trim() || session.user.service,
+    avatarUrl: currentUser.avatarUrl?.trim() || session.user.avatarUrl,
+  };
+}
 
 /** The header bell of the page: unread count, the lib port, and the conversation a bell link opens. */
 export type ShellNotifications = {
@@ -39,7 +61,7 @@ const searchSource = createBffSearchSource();
  * commune name (MAIR-844). MAIR-1156: the page base of lib 2.3 has no footer (`showFooter={false}`);
  * version and legal links stay passed for a page that would show it.
  */
-export function AppShell({ activeItem, unreadCount = 0, children, notifications, onOpenConversation }: AppShellProps) {
+export function AppShell({ activeItem, unreadCount = 0, children, notifications, onOpenConversation, currentUser }: AppShellProps) {
   const session = useAuthSession();
   const { communeName, version } = useShellInfo();
   const [logoutError, setLogoutError] = useState<string | null>(null);
@@ -66,7 +88,7 @@ export function AppShell({ activeItem, unreadCount = 0, children, notifications,
   return (
     <SharedAppShell
       activeItem={activeItem}
-      user={session.user}
+      user={shellUser(currentUser, session)}
       onLogout={() => void logout()}
       hrefs={{ ...frontHrefs, messages: frontHrefs.messages ?? "/" }}
       mainLayout="fill"

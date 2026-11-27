@@ -224,11 +224,20 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   closes on Échap, Tab or an outside click and gives the focus back to the « + » (`use-menu-keyboard.ts`, shared with
   the header menu). « Rechercher une conversation » is the lib `SearchField` filtering as the agent types (name,
   group, service); without result, « Aucune conversation trouvée. ». Each line shows the lib `Avatar` (photo or
-  initials, groups included) with its presence dot, the name and the preview truncated on one line, the time in a
-  fixed right column and the unread lib `Counter` (« 9+ »), spoken as « N messages non lus ».
+  initials, groups included, colour derived from the name) with its presence dot, then the full name, the service
+  (« Groupe · N membres » for a group) and the preview, each on one line, and on the right the time (today) or the day
+  (« Hier », « 28 oct. ») above the unread lib `Counter` (« 9+ »), spoken as « N messages non lus ». The list column is
+  320 px wide and the card fills the height of the page.
+- **Thread and composer (artifact).** A day separator (« Aujourd’hui », « Hier », « 28 oct. ») opens each day; a
+  received message shows the author's avatar on the left and their name before the time (mine: the time only). The
+  header of a group shows « Groupe · N membres » and the avatars of the people who wrote in the thread with the count
+  (the members list once the panel was opened). The composer field reads « Écrire un message à <nom>… (@ pour
+  mentionner, # pour lier un élément) », the bar below holds file / mention (`user-round`) / link (`link`) / emoji
+  then the lib `SendButton` « Envoyer ». The header shows the agent of the bootstrap (name and role) from the first
+  render.
 - **Explicit icons (MAIR-1158).** Every icon goes through the lib `Icon` (lib 2.3 `icons` for the Messagerie
-  glyphs). Composer: « Joindre un fichier » `file-up`, « Mentionner une personne » `at-sign`, « Lier un élément »
-  `hash`, « Insérer un emoji » `smile-plus`, « Envoyer » `send`, each a lib `IconButton` with its `ToolTip`. Header:
+  glyphs). Composer: « Joindre un fichier » `file-up`, « Mentionner une personne » `user-round`, « Lier un élément »
+  `link`, « Insérer un emoji » `smile-plus`, each a lib `IconButton` with its `ToolTip`, then « Envoyer » (lib `SendButton`). Header:
   « Appeler » `phone` and « Lancer une visio » `video` are shown unavailable (`aria-disabled`, still focusable,
   tooltip « … · bientôt disponible »), « Rechercher dans la conversation » `text-search` only when wired, « Plus
   d'actions » `more-horizontal`. Menus: `check-check`, `trash`, `message-square-plus`, `users`. Linked elements:

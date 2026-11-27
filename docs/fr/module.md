@@ -231,13 +231,22 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   ↓, se parcourt avec ↑ ↓ Début Fin, se ferme avec Échap, Tab ou un clic à l'extérieur et rend le focus au « + »
   (`use-menu-keyboard.ts`, partagé avec le menu de l'en-tête). « Rechercher une conversation » est le `SearchField`
   de la lib qui filtre au fil de la saisie (nom, groupe, service) ; sans résultat, « Aucune conversation trouvée. ».
-  Chaque ligne affiche l'`Avatar` de la lib (photo ou initiales, groupes compris) avec sa pastille de présence, le nom
-  et l'aperçu tronqués sur une ligne, l'heure dans une colonne fixe à droite et le `Counter` des non-lus de la lib
-  (« 9+ »), lu « N messages non lus ».
+  Chaque ligne affiche l'`Avatar` de la lib (photo ou initiales, groupes compris, couleur tirée du nom) avec sa
+  pastille de présence, puis le nom complet, le service (« Groupe · N membres » pour un groupe) et l'aperçu, chacun sur
+  une ligne, et à droite l'heure (aujourd'hui) ou le jour (« Hier », « 28 oct. ») au-dessus du `Counter` des non-lus
+  de la lib (« 9+ »), lu « N messages non lus ». La colonne de la liste mesure 320 px et la carte occupe toute la
+  hauteur de la page.
+- **Fil et saisie (artefact).** Un séparateur de jour (« Aujourd’hui », « Hier », « 28 oct. ») ouvre chaque journée ;
+  un message reçu affiche l'avatar de son auteur à gauche et son nom avant l'heure (les miens : l'heure seule).
+  L'en-tête d'un groupe affiche « Groupe · N membres » et les avatars des personnes qui ont écrit dans le fil avec le
+  nombre (la liste des membres une fois le panneau ouvert). Le champ affiche « Écrire un message à <nom>… (@ pour
+  mentionner, # pour lier un élément) », la barre dessous porte fichier / mention (`user-round`) / lien (`link`) /
+  emoji puis le `SendButton` « Envoyer » de la lib. L'en-tête montre l'agent du bootstrap (nom et rôle) dès le
+  premier rendu.
 - **Icônes explicites (MAIR-1158).** Toutes les icônes passent par `Icon` de la lib (`icons` de la lib 2.3 pour les
-  glyphes de la messagerie). Saisie : « Joindre un fichier » `file-up`, « Mentionner une personne » `at-sign`, « Lier
-  un élément » `hash`, « Insérer un emoji » `smile-plus`, « Envoyer » `send`, chacun un `IconButton` de la lib avec
-  son `ToolTip`. En-tête : « Appeler » `phone` et « Lancer une visio » `video` sont affichés indisponibles
+  glyphes de la messagerie). Saisie : « Joindre un fichier » `file-up`, « Mentionner une personne » `user-round`, « Lier
+  un élément » `link`, « Insérer un emoji » `smile-plus`, chacun un `IconButton` de la lib avec son `ToolTip`, puis
+  « Envoyer » (`SendButton` de la lib). En-tête : « Appeler » `phone` et « Lancer une visio » `video` sont affichés indisponibles
   (`aria-disabled`, toujours atteignables au clavier, infobulle « … · bientôt disponible »), « Rechercher dans la
   conversation » `text-search` seulement s'il est branché, « Plus d'actions » `more-horizontal`. Menus :
   `check-check`, `trash`, `message-square-plus`, `users`. Éléments liés : projet `folder-kanban`, tâche

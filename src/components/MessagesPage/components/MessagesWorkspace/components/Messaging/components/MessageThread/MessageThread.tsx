@@ -1,6 +1,7 @@
 import React from 'react';
 import { DataState, Text } from '@mairie360/lib-components/primitives';
 
+import { DaySeparator } from './components/DaySeparator';
 import { MessagingMessageBubble } from './components/MessagingMessageBubble';
 import { NewMessagesSeparator } from './components/NewMessagesSeparator';
 import { SystemNote } from './components/SystemNote';
@@ -117,8 +118,9 @@ export const MessageThread = React.forwardRef<HTMLDivElement, MessageThreadProps
         ? <ThreadPlaceholder>{emptyStateLabel ?? defaultThreadState(conversationCount)}</ThreadPlaceholder>
         : messages.length === 0 && pendingMessages.length === 0
           ? <ThreadPlaceholder><DataState state="empty" size="s" title="Aucun message pour l’instant" /></ThreadPlaceholder>
-          : messages.map((message) => (
+          : messages.map((message, index) => (
             <React.Fragment key={message.id}>
+              {message.dayLabel && message.dayLabel !== messages[index - 1]?.dayLabel && <DaySeparator label={message.dayLabel} />}
               {tracking.separatorBeforeId === String(message.id) && <NewMessagesSeparator />}
               {message.kind === 'system' ? (
                 <SystemNote message={message} currentUserId={currentUserId} data-messaging-message-id={String(message.id)} />

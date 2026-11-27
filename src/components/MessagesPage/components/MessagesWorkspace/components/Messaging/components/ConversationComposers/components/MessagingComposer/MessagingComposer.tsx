@@ -1,6 +1,5 @@
 import React from 'react';
-import { Send } from 'lucide-react';
-import { IconButton, ToolTip } from '@mairie360/lib-components/primitives';
+import { SendButton } from '@mairie360/lib-components/primitives';
 
 import { joinClasses } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-style';
 import { ComposerAttachmentChips } from './components/ComposerAttachmentChips';
@@ -42,7 +41,7 @@ export interface MessagingComposerProps extends React.HTMLAttributes<HTMLFormEle
 export const MessagingComposer = ({
   value,
   defaultValue = '',
-  placeholder = 'Tapez votre message...',
+  placeholder = 'Écrire un message…',
   sendLabel = 'Envoyer',
   attachLabel = 'Joindre un fichier',
   emojiLabel = 'Insérer un emoji',
@@ -240,7 +239,7 @@ export const MessagingComposer = ({
   return (
     <form
       className={joinClasses(
-        'border-t border-[var(--mairie-border)] bg-[var(--mairie-surface)] px-4 py-4 text-[var(--mairie-text)] sm:px-5',
+        'flex flex-col gap-2 border-t border-[var(--mairie-border)] bg-[var(--mairie-surface)] px-3.5 pb-3 pt-2.5 text-[var(--mairie-text)]',
         className
       )}
       onSubmit={handleSubmit}
@@ -263,38 +262,33 @@ export const MessagingComposer = ({
           onCancel={() => { onCancelReply?.(); focusInputSoon(); }}
         />
       )}
-      <div className="flex items-center gap-3">
-        <div className="relative min-w-0 flex-1">
-          <input
-            ref={textInputRef}
-            aria-label="Écrire un message"
-            type="text"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-expanded={suggestions.open}
-            aria-controls={suggestions.open ? listId : undefined}
-            aria-activedescendant={suggestions.open ? suggestionOptionId(listId, suggestions.activeIndex) : undefined}
-            value={currentValue}
-            placeholder={placeholder}
-            disabled={isBusy || !onSendMessage}
-            className="h-10 w-full rounded-md border border-[var(--mairie-border)] bg-[var(--mairie-surface)] px-3 text-sm text-[var(--mairie-text)] outline-none transition placeholder:text-[var(--mairie-muted)] focus:border-[var(--mairie-accent)] focus:ring-2 focus:ring-[var(--mairie-accent)]/20 disabled:cursor-not-allowed disabled:bg-[var(--mairie-background)]"
-            onChange={handleChange}
-            onKeyDown={handleInputKeyDown}
+      <div className="relative min-w-0">
+        <input
+          ref={textInputRef}
+          aria-label="Écrire un message"
+          type="text"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={suggestions.open}
+          aria-controls={suggestions.open ? listId : undefined}
+          aria-activedescendant={suggestions.open ? suggestionOptionId(listId, suggestions.activeIndex) : undefined}
+          value={currentValue}
+          placeholder={placeholder}
+          disabled={isBusy || !onSendMessage}
+          className="h-11 w-full rounded-md border border-[var(--mairie-border)] bg-[var(--mairie-surface)] px-3 text-sm text-[var(--mairie-text)] outline-none transition placeholder:text-[var(--mairie-muted)] focus:border-[var(--mairie-accent)] focus:ring-2 focus:ring-[var(--mairie-accent)]/20 disabled:cursor-not-allowed disabled:bg-[var(--mairie-background)]"
+          onChange={handleChange}
+          onKeyDown={handleInputKeyDown}
+        />
+        {suggestions.open && (
+          <MentionSuggestions
+            id={listId}
+            options={suggestions.options}
+            activeIndex={suggestions.activeIndex}
+            disabled={isBusy}
+            onSelect={selectOption}
+            onActiveChange={suggestions.setActiveIndex}
           />
-          {suggestions.open && (
-            <MentionSuggestions
-              id={listId}
-              options={suggestions.options}
-              activeIndex={suggestions.activeIndex}
-              disabled={isBusy}
-              onSelect={selectOption}
-              onActiveChange={suggestions.setActiveIndex}
-            />
-          )}
-        </div>
-        <ToolTip text={sendLabel}>
-          <IconButton type="submit" icon={Send} label={sendLabel} title="" tone="primary" disabled={!canSend} />
-        </ToolTip>
+        )}
       </div>
       <ComposerAttachmentChips attachments={attachments} disabled={isBusy} onRemove={removeAttachment} />
       <ComposerToolbar
@@ -308,7 +302,9 @@ export const MessagingComposer = ({
         onBusinessReference={() => appendDraftTrigger('#')}
         onToggleEmoji={() => setEmojiOpen((open) => !open)}
         onPickEmoji={appendEmoji}
-      />
+      >
+        <SendButton type="submit" label={sendLabel} aria-label={sendLabel} disabled={!canSend} />
+      </ComposerToolbar>
     </form>
   );
 };

@@ -33,13 +33,13 @@ describe('ComposerToolbar', () => {
     }
   });
 
-  it('MAIR-1158 renders lib icon buttons with explicit glyphs, each described by its tooltip', () => {
+  it('MAIR-1158 MAIR-1253 renders lib icon buttons with the artifact glyphs, each described by its tooltip', () => {
     const actions = { onAttach: vi.fn(), onMention: vi.fn(), onBusinessReference: vi.fn(), onToggleEmoji: vi.fn(), onPickEmoji: vi.fn() };
     render(<ComposerToolbar attachLabel="Joindre un fichier" emojiLabel="Insérer un emoji" disabled={false} busy={false} emojiOpen={false} {...actions} />);
     const expected: Record<string, [string, RegExp]> = {
       'Joindre un fichier': ['lucide-file-up', /^Joindre un fichier$/],
-      'Mentionner une personne': ['lucide-at-sign', /Mentionner une personne \(@\)/],
-      'Lier un élément': ['lucide-hash', /projet, tâche, dossier, événement/],
+      'Mentionner une personne': ['lucide-user-round', /^Mentionner une personne, tout le monde ou un groupe \(@\)$/],
+      'Lier un élément': ['lucide-link', /^Lier un projet, un événement, une tâche ou un dossier \(#\)$/],
       'Insérer un emoji': ['lucide-smile-plus', /^Insérer un emoji$/],
     };
     for (const [name, [glyph, description]] of Object.entries(expected)) {
@@ -48,5 +48,13 @@ describe('ComposerToolbar', () => {
       expect(button.querySelector('svg')?.getAttribute('class')).toContain(glyph);
       expect(button).toHaveAccessibleDescription(description);
     }
+  });
+
+  it('MAIR-1253 ends the bar with its child (the send button) after a spacer', () => {
+    const actions = { onAttach: vi.fn(), onMention: vi.fn(), onBusinessReference: vi.fn(), onToggleEmoji: vi.fn(), onPickEmoji: vi.fn() };
+    const { container } = render(<ComposerToolbar attachLabel="Joindre un fichier" emojiLabel="Insérer un emoji" disabled={false} busy={false} emojiOpen={false} {...actions}><button type="submit">Envoyer</button></ComposerToolbar>);
+    const bar = container.firstElementChild!;
+    expect(bar.lastElementChild).toHaveTextContent('Envoyer');
+    expect(bar.lastElementChild?.previousElementSibling).toHaveClass('flex-1');
   });
 });

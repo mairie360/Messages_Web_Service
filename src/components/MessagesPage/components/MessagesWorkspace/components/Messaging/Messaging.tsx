@@ -17,7 +17,7 @@ import { MentionedPersonCard } from './components/MentionedPersonCard';
 import { ReadFailureAlert } from './components/ReadFailureAlert';
 import { useVisibleMessagesRead } from './use-visible-messages-read';
 import { attemptMessage, useSendAttempts } from './use-send-attempts';
-import { messageExcerpt } from './messaging-model';
+import { messageExcerpt, threadAuthors } from './messaging-model';
 import type {
   CreateGroupPayload,
   MessagingAttachment,
@@ -390,6 +390,7 @@ export const Messaging = ({
   const threadMessages = React.useMemo(() => withSentStatus(visibleMessages),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- recomputed with the displayed messages
     [displayedMessages, resolvedActiveId, currentUserId]);
+  const groupAuthors = React.useMemo(() => threadAuthors(threadMessages), [threadMessages]);
 
   const handleSendNewMessage = (payload: NewMessagePayload) =>
     closeWhenConfirmed(onNewMessageSend?.(contextReference ? { ...payload, context: contextReference } : payload), () => setNewMessageOpen(false));
@@ -404,7 +405,7 @@ export const Messaging = ({
   return (
     <section
       className={joinClasses(
-        'grid min-h-[560px] overflow-hidden rounded-[var(--mairie-radius-l)] border border-[var(--mairie-border)] bg-[var(--mairie-surface)] text-[var(--mairie-text)] shadow-[var(--mairie-shadow)] lg:h-[692px] lg:grid-cols-[320px_minmax(0,1fr)]',
+        'grid min-h-[560px] overflow-hidden rounded-[var(--mairie-radius-l)] border border-[var(--mairie-border)] bg-[var(--mairie-surface)] text-[var(--mairie-text)] shadow-[var(--mairie-shadow)] lg:grid-cols-[320px_minmax(0,1fr)]',
         className
       )}
       {...props}
@@ -426,7 +427,7 @@ export const Messaging = ({
           onDeleteConversation={onConversationDelete ? handleDeleteConversation : undefined}
           onReadVisibleMessages={onReadVisibleMessages ? conversation => void readVisibleMessages(conversation, { untilLast: true }) : undefined}
           onManageMembers={onLoadMembers ? () => setMembersOpen(true) : onManageMembers}
-          members={members?.members}
+          members={members?.members ?? (activeConversation?.kind === 'group' ? groupAuthors : undefined)}
           onCreateGroupWith={onCreateGroup ? conversation => handleCreateGroupClick(conversation) : undefined}
           readPending={readPending}
         />

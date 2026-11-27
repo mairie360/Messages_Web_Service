@@ -34,8 +34,9 @@ export const MessagingContactAvatar = ({
   ...props
 }: MessagingContactAvatarProps) => (
   <div className={joinClasses('relative shrink-0', className)} {...props}>
-    {/* The photo is named by the person; the initials stay plain text (the name is written next to them). */}
-    <Avatar src={src} alt={src ? name : ''} fallback={getInitials(name, initials)} size={avatarSizes[size]} />
+    {/* The name gives the initials their stable lib colour; the name is written next to the avatar, so initials
+        without a photo are hidden from assistive technologies instead of being announced twice. */}
+    <Avatar src={src} alt={name} aria-hidden={src ? undefined : true} fallback={getInitials(name, initials)} size={avatarSizes[size]} />
     {presence && (
       <span
         role="img"

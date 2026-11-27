@@ -10,7 +10,13 @@ import { HeaderIdentity, conversationMeta } from './HeaderIdentity';
 describe('HeaderIdentity', () => {
   it('shows the name and the department with the presence', () => {
     render(<HeaderIdentity conversation={marie} />);
-    expect(screen.getByRole('heading', { name: 'Marie Dubois' })).toBeVisible(); expect(screen.getByText('Finances • En ligne')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Marie Dubois' })).toBeVisible(); expect(screen.getByText('Finances · En ligne')).toBeVisible();
     expect(conversationMeta(pierre)).toBe('Urbanisme'); expect(conversationMeta({ id: 'x', name: 'X' })).toBe('');
+  });
+
+  it('MAIR-1253 names a group « Groupe · N membres » under its name', () => {
+    render(<HeaderIdentity conversation={{ id: 'g', name: 'Conseil municipal', kind: 'group', memberCount: 8, department: 'Élus' }} />);
+    expect(screen.getByText('Groupe · 8 membres')).toBeVisible();
+    expect(screen.queryByText(/Élus/)).toBeNull();
   });
 });

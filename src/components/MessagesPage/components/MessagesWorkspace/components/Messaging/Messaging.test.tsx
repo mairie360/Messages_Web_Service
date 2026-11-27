@@ -45,7 +45,7 @@ describe('Messaging components', () => {
     expect(screen.getByText('Commencez à échanger')).toBeInTheDocument();
     expect(screen.queryByText('Marie Dubois')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Nouvelle conversation' })).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Tapez votre message...')).toBeDisabled();
+    expect(screen.getByPlaceholderText(/^Écrire un message/)).toBeDisabled();
   });
 
   it('keeps an explicitly configured sidebar title', () => {
@@ -128,7 +128,7 @@ describe('Messaging components', () => {
     const handleSendMessage = vi.fn();
     render(<DemoMessaging onSendMessage={handleSendMessage} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), {
+    fireEvent.change(screen.getByPlaceholderText(/^Écrire un message/), {
       target: { value: 'Message de test' },
     });
     fireEvent.click(screen.getByLabelText('Envoyer'));
@@ -299,7 +299,7 @@ describe('Messaging components', () => {
     expect(screen.getByRole('button', { name: 'Appeler' })).toHaveAttribute('aria-disabled', 'true');
     expect(screen.queryByRole('button', { name: "Plus d'actions" })).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), {
+    fireEvent.change(screen.getByPlaceholderText(/^Écrire un message/), {
       target: { value: 'Message en attente du serveur' },
     });
     fireEvent.click(screen.getByLabelText('Envoyer'));
@@ -395,7 +395,7 @@ describe('Messaging components', () => {
     fireEvent.click(screen.getByLabelText('Insérer un emoji'));
     fireEvent.click(screen.getByLabelText('Ajouter 👍'));
 
-    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('👍');
+    expect(screen.getByPlaceholderText(/^Écrire un message/)).toHaveValue('👍');
   });
 
   it('adds files to a message payload', () => {
@@ -444,7 +444,7 @@ describe('Messaging components', () => {
         onSendMessage={onSendMessage}
       />
     );
-    const input = screen.getByPlaceholderText('Tapez votre message...');
+    const input = screen.getByPlaceholderText(/^Écrire un message/);
     fireEvent.change(input, { target: { value: '@Mar' } });
     fireEvent.click(screen.getByRole('option', { name: /@Marie/ }));
     fireEvent.change(input, { target: { value: '@Marie #Projet' } });
@@ -474,7 +474,7 @@ describe('Messaging components', () => {
   it('keeps the composer draft when an asynchronous sender rejects', async () => {
     const onSendMessage = vi.fn().mockRejectedValueOnce(new Error('network')).mockReturnValueOnce(true);
     render(<MessagingComposer onSendMessage={onSendMessage} />);
-    const input = screen.getByPlaceholderText('Tapez votre message...');
+    const input = screen.getByPlaceholderText(/^Écrire un message/);
     fireEvent.change(input, { target: { value: 'Message à réessayer' } });
     fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Envoyer' })).toBeEnabled());
@@ -504,11 +504,11 @@ describe('Messaging components', () => {
     const handleSendMessage = vi.fn();
     render(<DemoMessaging onSendMessage={handleSendMessage} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), {
+    fireEvent.change(screen.getByPlaceholderText(/^Écrire un message/), {
       target: { value: '@Éq' },
     });
     fireEvent.click(screen.getByText('@Équipe Direction'));
-    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('@Équipe Direction ');
+    expect(screen.getByPlaceholderText(/^Écrire un message/)).toHaveValue('@Équipe Direction ');
 
     fireEvent.click(screen.getByLabelText('Envoyer'));
 
@@ -551,7 +551,7 @@ describe('Messaging components', () => {
       />
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), {
+    fireEvent.change(screen.getByPlaceholderText(/^Écrire un message/), {
       target: { value: '@' },
     });
 
@@ -594,21 +594,21 @@ describe('Messaging components', () => {
     render(<DemoMessaging />);
 
     fireEvent.click(screen.getByLabelText('Mentionner une personne'));
-    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('@');
+    expect(screen.getByPlaceholderText(/^Écrire un message/)).toHaveValue('@');
 
     fireEvent.click(screen.getByText('@Marie Dubois'));
-    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('@Marie Dubois ');
+    expect(screen.getByPlaceholderText(/^Écrire un message/)).toHaveValue('@Marie Dubois ');
   });
 
   it('mentions a business element with # and sends the linked reference metadata', () => {
     const handleSendMessage = vi.fn();
     render(<DemoMessaging onSendMessage={handleSendMessage} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), {
+    fireEvent.change(screen.getByPlaceholderText(/^Écrire un message/), {
       target: { value: '#Projet' },
     });
     fireEvent.click(screen.getByText('#Projet rénovation mairie'));
-    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('#Projet rénovation mairie ');
+    expect(screen.getByPlaceholderText(/^Écrire un message/)).toHaveValue('#Projet rénovation mairie ');
 
     fireEvent.click(screen.getByLabelText('Envoyer'));
 
@@ -640,10 +640,10 @@ describe('Messaging components', () => {
 
     render(<MessagingComposer businessReferenceOptions={references} onSendMessage={handleSendMessage} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), { target: { value: '#' } });
+    fireEvent.change(screen.getByPlaceholderText(/^Écrire un message/), { target: { value: '#' } });
     expect(screen.getByRole('option', { name: /#Conseil municipal/ })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), {
+    fireEvent.change(screen.getByPlaceholderText(/^Écrire un message/), {
       target: { value: '#conseil muni' },
     });
     const eventSuggestion = screen.getByRole('option', { name: /#Conseil municipal/ });
@@ -683,7 +683,7 @@ describe('Messaging components', () => {
     fireEvent.click(screen.getByText('Ouvrir'));
     expect(handleBusinessReferenceClick).toHaveBeenCalledWith(contextReference);
 
-    fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), {
+    fireEvent.change(screen.getByPlaceholderText(/^Écrire un message/), {
       target: { value: 'Compte rendu partagé' },
     });
     fireEvent.click(screen.getByLabelText('Envoyer'));
@@ -860,7 +860,7 @@ describe('Messaging send status (MAIR-1162)', () => {
     const promise = new Promise<boolean>((done) => { resolve = done; });
     return { promise, resolve };
   };
-  const type = (text: string) => fireEvent.change(screen.getByPlaceholderText('Tapez votre message...'), { target: { value: text } });
+  const type = (text: string) => fireEvent.change(screen.getByPlaceholderText(/^Écrire un message/), { target: { value: text } });
   const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
   const announcement = () => document.querySelector('.sr-only[role="status"][aria-live="polite"]');
 
@@ -877,7 +877,7 @@ describe('Messaging send status (MAIR-1162)', () => {
     await act(async () => { pending.resolve(true); await pending.promise; });
     expect(document.querySelector('[data-send-status="sending"]')).toBeNull();
     expect(announcement()).toHaveTextContent('Message envoyé.');
-    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('');
+    expect(screen.getByPlaceholderText(/^Écrire un message/)).toHaveValue('');
   });
 
   it('keeps a failed send as a dashed « Non envoyé » bubble and retries it once without duplicating, releasing the draft', async () => {
@@ -891,7 +891,7 @@ describe('Messaging send status (MAIR-1162)', () => {
     expect(screen.getByText('Non envoyé ·')).toBeVisible();
     expect(announcement()).toHaveTextContent('Message non envoyé.');
     // MAIR-370: the composer keeps the draft until a send is confirmed.
-    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('À renvoyer');
+    expect(screen.getByPlaceholderText(/^Écrire un message/)).toHaveValue('À renvoyer');
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer l’envoi' }));
     expect(screen.getByText('Envoi…')).toBeVisible();
     expect(onSendMessage).toHaveBeenCalledTimes(2);
@@ -902,7 +902,7 @@ describe('Messaging send status (MAIR-1162)', () => {
     expect(onSendMessage).toHaveBeenCalledTimes(2);
     await act(async () => { retry.resolve(true); await retry.promise; });
     expect(document.querySelector('[data-send-status="failed"], [data-send-status="sending"]')).toBeNull();
-    await waitFor(() => expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue(''));
+    await waitFor(() => expect(screen.getByPlaceholderText(/^Écrire un message/)).toHaveValue(''));
   });
 
   it('keeps a draft changed after the failure when the bubble retry succeeds, and never sends the delivered message twice', async () => {
@@ -913,7 +913,7 @@ describe('Messaging send status (MAIR-1162)', () => {
     type('Premier modifié');
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Réessayer l’envoi' })); });
     await waitFor(() => expect(screen.queryByText('Envoi…')).toBeNull());
-    expect(screen.getByPlaceholderText('Tapez votre message...')).toHaveValue('Premier modifié');
+    expect(screen.getByPlaceholderText(/^Écrire un message/)).toHaveValue('Premier modifié');
     expect(onSendMessage).toHaveBeenCalledTimes(2);
   });
 });

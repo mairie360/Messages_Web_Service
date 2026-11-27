@@ -74,7 +74,7 @@ afterEach(() => {
 
 const initial = () => ({ status: 'confirmed', data: bootstrap(), requested: '' });
 const bootReads = () => messageBff.calls('/messaging/bootstrap');
-const input = () => view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props;
+const input = () => view.hostElements(props => String(props.placeholder).startsWith('Écrire un message'))[0].props;
 
 test('confirmed server messages render immediately without repeating the bootstrap during hydration', async () => {
   view = mount(React.createElement(Client, { initial: initial() }));
@@ -89,7 +89,7 @@ test('confirmed server messages render immediately without repeating the bootstr
 test('same-account foreground updates and failures preserve the unsent server-seeded thread draft', async () => {
   view = mount(React.createElement(Client, { initial: initial() }));
   await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages').length > 0);
-  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Draft after server render' } });
+  await view.fire(props => String(props.placeholder).startsWith('Écrire un message'), 'onChange', { target: { value: 'Draft after server render' } });
   messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: { conversation: conversation(4, 'Équipe communication'), messages: [message(22, 4, 'Foreground update', users.sophie)] } }));
   browser.focus();
   await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-22'));
