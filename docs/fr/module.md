@@ -238,8 +238,9 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   hauteur de la page.
 - **Fil et saisie (artefact).** Un séparateur de jour (« Aujourd’hui », « Hier », « 28 oct. ») ouvre chaque journée ;
   un message reçu affiche l'avatar de son auteur à gauche et son nom avant l'heure (les miens : l'heure seule).
-  L'en-tête d'un groupe affiche « Groupe · N membres » et les avatars des personnes qui ont écrit dans le fil avec le
-  nombre (la liste des membres une fois le panneau ouvert). Le champ affiche « Écrire un message à <nom>… (@ pour
+  L'en-tête d'un groupe affiche « Groupe · N membres » et le nombre de membres (celui de la conversation, ou de la
+  liste des membres une fois lue) avec leurs avatars ; avant cette lecture, seuls les auteurs encore membres
+  (`memberIds`) apparaissent, jamais un ancien membre. « Hier » compte les jours du calendrier de l'instance. Le champ affiche « Écrire un message à <nom>… (@ pour
   mentionner, # pour lier un élément) », la barre dessous porte fichier / mention (`user-round`) / lien (`link`) /
   emoji puis le `SendButton` « Envoyer » de la lib. L'en-tête montre l'agent du bootstrap (nom et rôle) dès le
   premier rendu.

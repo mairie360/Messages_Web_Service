@@ -390,7 +390,12 @@ export const Messaging = ({
   const threadMessages = React.useMemo(() => withSentStatus(visibleMessages),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- recomputed with the displayed messages
     [displayedMessages, resolvedActiveId, currentUserId]);
-  const groupAuthors = React.useMemo(() => threadAuthors(threadMessages), [threadMessages]);
+  // MAIR-1253: before the member list is read, the avatar pile only shows authors who are still members of the group
+  // (the conversation's `memberIds`); without them, no author is presented as a member.
+  const groupMemberIds = activeConversation?.kind === 'group' ? activeConversation.memberIds : undefined;
+  const groupAuthors = React.useMemo(() => (groupMemberIds
+    ? threadAuthors(threadMessages).filter((author) => groupMemberIds.some((id) => messagingIdsMatch(id, author.id)))
+    : undefined), [threadMessages, groupMemberIds]);
 
   const handleSendNewMessage = (payload: NewMessagePayload) =>
     closeWhenConfirmed(onNewMessageSend?.(contextReference ? { ...payload, context: contextReference } : payload), () => setNewMessageOpen(false));
@@ -427,7 +432,8 @@ export const Messaging = ({
           onDeleteConversation={onConversationDelete ? handleDeleteConversation : undefined}
           onReadVisibleMessages={onReadVisibleMessages ? conversation => void readVisibleMessages(conversation, { untilLast: true }) : undefined}
           onManageMembers={onLoadMembers ? () => setMembersOpen(true) : onManageMembers}
-          members={members?.members ?? (activeConversation?.kind === 'group' ? groupAuthors : undefined)}
+          members={members?.members ?? groupAuthors}
+          membersComplete={Boolean(members?.members)}
           onCreateGroupWith={onCreateGroup ? conversation => handleCreateGroupClick(conversation) : undefined}
           readPending={readPending}
         />

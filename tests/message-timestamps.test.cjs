@@ -92,3 +92,17 @@ test('MAIR-1253 a message shows its time, the thread names its day « Aujourd’
   const [shown] = presentMessageTimestamps([{ id: 1, content: 'Bonjour', sentAt: '2026-11-27T09:05:00Z' }], now);
   assert.equal(shown.dayLabel, 'Aujourd’hui'); assert.equal(shown.sentAt, time('2026-11-27T09:05:00Z'));
 });
+
+test('MAIR-1253 « Hier » counts calendar days of the instance, also across a daylight saving change', () => {
+  // 2026-03-30 00:30 in Paris (+02:00) comes 23 hours after 2026-03-29 00:30 (+01:00): 24 hours back is the 28th.
+  const script = `const {requireSrc} = require('./tests/support/load-ts.cjs');
+    global.window = {}; require('@mairie360/lib-components/shared').setInstanceTimeZone('Europe/Paris');
+    const {formatMessageDay} = requireSrc('lib/message-timestamps.ts');
+    const now = new Date('2026-03-29T22:30:00Z');
+    process.stdout.write(JSON.stringify([
+      formatMessageDay('2026-03-29T10:00:00Z', now), formatMessageDay('2026-03-29T22:10:00Z', now),
+      formatMessageDay('2026-03-28T12:00:00Z', now), formatMessageDay('2026-10-24T22:30:00Z', new Date('2026-10-25T23:30:00Z')),
+    ]));`;
+  const result = execFileSync(process.execPath, ['-e', script], { cwd: ROOT, env: { ...process.env, TZ: 'UTC' }, encoding: 'utf8' });
+  assert.deepEqual(JSON.parse(result), ['Hier', 'Aujourd’hui', '28 mars', 'Hier']);
+});

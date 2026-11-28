@@ -48,6 +48,12 @@ const zoned = (options: Intl.DateTimeFormatOptions) =>
 /** Calendar day of an instant in the instance time zone (`2026-11-27`), to compare days. */
 const dayKey = (date: Date) => zoned({ year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 
+/** Days since the epoch of a `dayKey` (« 27/11/2026 »), to count calendar days whatever their length. */
+const dayOrdinal = (key: string) => {
+  const [day, month, year] = key.split("/").map(Number);
+  return Date.UTC(year, month - 1, day) / 86_400_000;
+};
+
 /** Time of a message (`14:05`) in the instance time zone; an unknown label goes through `formatMessageTimestamp`. */
 export function formatMessageTime(value: string | undefined): string | undefined {
   const date = parseMessageInstant(value);
@@ -62,8 +68,10 @@ export function formatMessageDay(value: string | undefined, now: Date = new Date
   const date = parseMessageInstant(value);
   if (!date) return undefined;
   const day = dayKey(date);
-  if (day === dayKey(now)) return "Aujourd’hui";
-  if (day === dayKey(new Date(now.getTime() - 86_400_000))) return "Hier";
+  const today = dayKey(now);
+  if (day === today) return "Aujourd’hui";
+  // Calendar days, not 24 hours: a day can last 23 or 25 hours when the offset changes.
+  if (dayOrdinal(today) - dayOrdinal(day) === 1) return "Hier";
   const sameYear = zoned({ year: "numeric" }).format(date) === zoned({ year: "numeric" }).format(now);
   return zoned({ day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) }).format(date);
 }

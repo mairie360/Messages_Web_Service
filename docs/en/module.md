@@ -230,8 +230,9 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   320 px wide and the card fills the height of the page.
 - **Thread and composer (artifact).** A day separator (« Aujourd’hui », « Hier », « 28 oct. ») opens each day; a
   received message shows the author's avatar on the left and their name before the time (mine: the time only). The
-  header of a group shows « Groupe · N membres » and the avatars of the people who wrote in the thread with the count
-  (the members list once the panel was opened). The composer field reads « Écrire un message à <nom>… (@ pour
+  header of a group shows « Groupe · N membres » and the member count (from the conversation, or
+  the member list once read) with the avatars of the members; before the list is read only authors who are still
+  members (`memberIds`) are shown, never a former member. « Hier » counts calendar days of the instance zone. The composer field reads « Écrire un message à <nom>… (@ pour
   mentionner, # pour lier un élément) », the bar below holds file / mention (`user-round`) / link (`link`) / emoji
   then the lib `SendButton` « Envoyer ». The header shows the agent of the bootstrap (name and role) from the first
   render.

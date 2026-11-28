@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { after, afterEach, before, beforeEach, test } = require('node:test');
+const { after, afterEach, before, beforeEach, mock, test } = require('node:test');
 const { requireSrc } = require('./support/load-ts.cjs');
 const { installReactRuntime, mount } = require('./support/server-view.cjs');
 
@@ -31,7 +31,11 @@ const KNOWN_CONTRACT_DEFECTS = [
 ];
 const swappedModel = (reply) => ({ ...reply, outOfContract: true });
 
-const now = Date.now();
+// The clock is frozen at noon (UTC, the test instance zone) of the current day from the fixtures to the teardown:
+// « Aujourd’hui » / « Hier » never depend on the minute the suite runs at (around midnight, now - 60 s is yesterday).
+const real = new Date();
+const now = Date.UTC(real.getUTCFullYear(), real.getUTCMonth(), real.getUTCDate(), 12);
+mock.timers.enable({ apis: ['Date'], now });
 const today = new Date(now - 60_000).toISOString();
 const yesterday = new Date(now - 86_400_000).toISOString();
 const sophie = conversation(5, 'Sophie Leroy', { kind: 'direct', department: 'Urbanisme', presence: 'online', contactId: 'user-7',
@@ -52,6 +56,7 @@ before(async () => {
   network.install();
 });
 after(async () => {
+  mock.timers.reset();
   network.restore();
   browser.restore();
   await messageBff.stop();
@@ -95,8 +100,10 @@ test('MAIR-1253 business journey: open a conversation, read the thread, send a m
   assert.equal(view.props('Header').user.name, 'Agent Mairie');
   assert.equal(view.props('Header').user.role, 'Responsable');
 
-  // The open group shows the avatars of the people who wrote in it and its number of members.
-  assert.match(view.text(), /SL 4 Gérer les membres/);
+  // The open group shows its number of members; message authors are not presented as members before the member list
+  // is read (a former member may have written in the thread).
+  assert.match(view.text(), /Groupe · 4 membres 4 Gérer les membres/);
+  assert.doesNotMatch(view.text(), /SL 4 Gérer les membres/);
 
   // The list: full names, the service of a person, « Groupe · N membres » for a group, the last message.
   assert.match(view.text(), /Équipe communication Groupe · 4 membres Bonjour à tous Hier/);

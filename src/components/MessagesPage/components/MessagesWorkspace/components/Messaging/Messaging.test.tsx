@@ -6,6 +6,7 @@ import type { ComponentProps } from 'react';
 
 import { CreateGroupModal } from './components/CreateGroupModal';
 import { Messaging } from './Messaging';
+import type { MessagingMembers } from './messaging-types';
 import { MessagingComposer } from './components/ConversationComposers/components/MessagingComposer';
 import { MessagingConversationItem } from './components/MessagingSidebar/components/ConversationList/components/MessagingConversationItem';
 import { MessagingSidebar } from './components/MessagingSidebar';
@@ -1307,5 +1308,24 @@ describe('Messaging global search target (MAIR-1230)', () => {
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(screen.getByText('Le permis est signé')).toBeVisible();
     expect(document.querySelector('[data-revealed]')).toBeNull();
+  });
+});
+
+describe('Messaging group header before the members are read (MAIR-1253)', () => {
+  const message = (id: string, authorId: string, authorName: string) => ({ id, conversationId: 'g1', content: 'Bonjour', authorId, authorName, sentAt: '10:00' });
+  const thread = [message('m1', 'user-3', 'Sophie Leroy'), message('m2', 'user-9', 'Ancien Membre')];
+
+  it('shows only the authors who are still members, with the size of the group', () => {
+    const group = { id: 'g1', name: 'Conseil', kind: 'group' as const, memberIds: ['user-2', 'user-3', 'user-4'] };
+    render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="user-2" onLoadMembers={vi.fn(() => new Promise<MessagingMembers>(() => {}))} />);
+    const pile = screen.getByRole('button', { name: '3 membres, gérer les membres' });
+    expect(pile.textContent).toContain('SL');
+    expect(pile.textContent).not.toContain('AM');
+  });
+
+  it('shows no member pile when neither the size nor the members of the group are known', () => {
+    const group = { id: 'g1', name: 'Conseil', kind: 'group' as const };
+    render(<Messaging conversations={[group]} messages={thread} activeConversationId="g1" currentUserId="user-2" onLoadMembers={vi.fn(() => new Promise<MessagingMembers>(() => {}))} />);
+    expect(screen.queryByRole('button', { name: /membres, gérer les membres/ })).toBeNull();
   });
 });
