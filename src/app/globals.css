@@ -4,6 +4,9 @@
 @plugin "daisyui";
 
 @source "../../src/";
+/* MAIR-1253: generate the utilities of the lib components in the front sheet, after its own ones, or a front
+   utility of the same property wins over a responsive or state variant of the lib (as in Calendars). */
+@source "../../node_modules/@mairie360/lib-components/dist/";
 
 html,
 body {

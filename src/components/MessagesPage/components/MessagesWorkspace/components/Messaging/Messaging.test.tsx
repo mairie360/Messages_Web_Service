@@ -359,7 +359,7 @@ describe('Messaging components', () => {
 
     expect(screen.getByText('Projet test')).toBeInTheDocument();
     expect(screen.getByText('rapport.pdf')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Projet test' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Projet · Projet test' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'rapport.pdf' })).not.toBeInTheDocument();
   });
 
@@ -383,8 +383,8 @@ describe('Messaging components', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Projet test' }));
-    fireEvent.click(screen.getByRole('link', { name: 'Conseil municipal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Projet · Projet test' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Événement · Conseil municipal' }));
     expect(handleBusinessReferenceClick).toHaveBeenNthCalledWith(1, project);
     expect(handleBusinessReferenceClick).toHaveBeenNthCalledWith(2, event);
     expect(screen.getByRole('link', { name: 'rapport.pdf' })).toHaveAttribute('href', '/files/1');

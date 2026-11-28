@@ -1,6 +1,14 @@
+import { ArrowUpRight } from 'lucide-react';
+import { Icon } from '@mairie360/lib-components/primitives';
+
 import { BusinessReferenceIcon } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/BusinessReferenceIcon';
 import { joinClasses } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-style';
 import type { MessagingBusinessReference } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
+
+/** MAIR-1253 (Figma F2): the kind read before the title, « Tâche · Relire le dossier ». */
+export const referenceKindLabels: Record<MessagingBusinessReference['kind'], string> = {
+  project: 'Projet', task: 'Tâche', event: 'Événement', folder: 'Dossier', service: 'Service',
+};
 
 export interface BubbleReferencesProps {
   references: MessagingBusinessReference[];
@@ -21,10 +29,12 @@ export const BubbleReferences = ({ references, outgoing, onReferenceClick }: Bub
     referenceClassName,
     outgoing ? 'hover:bg-[var(--mairie-surface)]' : 'hover:bg-[var(--mairie-accent-surface)]'
   );
-  const content = (reference: MessagingBusinessReference) => (
+  const content = (reference: MessagingBusinessReference, actionable: boolean) => (
     <>
       <BusinessReferenceIcon reference={reference} size="xs" className="shrink-0" />
-      <span className="min-w-0 truncate">{reference.title}</span>
+      <span className="shrink-0 font-normal">{referenceKindLabels[reference.kind]} ·</span>{' '}
+      <span className={joinClasses('min-w-0 truncate', actionable && 'underline underline-offset-2')}>{reference.title}</span>
+      {actionable && <Icon icon={ArrowUpRight} size="xs" className="shrink-0" />}
     </>
   );
 
@@ -38,14 +48,14 @@ export const BubbleReferences = ({ references, outgoing, onReferenceClick }: Bub
             className={actionableReferenceClassName}
             onClick={onReferenceClick ? () => onReferenceClick(reference) : undefined}
           >
-            {content(reference)}
+            {content(reference, true)}
           </a>
         ) : onReferenceClick ? (
           <button key={reference.id} type="button" className={actionableReferenceClassName} onClick={() => onReferenceClick(reference)}>
-            {content(reference)}
+            {content(reference, true)}
           </button>
         ) : (
-          <span key={reference.id} className={referenceClassName}>{content(reference)}</span>
+          <span key={reference.id} className={referenceClassName}>{content(reference, false)}</span>
         )
       )}
     </div>

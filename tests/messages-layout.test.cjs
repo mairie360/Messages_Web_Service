@@ -100,3 +100,10 @@ test('MAIR-1162 only the thread scrolls: the composer and the header keep their 
   assert.equal(last('.messages-module > div:nth-child(2) > :not(.flex-1)', 'flex-shrink'), '0');
   assert.equal(last('.messages-module > div:nth-child(2) > .flex-1', 'overflow-y'), 'auto');
 });
+
+// MAIR-1253 (design-match): without the lib dist in the Tailwind sources, a front utility of the same property could
+// win over a responsive or state variant of a lib component (the Calendars header stacked for that reason).
+test('MAIR-1253 Tailwind scans the lib components so their responsive utilities win', () => {
+  const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '../src/app/globals.css'), 'utf8');
+  assert.match(css, /@source "\.\.\/\.\.\/node_modules\/@mairie360\/lib-components\/dist\/";/);
+});
