@@ -89,7 +89,7 @@ and agree the mockup first, then code it: the sync direction is Figma → code.
 
 ## Architecture
 
-- **V2 screen (epic MAIR-821)** — lib pin `2.9.0` (recorded in `tests/fixtures/shared-ui-releases.json`), always
+- **V2 screen (epic MAIR-821)** — lib pin `2.10.0` (recorded in `tests/fixtures/shared-ui-releases.json`), always
   light (`layout.tsx` renders `data-theme="light"`, MAIR-933). **Frame (MAIR-838):** `AppShell` passes
   `mainLayout="fill"` to the lib `AccessibleShell` (the lib main area is a bounded flex column with 20px / 24px
   padding) and no class of its own; `src/app/app-shell.css` holds only `.messages-*` module rules
