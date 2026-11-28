@@ -224,7 +224,7 @@ Messaging follows the agreed V2 mockup ([Figma, journeys F1–F9](https://www.fi
   closes on Échap, Tab or an outside click and gives the focus back to the « + » (`use-menu-keyboard.ts`, shared with
   the header menu). « Rechercher une conversation » is the lib `SearchField` filtering as the agent types (name,
   group, service); without result, « Aucune conversation trouvée. ». Each line shows the lib `Avatar` (photo or
-  initials, groups included, colour derived from the name) with its presence dot, then the full name, the service
+  initials, colour derived from the name; a group shows the « users » icon on a raised disc, MAIR-1253) with its presence dot, then the full name, the service
   (« Groupe · N membres » for a group) and the preview, each on one line, and on the right the time (today) or the day
   (« Hier », « 28 oct. ») above the unread lib `Counter` (« 9+ »), spoken as « N messages non lus ». The list column is
   320 px wide and the card fills the height of the page.

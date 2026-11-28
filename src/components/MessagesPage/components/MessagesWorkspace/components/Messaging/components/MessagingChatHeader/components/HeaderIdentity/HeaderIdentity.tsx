@@ -25,6 +25,7 @@ export const HeaderIdentity = ({ conversation }: { conversation: MessagingConver
         src={conversation.avatarUrl}
         initials={conversation.initials}
         presence={conversation.presence}
+        group={conversation.kind === 'group'}
         size="lg"
       />
       <div className="min-w-0">

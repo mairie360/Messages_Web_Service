@@ -47,6 +47,7 @@ export const MessagingConversationItem = ({
         src={conversation.avatarUrl}
         initials={conversation.initials}
         presence={conversation.presence}
+        group={conversation.kind === 'group'}
         size="sm"
       />
       <span className="flex min-w-0 flex-col gap-px">

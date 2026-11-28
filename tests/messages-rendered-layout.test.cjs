@@ -49,7 +49,7 @@ test('actual messaging desktop navigation lists the active modules without local
   assert.equal(dom.style(navigation).position, 'static', 'No local position override');
   assert.ok(!dom.style(navigation).boxShadow || dom.style(navigation).boxShadow === 'none', 'No local shadow override');
   const buttons = [...navigation.querySelectorAll('nav button')];
-  assert.deepEqual(buttons.map((button) => button.querySelector('.app-navigation-label').textContent), ['Tableau de bord', 'Projets', 'Messagerie', 'Formation', 'Calendrier', 'Administration', 'Paramètres']);
+  assert.deepEqual(buttons.map((button) => button.querySelector('.app-navigation-label').textContent), ['Tableau de bord', 'Projets', 'Calendrier', 'Messagerie', 'E-learning', 'Administration', 'Paramètres']);
   // MAIR-844 / MAIR-1156: « Messagerie » is the active entry and carries the unread total of the fixtures in the lib Counter.
   const active = navigation.querySelector('nav button[aria-current="page"]');
   assert.match(active.getAttribute('aria-label'), /^Messagerie (\d|9\+) à traiter$/);

@@ -844,7 +844,7 @@ test('desktop and mobile navigation expose only active modules and keep Settings
     const [mobile] = view.find('Sidebar');
     assert.ok(mobile, 'the mobile drawer renders the shared sidebar');
     assert.deepEqual(mobile.props.items.map(item => item.id),
-      ['dashboard', 'projects', 'messages', 'training', 'calendar', 'admin', 'settings']);
+      ['dashboard', 'projects', 'calendar', 'messages', 'training', 'admin', 'settings']);
     assert.equal(mobile.props.items.find(item => item.id === 'admin').adminOnly, true);
     assert.equal(mobile.props.isAdmin, isAdmin);
     assert.equal(mobile.props.activeItem, 'messages');

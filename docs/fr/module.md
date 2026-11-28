@@ -231,7 +231,7 @@ La messagerie suit la maquette V2 validée ([Figma, parcours F1–F9](https://ww
   ↓, se parcourt avec ↑ ↓ Début Fin, se ferme avec Échap, Tab ou un clic à l'extérieur et rend le focus au « + »
   (`use-menu-keyboard.ts`, partagé avec le menu de l'en-tête). « Rechercher une conversation » est le `SearchField`
   de la lib qui filtre au fil de la saisie (nom, groupe, service) ; sans résultat, « Aucune conversation trouvée. ».
-  Chaque ligne affiche l'`Avatar` de la lib (photo ou initiales, groupes compris, couleur tirée du nom) avec sa
+  Chaque ligne affiche l'`Avatar` de la lib (photo ou initiales, couleur tirée du nom ; un groupe affiche l'icône « personnes » sur un disque en relief, MAIR-1253) avec sa
   pastille de présence, puis le nom complet, le service (« Groupe · N membres » pour un groupe) et l'aperçu, chacun sur
   une ligne, et à droite l'heure (aujourd'hui) ou le jour (« Hier », « 28 oct. ») au-dessus du `Counter` des non-lus
   de la lib (« 9+ »), lu « N messages non lus ». La colonne de la liste mesure 320 px et la carte occupe toute la

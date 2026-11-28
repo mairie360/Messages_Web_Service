@@ -20,7 +20,8 @@ it('MAIR-1157 truncates the name and the preview on one line, keeps the time in 
   const counter = button.querySelector('[data-m360-component~="Counter"]');
   expect(counter).toHaveTextContent('9+'); expect(counter).toHaveAttribute('aria-hidden', 'true');
   expect(button).toHaveAccessibleName(expect.stringContaining('12 messages non lus'));
-  expect(screen.getByText('CM')).toBeVisible();
+  // MAIR-1253: a group shows the users icon, not its initials.
+  expect(document.querySelector('[data-group-avatar] svg')).not.toBeNull();
   expect(screen.getByRole('img', { name: 'En ligne' })).toBeInTheDocument();
   expect(unreadLabel(1)).toBe('1 message non lu');
 });
@@ -49,4 +50,10 @@ it('MAIR-1253 names a group « Groupe · N membres » under its name', () => {
   expect(conversationSubtitle({ id: 4, name: 'Binôme', kind: 'group', memberCount: 1 })).toBe('Groupe · 1 membre');
   expect(conversationSubtitle({ id: 5, name: 'Sans taille', kind: 'group' })).toBe('Groupe');
   expect(conversationSubtitle({ id: 6, name: 'Sans service', kind: 'direct', department: '  ' })).toBeUndefined();
+});
+it('MAIR-1253 a group line shows the users icon, never initials such as « [É »', () => {
+  const { container } = render(<MessagingConversationItem conversation={{ id: 'g1', kind: 'group', name: '[TEST] Équipe voirie', memberCount: 4 }} />);
+  expect(container.querySelector('[data-group-avatar] svg')).not.toBeNull();
+  expect(container.querySelector('[data-conversation-subtitle]')).toHaveTextContent('Groupe · 4 membres');
+  expect(container.textContent).not.toContain('[É');
 });

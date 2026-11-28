@@ -1,5 +1,5 @@
 import React from 'react';
-import { Avatar, initialsOf } from '@mairie360/lib-components/primitives';
+import { Avatar, Icon, icons, initialsOf } from '@mairie360/lib-components/primitives';
 
 import { joinClasses } from '../../messaging-style';
 import type { MessagingPresence } from '../../messaging-types';
@@ -10,6 +10,8 @@ export interface MessagingContactAvatarProps extends React.HTMLAttributes<HTMLDi
   initials?: string;
   presence?: MessagingPresence;
   size?: 'sm' | 'md' | 'lg';
+  /** MAIR-1253: a group conversation shows the artifact's « users » icon on a raised disc, never initials. */
+  group?: boolean;
 }
 
 /** Lib avatar scale (MAIR-1157): 32 / 40 / 40 px. */
@@ -30,13 +32,25 @@ export const MessagingContactAvatar = ({
   initials,
   presence,
   size = 'md',
+  group = false,
   className = '',
   ...props
 }: MessagingContactAvatarProps) => (
   <div className={joinClasses('relative shrink-0', className)} {...props}>
     {/* The name gives the initials their stable lib colour; the name is written next to the avatar, so initials
         without a photo are hidden from assistive technologies instead of being announced twice. */}
-    <Avatar src={src} alt={name} aria-hidden={src ? undefined : true} fallback={getInitials(name, initials)} size={avatarSizes[size]} />
+    {group && !src ? (
+      <span
+        aria-hidden="true"
+        data-group-avatar=""
+        className="flex items-center justify-center rounded-full border border-[var(--mairie-border)] bg-[var(--mairie-surface-raised)] text-[var(--mairie-text)]"
+        style={{ width: `var(--mairie-avatar-${avatarSizes[size]})`, height: `var(--mairie-avatar-${avatarSizes[size]})` }}
+      >
+        <Icon icon={icons['users-round']} size="s" />
+      </span>
+    ) : (
+      <Avatar src={src} alt={name} aria-hidden={src ? undefined : true} fallback={getInitials(name, initials)} size={avatarSizes[size]} />
+    )}
     {presence && (
       <span
         role="img"
