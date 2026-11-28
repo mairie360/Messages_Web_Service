@@ -72,6 +72,7 @@ export function MessagesWorkspace({
     <ToastProvider regionLabel="Notifications de la messagerie" placement="bottom-end">
     <AppShell
       activeItem="messages"
+      currentUser={currentUser}
       unreadCount={currentUser ? totalUnread(displayedConversations) : 0}
       notifications={currentUser ? mentionNotifications : undefined}
       onOpenConversation={(conversationId) => {

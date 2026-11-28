@@ -1,4 +1,5 @@
 import React from 'react';
+import { Avatar } from '@mairie360/lib-components/primitives';
 
 import { joinClasses } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-style';
 import { BubbleAttachments } from './components/BubbleAttachments';
@@ -99,6 +100,7 @@ export const MessagingMessageBubble = ({
   const [downloadPending, setDownloadPending] = React.useState(false);
   const downloadRef = React.useRef(false);
   const outgoing = message.direction === 'outgoing';
+  const author = outgoing ? undefined : message.authorName?.trim() || undefined;
   const businessReferences = uniqueBusinessReferences(message);
 
   // One download at a time per message; a failure is shown inside the bubble.
@@ -123,74 +125,102 @@ export const MessagingMessageBubble = ({
       onPointerUp={hasActions ? stopPress : undefined}
       onPointerLeave={hasActions ? stopPress : undefined}
       onBlur={hasActions ? event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setActionsOpen(false); } : undefined}
-      className={joinClasses('group/bubble relative flex w-full flex-col rounded-md data-[revealed]:bg-[var(--mairie-accent-surface)] motion-safe:transition-colors', outgoing ? 'items-end' : 'items-start', className)}
+      className={joinClasses('group/bubble relative flex w-full gap-2.5 rounded-md data-[revealed]:bg-[var(--mairie-accent-surface)] motion-safe:transition-colors', outgoing && 'flex-row-reverse', className)}
       {...props}
     >
-      {/* MAIR-1159: the time sits above the bubble, right-aligned for my messages. */}
-      {message.sentAt && (
-        <span
-          data-bubble-time=""
-          className={joinClasses('mb-1 text-xs leading-5 text-[var(--mairie-muted)]', outgoing ? 'mr-1 self-end text-right' : 'ml-1')}
-        >
-          {message.sentAt}
-          {/* MAIR-1168: an edited message says so after its time. */}
-          {message.editedAt && !message.deleted ? ' · modifié' : ''}
-        </span>
+      {/* The author of a received message: avatar on the left, name before the time. Mine only show the time. */}
+      {author && (
+        <Avatar alt={author} aria-hidden size="s" className="mt-0.5" data-message-avatar="" />
       )}
-      {message.citation !== undefined && !message.deleted && (
-        <MessageQuote
-          authorName={message.quoted?.authorName}
-          excerpt={message.quoted?.excerpt}
-          // « Message supprimé » only when the quoted message is known to be deleted (BFF flag or deletion seen here).
-          deleted={quoteDeleted || message.quoted?.deleted === true}
-          outgoing={outgoing}
-          onOpen={onOpenQuote ? () => onOpenQuote(message.citation!) : undefined}
-        />
-      )}
-      {message.deleted ? (
-        <DeletedMessage outgoing={outgoing} />
-      ) : editing && onSaveEdit ? (
-        <MessageEditBox
-          message={message}
-          initialText={messageText(message)}
-          mentionOptions={mentionOptions}
-          businessReferenceOptions={businessReferenceOptions}
-          suggestionSources={suggestionSources}
-          onSave={payload => onSaveEdit(message, payload)}
-          onCancel={() => onCancelEdit?.()}
-        />
-      ) : (
-      <div
-        // MAIR-1167: the bubble takes the keyboard focus so that its actions are reachable.
-        tabIndex={hasActions ? 0 : undefined}
-        data-direction={outgoing ? 'outgoing' : 'incoming'}
-        data-send-status={message.sendStatus}
-        className={joinClasses(
-          'max-w-[min(560px,82%)] rounded-md px-4 py-3 text-sm leading-5 shadow-[var(--mairie-shadow)] motion-safe:transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mairie-accent)]',
-          // MAIR-1162: dimmed while sending, dashed error border when the send failed.
-          message.sendStatus === 'sending' && 'opacity-60',
-          message.sendStatus === 'failed' && '!border-dashed !border-[var(--mairie-error-text)]',
-          outgoing
-            ? // MAIR-1159: my messages on the lib message-own tokens (muted beige, contrasted text, 8.8:1).
-              'border border-[var(--mairie-message-own-border)] bg-[var(--mairie-message-own-background)] text-[var(--mairie-message-own-on)]'
-            : 'border border-[var(--mairie-border)] bg-[var(--mairie-surface)] text-[var(--mairie-text)]'
+      <div className={joinClasses('flex min-w-0 flex-1 flex-col', outgoing ? 'items-end' : 'items-start')}>
+        {(message.sentAt || author) && (
+          <span
+            data-bubble-time=""
+            className={joinClasses('mb-1 text-xs leading-5 text-[var(--mairie-muted)]', outgoing ? 'mr-1 self-end text-right' : 'ml-1')}
+          >
+            {author && (
+              <span className="mr-1.5 font-semibold text-[var(--mairie-text)]" data-message-author={message.authorId === undefined ? '' : String(message.authorId)}>
+                {author}
+              </span>
+            )}
+            {message.sentAt}
+            {/* An edited message says so after its time. */}
+            {message.editedAt && !message.deleted ? ' · modifié' : ''}
+          </span>
         )}
-      >
-        <MentionedContent
-          content={message.content}
-          mentions={[...mentionOptions, ...(message.mentions ?? [])]}
-          businessReferences={[...businessReferenceOptions, ...businessReferences]}
-        />
-        {downloadError && <p role="alert" className="mt-2">{downloadError}</p>}
-        <BubbleReferences references={businessReferences} outgoing={outgoing} onReferenceClick={onBusinessReferenceClick} />
-        <BubbleAttachments
-          attachments={message.attachments ?? []}
-          outgoing={outgoing}
-          downloadPending={downloadPending}
-          onDownload={onAttachmentDownload ? attachment => void download(attachment) : undefined}
-        />
+        {message.citation !== undefined && !message.deleted && (
+          <MessageQuote
+            authorName={message.quoted?.authorName}
+            excerpt={message.quoted?.excerpt}
+            // « Message supprimé » only when the quoted message is known to be deleted (BFF flag or deletion seen here).
+            deleted={quoteDeleted || message.quoted?.deleted === true}
+            outgoing={outgoing}
+            onOpen={onOpenQuote ? () => onOpenQuote(message.citation!) : undefined}
+          />
+        )}
+        {message.deleted ? (
+          <DeletedMessage outgoing={outgoing} />
+        ) : editing && onSaveEdit ? (
+          <MessageEditBox
+            message={message}
+            initialText={messageText(message)}
+            mentionOptions={mentionOptions}
+            businessReferenceOptions={businessReferenceOptions}
+            suggestionSources={suggestionSources}
+            onSave={payload => onSaveEdit(message, payload)}
+            onCancel={() => onCancelEdit?.()}
+          />
+        ) : (
+        <div
+          // MAIR-1167: the bubble takes the keyboard focus so that its actions are reachable.
+          tabIndex={hasActions ? 0 : undefined}
+          data-direction={outgoing ? 'outgoing' : 'incoming'}
+          data-send-status={message.sendStatus}
+          className={joinClasses(
+            'max-w-[min(560px,82%)] rounded-md px-4 py-3 text-sm leading-5 shadow-[var(--mairie-shadow)] motion-safe:transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mairie-accent)]',
+            // MAIR-1162: dimmed while sending, dashed error border when the send failed.
+            message.sendStatus === 'sending' && 'opacity-60',
+            message.sendStatus === 'failed' && '!border-dashed !border-[var(--mairie-error-text)]',
+            outgoing
+              ? // MAIR-1159: my messages on the lib message-own tokens (muted beige, contrasted text, 8.8:1).
+                'border border-[var(--mairie-message-own-border)] bg-[var(--mairie-message-own-background)] text-[var(--mairie-message-own-on)]'
+              : 'border border-[var(--mairie-border)] bg-[var(--mairie-surface)] text-[var(--mairie-text)]'
+          )}
+        >
+          <MentionedContent
+            content={message.content}
+            mentions={[...mentionOptions, ...(message.mentions ?? [])]}
+            businessReferences={[...businessReferenceOptions, ...businessReferences]}
+          />
+          {downloadError && <p role="alert" className="mt-2">{downloadError}</p>}
+          <BubbleReferences references={businessReferences} outgoing={outgoing} onReferenceClick={onBusinessReferenceClick} />
+          <BubbleAttachments
+            attachments={message.attachments ?? []}
+            outgoing={outgoing}
+            downloadPending={downloadPending}
+            onDownload={onAttachmentDownload ? attachment => void download(attachment) : undefined}
+          />
+        </div>
+        )}
+        {!message.deleted && (message.reactions?.length ?? 0) > 0 && (
+          <MessageReactions
+            reactions={message.reactions ?? []}
+            outgoing={outgoing}
+            pending={reactionPending}
+            onToggle={onToggleReaction ? reaction => void react(reaction.emoji, !reaction.reactedByMe) : undefined}
+            onAdd={onToggleReaction ? () => setPickerOpen(true) : undefined}
+          />
+        )}
+        {pickerOpen && onToggleReaction && !message.deleted && (
+          <ReactionPicker
+            outgoing={outgoing}
+            onPick={emoji => void react(emoji, !message.reactions?.some(reaction => reaction.emoji === emoji && reaction.reactedByMe))}
+            onClose={() => setPickerOpen(false)}
+          />
+        )}
+        {outgoing && message.sendStatus && <MessageSendStatus status={message.sendStatus} onRetry={onRetrySend} />}
       </div>
-      )}
+      {/* The actions overlay the message, out of the flow: a direct child of the positioned row. */}
       {hasActions && !editing && (engaged || actionsOpen) && (
         <MessageActionsToolbar
           open={actionsOpen}
@@ -201,23 +231,6 @@ export const MessagingMessageBubble = ({
           onDelete={onDelete ? () => onDelete(message) : undefined}
         />
       )}
-      {!message.deleted && (message.reactions?.length ?? 0) > 0 && (
-        <MessageReactions
-          reactions={message.reactions ?? []}
-          outgoing={outgoing}
-          pending={reactionPending}
-          onToggle={onToggleReaction ? reaction => void react(reaction.emoji, !reaction.reactedByMe) : undefined}
-          onAdd={onToggleReaction ? () => setPickerOpen(true) : undefined}
-        />
-      )}
-      {pickerOpen && onToggleReaction && !message.deleted && (
-        <ReactionPicker
-          outgoing={outgoing}
-          onPick={emoji => void react(emoji, !message.reactions?.some(reaction => reaction.emoji === emoji && reaction.reactedByMe))}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
-      {outgoing && message.sendStatus && <MessageSendStatus status={message.sendStatus} onRetry={onRetrySend} />}
     </div>
   );
 };

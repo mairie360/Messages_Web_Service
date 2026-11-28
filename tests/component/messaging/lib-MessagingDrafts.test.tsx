@@ -12,7 +12,7 @@ const conversations = [
 ];
 const mention = { id: 'agent', name: 'Agent', kind: 'direct' as const };
 const reference = { id: 'project', title: 'Projet', kind: 'project' as const };
-const input = () => screen.getAllByRole('combobox').find(element => element.getAttribute('placeholder') === 'Tapez votre message...')!;
+const input = () => screen.getAllByRole('combobox').find(element => element.getAttribute('placeholder')?.startsWith('Écrire un message'))!;
 const edit = (value: string) => fireEvent.change(input(), { target: { value } });
 const select = (name: string) => fireEvent.click(screen.getByRole('button', { name: new RegExp(name) }));
 const visibleComposer = () => input().closest('form')!;

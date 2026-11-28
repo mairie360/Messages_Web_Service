@@ -21,7 +21,7 @@ test('MAIR-844 legal links point at the Login front pages and need a valid Login
 test('MAIR-844 « Messagerie » carries the unread total as its badge', () => {
   assert.equal(totalUnread([{ unreadCount: 2 }, { unreadCount: 3 }, {}, { unreadCount: -1 }, { unreadCount: 1.5 }]), 5);
   const ids = navigationItems(0).map((item) => item.id);
-  assert.deepEqual(ids, ['dashboard', 'projects', 'messages', 'training', 'calendar', 'admin', 'settings']);
+  assert.deepEqual(ids, ['dashboard', 'projects', 'calendar', 'messages', 'training', 'admin', 'settings']);
   assert.equal(navigationItems(0).find((item) => item.id === 'messages').count, undefined);
   assert.equal(navigationItems(4).find((item) => item.id === 'messages').count, 4);
   assert.equal(navigationItems(120).find((item) => item.id === 'messages').count, 120);

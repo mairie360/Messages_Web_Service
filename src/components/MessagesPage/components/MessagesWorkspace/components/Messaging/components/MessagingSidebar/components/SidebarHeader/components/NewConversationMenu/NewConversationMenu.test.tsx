@@ -97,4 +97,9 @@ describe('NewConversationMenu MAIR-1158', () => {
     expect(screen.getByRole('menuitem', { name: 'Créer un groupe' }).querySelector('svg')?.getAttribute('class')).toContain('lucide-users');
     expect(trigger.querySelector('svg')?.getAttribute('class')).toContain('lucide-plus');
   });
+  // MAIR-1253 (design-match, Figma F1): the « + » of the list is an outlined square.
+  it('MAIR-1253 draws the « + » with a border', () => {
+    setup();
+    expect(screen.getByRole('button', { name: 'Nouvelle conversation' })).toHaveClass('border');
+  });
 });

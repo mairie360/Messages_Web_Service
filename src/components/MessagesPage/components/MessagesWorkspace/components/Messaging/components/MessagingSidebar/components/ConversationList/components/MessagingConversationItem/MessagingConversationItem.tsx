@@ -2,6 +2,7 @@ import React from 'react';
 import { Counter, Text } from '@mairie360/lib-components/primitives';
 
 import { joinClasses } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-style';
+import { conversationSubtitle } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-model';
 import { MessagingContactAvatar } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/MessagingContactAvatar';
 import type { MessagingConversation } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
 
@@ -15,8 +16,9 @@ export interface MessagingConversationItemProps
 export const unreadLabel = (count: number) => (count === 1 ? '1 message non lu' : `${count} messages non lus`);
 
 /**
- * One line of the list (MAIR-1157, Figma F9): avatar (initials of a person or of a group) with its presence dot,
- * name and preview each truncated on one line, time right-aligned in a fixed column, unread lib `Counter`.
+ * One line of the list, three columns as in the artifact: the avatar with its presence dot; the full name, the
+ * service (or « Groupe · N membres ») and the last message, each on one line; then the time above the unread
+ * lib `Counter`, so the name takes the whole middle column.
  */
 export const MessagingConversationItem = ({
   conversation,
@@ -25,15 +27,17 @@ export const MessagingConversationItem = ({
   ...props
 }: MessagingConversationItemProps) => {
   const unread = Number.isSafeInteger(conversation.unreadCount) && (conversation.unreadCount ?? 0) > 0 ? conversation.unreadCount! : 0;
+  const subtitle = conversationSubtitle(conversation);
   return (
     <button
       type="button"
       data-unread={unread > 0 || undefined}
+      aria-current={active || undefined}
       className={joinClasses(
-        'flex w-full min-w-0 items-center gap-3 rounded-[var(--mairie-radius-m)] border p-3 text-left text-[var(--mairie-text)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/30',
+        'relative grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2.5 rounded-[var(--mairie-radius-m)] p-2.5 text-left text-[var(--mairie-text)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mairie-accent)]/30',
         active
-          ? 'border-[var(--mairie-accent)] bg-[var(--mairie-accent-surface)]'
-          : 'border-transparent bg-[var(--mairie-surface)] hover:bg-[var(--mairie-surface-raised)]',
+          ? 'bg-[var(--mairie-navigation-active-background)] before:absolute before:bottom-3 before:left-0 before:top-3 before:w-[3px] before:rounded-r-[3px] before:bg-[var(--mairie-navigation-active-indicator)]'
+          : 'bg-transparent hover:bg-[var(--mairie-navigation-hover-background)]',
         className
       )}
       {...props}
@@ -43,22 +47,32 @@ export const MessagingConversationItem = ({
         src={conversation.avatarUrl}
         initials={conversation.initials}
         presence={conversation.presence}
-        size="md"
+        group={conversation.kind === 'group'}
+        size="sm"
       />
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex min-w-0 items-baseline gap-2">
-          <Text as="span" size="m" weight={unread ? 'bold' : 'semibold'} truncate className="min-w-0 flex-1">{conversation.name}</Text>
-          <Text as="span" size="xs" tone="muted" truncate className="w-[4.75rem] shrink-0 text-right">{conversation.lastMessageAt ?? ''}</Text>
-        </span>
-        <span className="flex min-w-0 items-center gap-2">
-          <Text as="span" size="s" tone="muted" truncate className="min-w-0 flex-1">{conversation.lastMessage ?? ''}</Text>
-          {unread > 0 && (
-            <>
-              <Counter value={unread} />
-              <span className="sr-only">{unreadLabel(unread)}</span>
-            </>
-          )}
-        </span>
+      <span className="flex min-w-0 flex-col gap-px">
+        <Text as="span" size="s" weight="semibold" truncate data-conversation-name="">{conversation.name}</Text>
+        {subtitle && <Text as="span" size="xs" tone="muted" truncate data-conversation-subtitle="">{subtitle}</Text>}
+        <Text
+          as="span"
+          size="s"
+          tone={unread ? undefined : 'muted'}
+          weight={unread ? 'medium' : undefined}
+          truncate
+          className="mt-0.5"
+          data-conversation-preview=""
+        >
+          {conversation.lastMessage ?? ''}
+        </Text>
+      </span>
+      <span className="flex flex-col items-end gap-1.5 whitespace-nowrap">
+        <Text as="span" size="xs" tone="muted" data-conversation-time="">{conversation.lastMessageAt ?? ''}</Text>
+        {unread > 0 && (
+          <>
+            <Counter value={unread} />
+            <span className="sr-only">{unreadLabel(unread)}</span>
+          </>
+        )}
       </span>
     </button>
   );

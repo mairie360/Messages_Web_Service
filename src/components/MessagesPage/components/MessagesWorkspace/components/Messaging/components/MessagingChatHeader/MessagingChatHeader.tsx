@@ -28,6 +28,8 @@ export interface MessagingChatHeaderProps extends React.HTMLAttributes<HTMLDivEl
   readPending?: boolean;
   /** MAIR-1165: members of the open group, for the avatar pile next to its name. */
   members?: MessagingMember[];
+  /** `members` is the loaded member list (its length is the group size), not a sample of current members. */
+  membersComplete?: boolean;
 }
 
 export const MessagingChatHeader = ({
@@ -45,9 +47,11 @@ export const MessagingChatHeader = ({
   onCreateGroupWith,
   readPending = false,
   members,
+  membersComplete = false,
   className = '',
   ...props
 }: MessagingChatHeaderProps) => {
+  const memberTotal = conversation?.memberCount ?? (membersComplete ? members?.length : conversation?.memberIds?.length);
   if (!conversation) {
     return (
       <div
@@ -71,8 +75,9 @@ export const MessagingChatHeader = ({
       <HeaderIdentity conversation={conversation} />
 
       <div className="flex shrink-0 items-center gap-1.5">
-        {conversation.kind === 'group' && onManageMembers && (members?.length || conversation.memberCount) ? (
-          <HeaderMembers members={members ?? []} count={conversation.memberCount ?? members?.length} onManage={() => onManageMembers(conversation)} />
+        {/* MAIR-1253: the size comes from the conversation or the complete member list, never from a sample. */}
+        {conversation.kind === 'group' && onManageMembers && memberTotal ? (
+          <HeaderMembers members={members ?? []} count={memberTotal} onManage={() => onManageMembers(conversation)} />
         ) : null}
         {/* MAIR-1158: calls are not available yet; the buttons are shown disabled with their tooltip. */}
         <HeaderIconButton label={callLabel} tooltip={`${callLabel} · bientôt disponible`} icon={Phone} unavailable />

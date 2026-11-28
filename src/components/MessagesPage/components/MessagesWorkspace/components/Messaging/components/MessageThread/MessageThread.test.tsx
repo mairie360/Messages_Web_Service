@@ -20,6 +20,18 @@ describe('MessageThread', () => {
     expect(screen.getByText('Bonjour').closest('[data-messaging-message-id="m1"]')).not.toBeNull();
     expect(ref.current).toBeInstanceOf(HTMLDivElement);
   });
+
+  it('MAIR-1253 opens a day separator before the first message of each day, then « Nouveaux messages » before the first unread one', () => {
+    const day = (id: string, dayLabel: string) => ({ id, content: `Message ${id}`, direction: 'incoming' as const, dayLabel });
+    const { container } = render(<MessageThread
+      hasConversation conversationKey="c1" unreadIds={['m3', 'm4']} {...threadProps}
+      messages={[day('m1', '28 oct.'), day('m2', '28 oct.'), day('m3', 'Aujourd’hui'), day('m4', 'Aujourd’hui')]}
+    />);
+    const sequence = [...container.querySelectorAll('[data-day-separator], [data-new-messages-separator], [data-messaging-message-id]')]
+      .map(node => node.getAttribute('data-messaging-message-id') ?? (node.hasAttribute('data-day-separator') ? `day:${node.textContent}` : 'new'));
+    expect(sequence).toEqual(['day:28 oct.', 'm1', 'm2', 'day:Aujourd’hui', 'new', 'm3', 'm4']);
+    expect(screen.getByRole('separator', { name: 'Nouveaux messages' })).toBeInTheDocument();
+  });
 });
 
 describe('MessageThread empty states', () => {

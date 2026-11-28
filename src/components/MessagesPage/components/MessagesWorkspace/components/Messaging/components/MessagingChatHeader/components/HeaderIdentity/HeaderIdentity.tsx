@@ -1,4 +1,5 @@
 import { MessagingContactAvatar } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/components/MessagingContactAvatar';
+import { conversationSubtitle } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-model';
 import type { MessagingConversation } from '@/components/MessagesPage/components/MessagesWorkspace/components/Messaging/messaging-types';
 
 const presenceLabel = {
@@ -7,11 +8,13 @@ const presenceLabel = {
   offline: 'Hors ligne',
 };
 
-/** "Department • presence" line under the conversation name. */
+/** Line under the conversation name: « Service · En ligne » for a person, « Groupe · N membres » for a group. */
 export const conversationMeta = (conversation: MessagingConversation) =>
-  [conversation.department, conversation.presence ? presenceLabel[conversation.presence] : undefined]
-    .filter(Boolean)
-    .join(' • ');
+  conversation.kind === 'group'
+    ? conversationSubtitle(conversation) ?? ''
+    : [conversation.department, conversation.presence ? presenceLabel[conversation.presence] : undefined]
+      .filter(Boolean)
+      .join(' · ');
 
 export const HeaderIdentity = ({ conversation }: { conversation: MessagingConversation }) => {
   const meta = conversationMeta(conversation);
@@ -22,6 +25,7 @@ export const HeaderIdentity = ({ conversation }: { conversation: MessagingConver
         src={conversation.avatarUrl}
         initials={conversation.initials}
         presence={conversation.presence}
+        group={conversation.kind === 'group'}
         size="lg"
       />
       <div className="min-w-0">

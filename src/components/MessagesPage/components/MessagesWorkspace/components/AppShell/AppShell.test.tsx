@@ -3,11 +3,15 @@ import '@testing-library/jest-dom/vitest';
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { mairie360LogoSrc } from '@mairie360/lib-components/shell';
-vi.mock('@/lib/auth-session', () => ({ useAuthSession: () => ({ user: { name: 'Agent' }, isAdmin: false }), logoutAndReload: vi.fn() }));
+vi.mock('@/lib/auth-session', async (importOriginal) => ({
+  normalizeAppRole: (await importOriginal<typeof import('@/lib/auth-session')>()).normalizeAppRole,
+  useAuthSession: () => ({ user: { name: 'Agent', role: 'Guest' }, isAdmin: false, loading: true }),
+  logoutAndReload: vi.fn(),
+}));
 vi.mock('@/lib/navigation', () => ({ getActiveFrontHrefs: () => ({ messages: '/', calendar: 'https://calendar.example/' }) }));
 vi.mock('@/lib/front-urls', () => ({ frontUrl: (key: string) => (key === 'LOGIN_FRONT_URL' ? 'https://login.example/' : undefined) }));
 
-import { AppShell, type ShellNotifications } from './AppShell';
+import { AppShell, shellUser, type ShellNotifications } from './AppShell';
 import { ShellInfoProvider } from '@/lib/shell-info-provider';
 
 const navigation = () => {
@@ -17,6 +21,22 @@ const navigation = () => {
 };
 
 describe('AppShell', () => {
+  it('MAIR-1253 shows the agent of the messaging bootstrap (name and role) in the header from the first render', () => {
+    render(<AppShell activeItem="messages" currentUser={{ name: 'Claire Martin', role: 'Responsable', service: 'Urbanisme' }}><p>Contenu</p></AppShell>);
+    const header = document.querySelector('header')!;
+    expect(header).toHaveTextContent('Claire Martin');
+    expect(header).toHaveTextContent('Responsable');
+    expect(header).not.toHaveTextContent('Agent');
+  });
+
+  it('MAIR-1253 falls back to the session read from GET /me without a named bootstrap agent', () => {
+    const session = { user: { name: 'Agent', role: 'User' as const }, role: 'User' as const, isAdmin: false, loading: false, error: null };
+    expect(shellUser(null, session)).toBe(session.user);
+    expect(shellUser({ name: '  ' }, session)).toBe(session.user);
+    expect(shellUser({ name: 'Claire Martin' }, session)).toMatchObject({ name: 'Claire Martin', role: 'User' });
+    expect(shellUser({ name: 'Claire Martin', role: 'admin' }, session).role).toBe('Admin');
+  });
+
   it('binds the session to the shared shell around the messaging content', () => {
     render(<AppShell activeItem="messages"><p>Contenu</p></AppShell>);
     expect(screen.getByText('Contenu')).toBeInTheDocument(); expect(screen.getByRole('main')).toBeInTheDocument();

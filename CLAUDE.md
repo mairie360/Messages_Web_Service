@@ -89,7 +89,7 @@ and agree the mockup first, then code it: the sync direction is Figma → code.
 
 ## Architecture
 
-- **V2 screen (epic MAIR-821)** — lib pin `2.7.0` (recorded in `tests/fixtures/shared-ui-releases.json`), always
+- **V2 screen (epic MAIR-821)** — lib pin `2.10.0` (recorded in `tests/fixtures/shared-ui-releases.json`), always
   light (`layout.tsx` renders `data-theme="light"`, MAIR-933). **Frame (MAIR-838):** `AppShell` passes
   `mainLayout="fill"` to the lib `AccessibleShell` (the lib main area is a bounded flex column with 20px / 24px
   padding) and no class of its own; `src/app/app-shell.css` holds only `.messages-*` module rules
@@ -133,9 +133,9 @@ and agree the mockup first, then code it: the sync direction is Figma → code.
   **List (MAIR-1157):** `SidebarHeader/components/NewConversationMenu/` = lib `ToolTip` (`placement="bottom" align="end"` since lib 2.6.0, so the header never cuts it) + `IconButton` « + » + lib
   `DropdownMenu`; lib 2.3 `DropdownMenu` has no roles nor arrow keys, so `Messaging/use-menu-keyboard.ts` adds them
   (`role="menu"`/`menuitem`, ↑ ↓ Début Fin, Entrée / Espace, Échap / Tab close, focus back to the trigger before a
-  dialog reads its opener). `ConversationSearch` = lib `SearchField`; `MessagingConversationItem` = truncated name /
-  preview, fixed time column, decorative lib `Counter` + sr-only « N messages non lus »; `MessagingContactAvatar` = lib
-  `Avatar` + presence dot. Page tests open the dialogs through the menu (`tests/messages-modal-focus.test.cjs`, e2e).
+  dialog reads its opener). `ConversationSearch` = lib `SearchField`; `MessagingConversationItem` = three columns (avatar · name / service or
+  « Groupe · N membres » / preview · time above the counter), decorative lib `Counter` + sr-only « N messages non lus »; `MessagingContactAvatar` = lib
+  `Avatar` + presence dot (`group` → lib `Icon` « users-round » on a raised disc, MAIR-1253; list item and header pass `kind === 'group'`). Page tests open the dialogs through the menu (`tests/messages-modal-focus.test.cjs`, e2e).
   **Icons (MAIR-1158):** no lucide element is rendered directly in `Messaging/` (`tests/mair-1158-explicit-icons.test.cjs`);
   glyphs come from the lib 2.3 `icons` map (or lucide for the ones it lacks) through `Icon` / `IconButton`.
   `HeaderIconButton` = lib `ToolTip` + `IconButton`, `unavailable` = `aria-disabled` + tooltip « … · bientôt

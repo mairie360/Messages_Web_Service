@@ -34,7 +34,8 @@ export const NewConversationMenu = ({
     <DropdownMenu open={open} onOpenChange={setOpen}>
       {/* Below the button, aligned on its right edge: above, the tooltip was cut by the page header. */}
       <ToolTip text={label} placement="bottom" align="end">
-        <IconButton icon={Plus} label={label} title="" {...triggerProps} />
+        {/* MAIR-1253 (Figma F1): the « + » is an outlined square, like the header actions of the mockup. */}
+        <IconButton icon={Plus} label={label} title="" className="border border-[var(--mairie-control-border)]" {...triggerProps} />
       </ToolTip>
       <DropdownMenuContent align="end" className="w-56" {...menuProps(label)}>
         {onNewMessageClick && (

@@ -91,9 +91,13 @@ async function renderLoadedPage(body = bootstrap(), Component = Page) {
     view.props('Messaging').conversations[0]?.unreadCount === 0);
 }
 
+// MAIR-1253: a bubble shows the time of its message (the day goes to the thread separators); the list shows the
+// time of today's last message and the day of an older one.
 const frenchTime = (value) => new Intl.DateTimeFormat('fr-FR', {
-  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
+  hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
 }).format(new Date(value));
+const { formatConversationTimestamp } = requireSrc('lib/message-timestamps.ts');
+const listTime = (value) => formatConversationTimestamp(value);
 
 for (const status of [403, 503]) {
   test(`an unseen refused thread ${status} is unavailable, never a confirmed empty result`, async () => {
@@ -131,7 +135,7 @@ test('a pending unseen selection retains its recipient draft without exposing it
     ? new Promise(resolve => { release = resolve; }) : original(id));
   const composerCount = view.find('MessagingComposer').filter(instance => !instance.hidden).length;
   const previouslyEnabledSend = view.props('Messaging').onSendMessage;
-  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', {target:{value:'Brouillon conservé'}});
+  await view.fire(props => String(props.placeholder).startsWith('Écrire un message'), 'onChange', {target:{value:'Brouillon conservé'}});
   await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
   try {
     assert.equal(typeof release, 'function');
@@ -139,13 +143,13 @@ test('a pending unseen selection retains its recipient draft without exposing it
     assert.doesNotMatch(view.text(), /Aucun message pour l’instant/);
     assert.equal(view.visibleProps('MessagingComposer').disabled, true);
     assert.equal(view.find('MessagingComposer').filter(instance => !instance.hidden).length, composerCount);
-    assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, '');
+    assert.equal(view.hostElements(props => String(props.placeholder).startsWith('Écrire un message'))[0].props.value, '');
     assert.equal(await previouslyEnabledSend({conversationId:'conversation-4',content:'Ne pas envoyer pendant sélection'}), false);
     assert.equal(messageBff.requests.some(call => call.method !== 'GET'), false);
     await view.act(() => view.props('Messaging').onConversationSelect(conversation(4, 'Équipe communication')));
     await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-4');
     await view.waitFor(() => view.visibleProps('MessagingComposer').disabled === false);
-    assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
+    assert.equal(view.hostElements(props => String(props.placeholder).startsWith('Écrire un message'))[0].props.value, 'Brouillon conservé');
   } finally {
     release?.({ conversation: conversation(5, 'Sophie Leroy'), messages: [] });
   }
@@ -153,13 +157,13 @@ test('a pending unseen selection retains its recipient draft without exposing it
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
   assert.doesNotMatch(view.text(), /Chargement des messages de Sophie Leroy|Aucun message pour l’instant/);
   assert.equal(view.visibleProps('MessagingComposer').disabled, false);
-  assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
+  assert.equal(view.hostElements(props => String(props.placeholder).startsWith('Écrire un message'))[0].props.value, 'Brouillon conservé');
 });
 
 test('a refused already confirmed thread preserves known messages and its draft', async () => {
   await renderLoadedPage();
   await view.settle();
-  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', {target:{value:'Brouillon conservé'}});
+  await view.fire(props => String(props.placeholder).startsWith('Écrire un message'), 'onChange', {target:{value:'Brouillon conservé'}});
   messageBff.on('get', '/conversations/{conversationId}/messages', {
     status: 503, body: apiError('UNAVAILABLE', 'Lecture refusée'), outOfContract: true,
   });
@@ -168,7 +172,7 @@ test('a refused already confirmed thread preserves known messages and its draft'
   assert.match(view.text(), /Bonjour à tous/);
   assert.equal(view.props('Messaging').activeConversationId, 'conversation-4');
   assert.doesNotMatch(view.text(), /Aucun message pour l’instant/);
-  assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
+  assert.equal(view.hostElements(props => String(props.placeholder).startsWith('Écrire un message'))[0].props.value, 'Brouillon conservé');
 });
 
 for (const cause of ['redirect', '401']) {
@@ -369,7 +373,7 @@ test('bootstrap renders French timestamp labels without modifying message text o
   body.messages[0] = message(1, 4, 'Rendez-vous à 9 h 05', users.sophie, { sentAt: timestamp });
   await renderLoadedPage(body);
 
-  assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
+  assert.equal(view.props('Messaging').conversations[0].lastMessageAt, listTime(timestamp));
   assert.equal(view.props('Messaging').messages[0].sentAt, frenchTime(timestamp));
   assert.equal(body.messages[0].content, 'Rendez-vous à 9 h 05');
   assert.match(view.text(), /Sophie Leroy/);
@@ -413,7 +417,7 @@ test('focus refresh formats new timestamps without changing BFF ordering or unre
   await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-10'));
   assert.equal(view.props('Messaging').messages[0].sentAt, frenchTime(timestamp));
   assert.deepEqual(view.props('Messaging').conversations.map(item => item.id), ['conversation-4', 'conversation-6']);
-  assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
+  assert.equal(view.props('Messaging').conversations[0].lastMessageAt, listTime(timestamp));
   assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
 });
 
@@ -431,10 +435,11 @@ test('send keeps user-authored date text and request payload intact, then format
     { content, attachmentIds: [], mentionIds: [] });
   assert.equal(view.props('Messaging').messages.find(item => item.id === 'message-3').sentAt, frenchTime(timestamp));
   assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'POST')[0].body.content, content);
-  assert.match(view.text(), /Agent Mairie \(vous\)/);
+  // MAIR-1253: my own message shows its time only, without an author line.
+  assert.doesNotMatch(view.text(), /\(vous\)/);
   assert.match(view.text(), /Réunion à 9 h 05/);
   assert.equal(view.props('Messaging').conversations[0].lastMessage, content);
-  assert.equal(view.props('Messaging').conversations[0].lastMessageAt, frenchTime(timestamp));
+  assert.equal(view.props('Messaging').conversations[0].lastMessageAt, listTime(timestamp));
 });
 
 // MAIR-512 (the mocked 400 bodies below are contract-valid: the refusal is the BFF's own validation, mocked).
@@ -839,7 +844,7 @@ test('desktop and mobile navigation expose only active modules and keep Settings
     const [mobile] = view.find('Sidebar');
     assert.ok(mobile, 'the mobile drawer renders the shared sidebar');
     assert.deepEqual(mobile.props.items.map(item => item.id),
-      ['dashboard', 'projects', 'messages', 'training', 'calendar', 'admin', 'settings']);
+      ['dashboard', 'projects', 'calendar', 'messages', 'training', 'admin', 'settings']);
     assert.equal(mobile.props.items.find(item => item.id === 'admin').adminOnly, true);
     assert.equal(mobile.props.isAdmin, isAdmin);
     assert.equal(mobile.props.activeItem, 'messages');
@@ -1324,7 +1329,7 @@ test('two-second ticks do not overlap a slow active-thread refresh', async () =>
 
 test('two-second refresh preserves an unsent composer draft and official unread counts', async () => {
   await renderLoadedPage();
-  await view.fire((props, text, tag) => tag === 'input' && props.placeholder === 'Tapez votre message...',
+  await view.fire((props, text, tag) => tag === 'input' && String(props.placeholder).startsWith('Écrire un message'),
     'onChange', { target: { value: 'Brouillon conservé pendant la réception' } });
   messageBff.on('get', '/conversations', { body: { conversations: [
     conversation(4, 'Équipe communication', { unreadCount: 3 }),
@@ -1336,7 +1341,7 @@ test('two-second refresh preserves an unsent composer draft and official unread 
   browser.tickIntervals(2_000);
   await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-13'));
   assert.equal(view.hostElements((props, text, tag) => tag === 'input' &&
-    props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé pendant la réception');
+    String(props.placeholder).startsWith('Écrire un message'))[0].props.value, 'Brouillon conservé pendant la réception');
   assert.equal(view.props('Messaging').conversations[0].unreadCount, 3);
   assert.equal(messageBff.calls('/conversations/{conversationId}/read').length, 0);
   assert.equal(messageBff.calls('/conversations/{conversationId}/messages', 'POST').length, 0);
@@ -1909,7 +1914,7 @@ test('MAIR-370: an unrelated successful receipt must not erase the active compos
   await renderLoadedPage();
   await view.settle();
   const draft = 'Brouillon à conserver avant confirmation';
-  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: draft } });
+  await view.fire(props => String(props.placeholder).startsWith('Écrire un message'), 'onChange', { target: { value: draft } });
   const initial = view.props('Messaging').conversations;
   messageBff.on('post', '/conversations/{conversationId}/messages', swappedModel({
     status: 201, body: {
@@ -1919,14 +1924,14 @@ test('MAIR-370: an unrelated successful receipt must not erase the active compos
   }));
   await view.fire((props, _text, tag) => tag === 'form' && props.role !== 'search', 'onSubmit', { preventDefault() {} });
   await view.waitFor(() => messageBff.calls('/conversations/{conversationId}/messages', 'POST').length === 1 &&
-    view.hostElements(props => props.placeholder === 'Tapez votre message...')[0]?.props.disabled === false);
-  assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, draft,
+    view.hostElements(props => String(props.placeholder).startsWith('Écrire un message'))[0]?.props.disabled === false);
+  assert.equal(view.hostElements(props => String(props.placeholder).startsWith('Écrire un message'))[0].props.value, draft,
     'an HTTP201 for another conversation must not confirm or clear this draft');
   assert.deepEqual(view.props('Messaging').conversations, initial);
 });
 
 const sendPath = '/conversations/{conversationId}/messages';
-const draftInput = () => view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props;
+const draftInput = () => view.hostElements(props => String(props.placeholder).startsWith('Écrire un message'))[0].props;
 // MAIR-1230: the header has its own search form (`role="search"`); the composer form is the other one.
 const submitComposer = () => view.fire((props, _text, tag) => tag === 'form' && props.role !== 'search', 'onSubmit', { preventDefault() {} });
 const unrelatedReceipt = () => swappedModel({ status: 201, body: {
@@ -1936,7 +1941,7 @@ const unrelatedReceipt = () => swappedModel({ status: 201, body: {
 test('MAIR-370: a retry verifies the original receipt by GET and never posts it again', async () => {
   await renderLoadedPage();
   await view.settle();
-  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Brouillon confirmé après lecture' } });
+  await view.fire(props => String(props.placeholder).startsWith('Écrire un message'), 'onChange', { target: { value: 'Brouillon confirmé après lecture' } });
   messageBff.on('post', sendPath, unrelatedReceipt());
   await submitComposer();
   await view.waitFor(() => draftInput().disabled === false && view.text().includes('L’envoi reste à confirmer'));
@@ -1967,11 +1972,11 @@ test('MAIR-370: a missing receipt ID stays unconfirmed through GET-only retries'
 test('MAIR-370: verifying a previous send preserves a changed draft before a new explicit write', async () => {
   await renderLoadedPage();
   await view.settle();
-  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Premier brouillon' } });
+  await view.fire(props => String(props.placeholder).startsWith('Écrire un message'), 'onChange', { target: { value: 'Premier brouillon' } });
   messageBff.on('post', sendPath, unrelatedReceipt());
   await submitComposer();
   await view.waitFor(() => draftInput().disabled === false && view.text().includes('L’envoi reste à confirmer'));
-  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Nouvelle saisie indépendante' } });
+  await view.fire(props => String(props.placeholder).startsWith('Écrire un message'), 'onChange', { target: { value: 'Nouvelle saisie indépendante' } });
   messageBff.on('get', '/conversations/{conversationId}/messages', swappedModel({ body: {
     conversation: conversation(4, 'Équipe communication'), messages: [message(99, 4, 'Premier brouillon')],
   } }));
@@ -2139,7 +2144,7 @@ test('MAIR-370: a late verification cannot restore a deleted conversation', asyn
 test('MAIR-370: a late confirmation for another visited thread preserves the active draft', async t => {
   await renderLoadedPage();
   await view.settle();
-  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Premier fil à confirmer' } });
+  await view.fire(props => String(props.placeholder).startsWith('Écrire un message'), 'onChange', { target: { value: 'Premier fil à confirmer' } });
   messageBff.on('post', sendPath, unrelatedReceipt());
   await submitComposer();
   await view.waitFor(() => draftInput().disabled === false && view.text().includes('L’envoi reste à confirmer'));
@@ -2161,7 +2166,7 @@ test('MAIR-370: a late confirmation for another visited thread preserves the act
     await ready;
     await view.act(() => view.props('Messaging').onConversationSelect(conversation(5, 'Sophie Leroy')));
     await view.waitFor(() => view.props('Messaging').activeConversationId === 'conversation-5' && draftInput().disabled === false);
-    await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Brouillon indépendant du second fil' } });
+    await view.fire(props => String(props.placeholder).startsWith('Écrire un message'), 'onChange', { target: { value: 'Brouillon indépendant du second fil' } });
     release();
     await view.waitFor(() => view.props('Messaging').messages.some(item => item.id === 'message-99' && item.conversationId === 'conversation-4'));
     await view.settle();
@@ -2179,7 +2184,7 @@ async function recoveryCommand(label) {
 test('unconfirmed logout stays visible through polling and focus until the user returns to Login', async () => {
   await renderLoadedPage();
   await view.settle();
-  await view.fire(props => props.placeholder === 'Tapez votre message...', 'onChange', { target: { value: 'Brouillon conservé' } });
+  await view.fire(props => String(props.placeholder).startsWith('Écrire un message'), 'onChange', { target: { value: 'Brouillon conservé' } });
   network.cookies.refreshToken = 'disposable-page-unconfirmed-refresh';
   userBff.on('post', '/auth/logout', { body: { message: 'Unconfirmed', session_revoked: false } });
   await view.act(() => view.props('Header').onLogout());
@@ -2195,7 +2200,7 @@ test('unconfirmed logout stays visible through polling and focus until the user 
   assert.deepEqual(browser.window.location.assigned, []);
   assert.equal(browser.window.location.reloads, 0);
   assert.match(view.text(), /La fermeture de la session serveur n’a pas pu être confirmée/);
-  assert.equal(view.hostElements(props => props.placeholder === 'Tapez votre message...')[0].props.value, 'Brouillon conservé');
+  assert.equal(view.hostElements(props => String(props.placeholder).startsWith('Écrire un message'))[0].props.value, 'Brouillon conservé');
   await recoveryCommand('Retour à la connexion');
   assert.equal(new URL(browser.window.location.assigned[0]).searchParams.get('redirect'), browser.window.location.href);
   assert.equal(userBff.calls('/auth/logout').length, 1);

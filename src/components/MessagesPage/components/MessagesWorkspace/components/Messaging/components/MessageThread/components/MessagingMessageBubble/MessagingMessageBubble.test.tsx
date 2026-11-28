@@ -45,3 +45,20 @@ it('MAIR-1225 overlays the actions on the message: the toolbar is out of the flo
   expect(toolbar.parentElement).toHaveClass('relative');
   expect(container.firstElementChild).toBe(toolbar.parentElement);
 });
+
+it('MAIR-1253 writes the author of a received message on the left: avatar, then name next to the time; mine show the time only', () => {
+  const { container, rerender } = render(<MessagingMessageBubble message={{ id: 4, content: 'Le dossier est prêt', direction: 'incoming', authorId: 'user-7', authorName: 'Marie Dubois', sentAt: '09:12' }} />);
+  const avatar = container.querySelector('[data-message-avatar]')!;
+  expect(avatar).toHaveAttribute('aria-hidden', 'true');
+  expect(avatar).toHaveTextContent('MD');
+  const meta = screen.getByText('09:12', { exact: false });
+  expect(meta).toHaveTextContent('Marie Dubois09:12');
+  expect(screen.getByText('Marie Dubois')).toHaveAttribute('data-message-author', 'user-7');
+  // Avatar, then the column with the author line above the bubble.
+  expect(avatar.compareDocumentPosition(meta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(meta.compareDocumentPosition(screen.getByText('Le dossier est prêt')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  rerender(<MessagingMessageBubble message={{ id: 5, content: 'Merci', direction: 'outgoing', authorId: 'me', authorName: 'Agent Mairie', sentAt: '09:15' }} />);
+  expect(container.querySelector('[data-message-avatar]')).toBeNull();
+  expect(screen.queryByText(/Agent Mairie/)).toBeNull();
+  expect(screen.getByText('09:15')).toHaveClass('self-end');
+});

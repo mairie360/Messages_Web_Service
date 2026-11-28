@@ -75,6 +75,8 @@ export interface MessagingMessage {
   businessLinks?: MessagingBusinessReference[];
   context?: MessagingBusinessReference;
   sentAt?: string;
+  /** Day the message was written (« Aujourd’hui », « 28 oct. »): the thread opens a day separator when it changes. */
+  dayLabel?: string;
   direction?: MessagingMessageDirection;
   authorId?: MessagingContactId;
   authorName?: string;

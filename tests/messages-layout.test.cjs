@@ -46,7 +46,8 @@ function policyDocument(t) {
 test('parsed messaging breakpoint policies retain reference desktop tracks and separate narrow panes', (t) => {
   const { values, last } = policyDocument(t), module = '.messages-module-frame > .messages-module';
   assert.deepEqual(values(module, 'grid-template-columns'), [], 'Only the desktop policy supplies two tracks');
-  assert.equal(compact(last(module, 'grid-template-columns', '(min-width: 1024px)')), '300pxminmax(0,1fr)');
+  // MAIR-1253: the list column of the artifact (320px) keeps full names on one line.
+  assert.equal(compact(last(module, 'grid-template-columns', '(min-width: 1024px)')), '320pxminmax(0,1fr)');
   const narrow = '(max-width: 1023px)';
   assert.equal(last('.messages-pane-switch', 'display', narrow), 'inline-flex');
   assert.equal(last('.messages-module > [data-messaging-sidebar]', 'display', narrow), 'none');
@@ -98,4 +99,11 @@ test('MAIR-1162 only the thread scrolls: the composer and the header keep their 
   const { last } = policyDocument(t);
   assert.equal(last('.messages-module > div:nth-child(2) > :not(.flex-1)', 'flex-shrink'), '0');
   assert.equal(last('.messages-module > div:nth-child(2) > .flex-1', 'overflow-y'), 'auto');
+});
+
+// MAIR-1253 (design-match): without the lib dist in the Tailwind sources, a front utility of the same property could
+// win over a responsive or state variant of a lib component (the Calendars header stacked for that reason).
+test('MAIR-1253 Tailwind scans the lib components so their responsive utilities win', () => {
+  const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '../src/app/globals.css'), 'utf8');
+  assert.match(css, /@source "\.\.\/\.\.\/node_modules\/@mairie360\/lib-components\/dist\/";/);
 });

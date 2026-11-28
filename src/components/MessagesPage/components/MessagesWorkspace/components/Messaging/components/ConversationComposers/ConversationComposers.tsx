@@ -35,6 +35,10 @@ export interface ConversationComposersProps {
   onCancelReply?: (conversationId: MessagingContactId) => void;
 }
 
+/** Placeholder of a conversation's text field: who the message goes to, and what `@` and `#` do. */
+export const composerPlaceholder = (conversationName: string) =>
+  `Écrire un message à ${conversationName}… (@ pour mentionner, # pour lier un élément)`;
+
 // Keep only visited drafts mounted: switching threads must neither move a draft
 // to a different recipient nor discard its pending send, files or references.
 // The account key on this component clears the entire in-memory draft session.
@@ -63,6 +67,7 @@ export const ConversationComposers = ({
           <div key={id} hidden={id !== activeId}>
             <MessagingComposer
               disabled={id !== activeId || !onSendMessage}
+              placeholder={composerPlaceholder(conversation.name)}
               mentionOptions={mentionOptions}
               businessReferenceOptions={businessReferenceOptions}
               onSendMessage={onSendMessage ? (content, attachments, mentions, businessLinks) =>

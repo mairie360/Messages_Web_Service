@@ -41,3 +41,16 @@ it('MAIR-1225 RGAA 9.1: the thread title is an h2 under the page h1, with or wit
   expect(screen.getByRole('heading', { level: 2, name: 'Sélectionnez une conversation' })).toBeVisible();
   expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
 });
+
+it('MAIR-1253 a group header counts members from the conversation or the complete list, never from a sample', () => {
+  const group = { id: 'g', kind: 'group' as const, name: 'Voirie' };
+  const sample = [{ id: 1, name: 'Anne Marie', isAdmin: false }, { id: 2, name: 'Jean Dupont', isAdmin: false }];
+  const { rerender } = render(<MessagingChatHeader conversation={group} members={sample} onManageMembers={vi.fn()} />);
+  expect(screen.queryByRole('button', { name: /membres, gérer les membres/ })).toBeNull();
+  rerender(<MessagingChatHeader conversation={{ ...group, memberIds: [1, 2, 3, 4, 5, 6, 7, 8] }} members={sample} onManageMembers={vi.fn()} />);
+  expect(screen.getByRole('button', { name: '8 membres, gérer les membres' })).toBeInTheDocument();
+  rerender(<MessagingChatHeader conversation={{ ...group, memberCount: 12 }} members={sample} onManageMembers={vi.fn()} />);
+  expect(screen.getByRole('button', { name: '12 membres, gérer les membres' })).toBeInTheDocument();
+  rerender(<MessagingChatHeader conversation={group} members={sample} membersComplete onManageMembers={vi.fn()} />);
+  expect(screen.getByRole('button', { name: '2 membres, gérer les membres' })).toBeInTheDocument();
+});

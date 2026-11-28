@@ -1,4 +1,5 @@
 import type {
+  MessagingMember,
   MessagingAttachment,
   MessagingBusinessReference,
   MessagingContactId,
@@ -8,6 +9,29 @@ import type {
   MessagingSendMessagePayload,
   MessagingSendResult,
 } from './messaging-types';
+
+/** Line under a conversation's name (list item, thread header): the person's service, or « Groupe · N membres » for a group. */
+export const conversationSubtitle = (conversation: MessagingConversation) => {
+  if (conversation.kind === 'group') {
+    const count = Number.isSafeInteger(conversation.memberCount) && (conversation.memberCount ?? 0) > 0 ? conversation.memberCount! : undefined;
+    return count === undefined ? 'Groupe' : `Groupe · ${count} ${count === 1 ? 'membre' : 'membres'}`;
+  }
+  return conversation.department?.trim() || undefined;
+};
+
+/**
+ * People who wrote in a loaded thread, first author first, each once: the avatar pile of a group header before its
+ * members list is read (the conversation itself only carries the number of members).
+ */
+export const threadAuthors = (messages: MessagingMessage[]): MessagingMember[] => {
+  const seen = new Set<string>();
+  return messages.flatMap((message) => {
+    const name = message.authorName?.trim();
+    if (message.kind === 'system' || message.authorId === undefined || !name || seen.has(String(message.authorId))) return [];
+    seen.add(String(message.authorId));
+    return [{ id: message.authorId, name, isAdmin: false }];
+  });
+};
 
 /** Ids come as numbers or strings from the BFF; compare their string form. */
 export const messagingIdsMatch = (

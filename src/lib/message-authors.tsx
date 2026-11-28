@@ -124,9 +124,7 @@ export function presentMessageAuthors(
     const authorName = message.authorName?.trim();
     if (!authorName) return message;
 
-    const outgoing = currentUserId !== undefined && message.authorId !== undefined
-      ? String(message.authorId) === String(currentUserId)
-      : message.direction === "outgoing";
+    // The bubble writes the author (avatar and name) before the time of a received message; mine show no name.
     // A link whose `#title` is not in the text (the project a message was written about) shows as a chip.
     const linkChips: MessagingBusinessReference[] = (message.links ?? [])
       .filter((link) => link.title && !(typeof message.content === "string" && message.content.includes(`#${link.title}`)) &&
@@ -141,11 +139,9 @@ export function presentMessageAuthors(
       ...(businessLinks ? { businessLinks } : {}),
       // MAIR-1167: the raw text stays available (reply excerpt, edit box) once `content` is rendered.
       ...(typeof message.content === "string" ? { text: message.content } : {}),
+      authorName,
       content: (
         <>
-          <span className="mb-1 block break-words text-xs font-semibold" data-message-author={message.authorId}>
-            {authorName}{outgoing ? " (vous)" : ""}
-          </span>
           <span className="whitespace-pre-wrap break-words">
             {renderMentionedContent(
               message.content,
